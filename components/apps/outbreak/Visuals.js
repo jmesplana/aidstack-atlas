@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {zoomView,placeLabels} from '../../../lib/outbreak/mapInteraction';
 import { zoneName, formatValue, epiWeek } from '../../../lib/outbreak/data';
+import styles from './outbreak.module.css';
 
 export function download(name, content, type='text/plain') {
   const url=URL.createObjectURL(new Blob([content],{type}));
@@ -160,8 +161,8 @@ export function HorizontalBars({title,subtitle,rows,unit='people',color='#176f89
   const entries=rows.filter(r=>r.value!==null&&Number.isFinite(r.value)).slice(0,8);
   if(!entries.length)return <div style={{padding:20,border:'1px dashed #cbd8e4',borderRadius:8}}><h3>{title}</h3><p>No comparable observations available. {subtitle}</p></div>;
   const height=135+entries.length*43,max=Math.max(...entries.map(r=>Math.abs(r.value)),.000001);
-  return <div style={{background:'white',border:'1px solid #dce5ed',borderRadius:8,padding:12,minWidth:0}}>
-    <svg ref={ref} viewBox={`0 0 760 ${height}`} role="img" aria-label={title} style={{width:'100%',display:'block'}}>
+  return <div className={styles.chartCard}>
+    <div className={styles.chartViewport} tabIndex={0} role="region" aria-label="Scrollable chart"><svg ref={ref} viewBox={`0 0 760 ${height}`} role="img" aria-label={title} style={{width:'100%',display:'block'}}>
       <rect width="760" height={height} fill="white"/>
       <text x="14" y="28" fontSize="20" fontWeight="bold" fontFamily="sans-serif" fill="#18334b">{title}</text>
       <text x="14" y="51" fontSize="12" fontFamily="sans-serif" fill="#597086">{subtitle?.slice(0,108)}</text>
@@ -177,7 +178,7 @@ export function HorizontalBars({title,subtitle,rows,unit='people',color='#176f89
       })}
       <text x="14" y={height-27} fontSize="11" fontFamily="sans-serif" fill="#597086">{unit} · descending by supplied ranking · exact values shown</text>
       <text x="14" y={height-9} fontSize="9" fontFamily="sans-serif" fill="#597086">Source: {String(source||'Loaded dataset').slice(0,130)}</text>
-    </svg>
+    </svg></div>
     <button type="button" onClick={()=>exportSVG(ref,'outbreak-comparison.svg')}>Export comparison SVG</button>
   </div>;
 }
@@ -197,9 +198,9 @@ export function TrendChart({ records, location, label, unit, kind, asOf, source 
   points.forEach(p=>{if(p.value===null||(previous&&Date.parse(p.date)-Date.parse(previous)>86400000)){if(segment.length)segments.push(segment);segment=[];}if(p.value!==null)segment.push(`${x(p.date)},${y(p.value)}`);previous=p.date;});
   if(segment.length)segments.push(segment);
   const ticks=[...new Set(Array.from({length:6},(_,i)=>Math.round((minDate+(maxDate-minDate)*i/5)/86400000)*86400000))];
-  return <div style={{background:'white',border:'1px solid #dce5ed',borderRadius:8,padding:12,margin:'15px 0'}}>
+  return <div className={`${styles.chartCard} ${styles.trendCard}`}>
     <div data-print-hide="true" style={{display:'flex',gap:8,justifyContent:'flex-end'}}><label>Trend window<select aria-label={`Trend window for ${label}`} value={period} onChange={e=>setPeriod(e.target.value)}><option value="14">Last 14 reporting days</option><option value="42">Last 42 reporting days</option><option value="all">Full available series</option></select></label></div>
-    <svg ref={ref} viewBox="0 0 900 355" role="img" aria-label={`${label} trend for ${location}`} style={{width:'100%',background:'white'}}>
+    <div className={styles.chartViewport} tabIndex={0} role="region" aria-label="Scrollable chart"><svg ref={ref} viewBox="0 0 900 355" role="img" aria-label={`${label} trend for ${location}`} style={{width:'100%',background:'white'}}>
       <rect width="900" height="355" fill="white"/>
       <text x="20" y="29" fontFamily="sans-serif" fontSize="21" fontWeight="bold" fill="#18334b">{label.slice(0,55)} — {location.slice(0,27)}</text>
       <text x="20" y="53" fontFamily="sans-serif" fontSize="13" fill="#597086">{unit} · {kind} · observations through {last} · gaps remain missing</text>
@@ -210,7 +211,7 @@ export function TrendChart({ records, location, label, unit, kind, asOf, source 
       {ticks.map(t=><text key={t} x={x(new Date(t).toISOString().slice(0,10))} y="286" textAnchor="middle" fontSize="12" fontFamily="sans-serif" fill="#597086">{new Date(t).toISOString().slice(5,10)}</text>)}
       <text x="20" y="316" fontSize="12" fontFamily="sans-serif" fill="#597086">{points[0].date} to {last} · reporting cut-off {asOf} · {known.length}/{points.length} non-missing records</text>
       <text x="20" y="341" fontSize="9" fontFamily="sans-serif" fill="#597086">Source: {String(source).slice(0,145)}</text>
-    </svg>
+    </svg></div>
     <button type="button" onClick={()=>exportSVG(ref,'outbreak-trend.svg')}>Export chart SVG</button>
   </div>;
 }
@@ -260,12 +261,12 @@ export function NationalTrendChart({ datasets, asOf, source }) {
   // In-SVG legend: swatch (with the series' dash) + label + latest value + coloured trend arrow.
   const legend=windowed.map(s=>{const t=trendOf(s),latest=s.points.filter(p=>p.value!==null).at(-1);return {s,t,latest,text:`${s.short}  ${latest?formatValue(latest.value):'—'}  ${t.glyph}${t.delta!==null?` ${t.delta>0?'+':''}${formatValue(t.delta)}`:''}`};});
   let lx=20;const legendItems=legend.map(item=>{const width=item.text.length*6.0+34;const node={...item,x:lx,width};lx+=width;return node;});
-  return <div style={{background:'white',border:'1px solid #dce5ed',borderRadius:8,padding:12,margin:'15px 0'}}>
+  return <div className={`${styles.chartCard} ${styles.trendCard}`}>
     <div data-print-hide="true" style={{display:'flex',gap:10,justifyContent:'flex-end',alignItems:'flex-end',flexWrap:'wrap'}}>
       <label>X-axis<select aria-label="National trend x-axis" value={axis} onChange={e=>setAxis(e.target.value)}><option value="date">Calendar dates</option><option value="epiweek">Epi weeks</option></select></label>
       <label>Trend window<select aria-label="National trend window" value={period} onChange={e=>setPeriod(e.target.value)}><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="all">Full series</option></select></label>
     </div>
-    <svg ref={ref} viewBox="0 0 820 340" role="img" aria-label="National cumulative indicators trend" style={{width:'100%',background:'white'}} onMouseMove={hover} onMouseLeave={()=>setHoverDate(null)}>
+    <div className={styles.chartViewport} tabIndex={0} role="region" aria-label="Scrollable chart"><svg ref={ref} viewBox="0 0 820 340" role="img" aria-label="National cumulative indicators trend" style={{width:'100%',background:'white'}} onMouseMove={hover} onMouseLeave={()=>setHoverDate(null)}>
       <rect width="820" height="340" fill="white"/>
       <text x="20" y="26" fontFamily="sans-serif" fontSize="18" fontWeight="bold" fill="#18334b">National indicators over time</text>
       <text x="20" y="46" fontFamily="sans-serif" fontSize="12" fill="#597086">Reported cumulative people · through {axis==='epiweek'?epiWeek(last).label:last} · cut-off {asOf} · {axis==='epiweek'?'epi weeks (ISO-8601)':'calendar dates'} · gaps left missing</text>
@@ -284,7 +285,7 @@ export function NationalTrendChart({ datasets, asOf, source }) {
       {ticks.map(t=><text key={t} x={x(new Date(t).toISOString().slice(0,10))} y={PLOT_BOTTOM+22} textAnchor="middle" fontSize="11" fontFamily="sans-serif" fill="#8195a6">{tickLabel(t)}</text>)}
       {hoverDate&&(()=>{const rows=windowed.map(s=>({s,p:s.points.find(q=>q.date===hoverDate)})).filter(r=>r.p&&r.p.value!==null);const bw=155,bh=20+rows.length*17,bx=Math.min(650,Math.max(10,hx+10)),by=PLOT_TOP+2;return <g pointerEvents="none"><rect x={bx} y={by} width={bw} height={bh} rx="5" fill="white" stroke="#cddce7"/><text x={bx+10} y={by+15} fontSize="11" fontWeight="700" fontFamily="sans-serif" fill="#28435b">{hoverLabel(hoverDate)}</text>{rows.map((r,i)=><g key={r.s.key}><line x1={bx+10} y1={by+24+i*17-3} x2={bx+22} y2={by+24+i*17-3} stroke={r.s.color} strokeWidth="3" strokeDasharray={r.s.dash}/><text x={bx+28} y={by+24+i*17} fontSize="11" fontFamily="sans-serif" fill="#3f5468">{r.s.short}: {formatValue(r.p.value)}</text></g>)}</g>;})()}
       <text x="20" y="322" fontSize="9" fontFamily="sans-serif" fill="#8195a6">Source: {String(source||'National reported series').slice(0,150)} · Rising cumulative totals reflect additional reports, not onset timing.</text>
-    </svg>
+    </svg></div>
     <button type="button" onClick={()=>exportSVG(ref,'national-indicators.svg')}>Export chart SVG</button>
   </div>;
 }

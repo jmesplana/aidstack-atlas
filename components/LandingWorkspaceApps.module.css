@@ -1,0 +1,18 @@
+.section{padding:64px 20px;background:#f1f6f9;scroll-margin-top:100px;color:#1a365d}
+.inner{max-width:1200px;margin:0 auto}
+.heading{display:flex;justify-content:space-between;align-items:center;gap:32px;margin-bottom:28px}
+.heading>div{max-width:780px}
+.eyebrow{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#087f6a}
+.heading h2{font-family:'Space Grotesk',sans-serif;font-size:clamp(28px,3vw,40px);line-height:1.2;margin:12px 0 16px;letter-spacing:-.02em}
+.section p{font-size:15px;line-height:1.65;margin:0;color:#475569}
+.cta{display:inline-flex;align-items:center;justify-content:center;gap:10px;flex-shrink:0;padding:12px 18px;background:#1a365d;color:white;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600}
+.cta:hover{background:#2d5a7b}.cta:focus-visible{outline:3px solid #ff6b35;outline-offset:4px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.card{background:white;border:1px solid #d5e0e8;border-radius:10px;padding:24px;min-width:0;display:flex;flex-direction:column}
+.cardHeading{display:flex;align-items:center;gap:12px;margin-bottom:12px}.cardHeading svg{color:#087f6a;flex-shrink:0}
+.section h3{font-family:'Space Grotesk',sans-serif;font-size:20px;line-height:1.3;margin:0}
+.card ul{font-size:14px;line-height:1.65;color:#334155;padding-left:20px;margin:16px 0 20px}.card li+li{margin-top:8px}
+.card .note{border-top:1px solid #e2e8f0;padding-top:12px;margin-top:auto;font-size:12px;color:#52657b}
+.extension{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:32px;padding:24px 0 0;margin-top:24px;border-top:1px solid #cddae3}
+.extension h3{font-size:18px;margin-bottom:8px}.extension .storage{font-size:13px}
+@media(max-width:760px){.section{padding:40px 16px}.heading{flex-direction:column;align-items:flex-start;gap:20px}.grid,.extension{grid-template-columns:minmax(0,1fr)}.card{padding:20px}.extension{gap:16px}}

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import LandingWorkspaceApps from './LandingWorkspaceApps';
 
 const LandingPage = () => {
   const [openFaq, setOpenFaq] = useState(null);
@@ -253,7 +254,7 @@ const LandingPage = () => {
           position: 'relative',
           zIndex: 1,
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))',
           gap: '60px',
           alignItems: 'center'
         }}>
@@ -314,7 +315,7 @@ const LandingPage = () => {
               marginBottom: '32px',
               maxWidth: '540px'
             }}>
-              Upload administrative boundaries, select the admin areas that matter, and combine live disasters, outbreak reports, conflict data, population, OSM infrastructure, and Earth Engine hazard context in one auditable workspace.
+              Monitor disasters, outbreaks and access constraints in one map workspace. Open focused apps to plan immunization sessions, track outbreak response, and turn your data into source-linked briefings.
             </p>
             <div style={{
               display: 'inline-flex',
@@ -343,8 +344,9 @@ const LandingPage = () => {
               }}>
                 Evidence-Gated
               </span>
-              <span>Forecast, operational outlook, and prioritization only score hazards when the required evidence layers are enabled. Every result includes drivers, sources, and limitations for review.</span>
+              <span>Forecast, outlook and prioritization show the evidence behind hazard scores. Workspace apps keep plans, source dates and response decisions available for review.</span>
             </div>
+            <a href="#workspace-apps" style={{ display: 'inline-block', color: '#FFD2BF', marginBottom: '24px', fontWeight: 600 }}>Explore workspace apps →</a>
             <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginBottom: '40px' }}>
               <Link href="/app">
                 <button style={{
@@ -897,6 +899,8 @@ const LandingPage = () => {
         </div>
       </section>
 
+      <LandingWorkspaceApps />
+
       {/* Video Demo Section */}
       <section style={{
         padding: '80px 20px',
@@ -1275,11 +1279,11 @@ const LandingPage = () => {
             color: '#1A365D',
             marginBottom: '60px'
           }}>
-            From Disaster Alert to Action Plan in Minutes
+            From Situation Awareness to Response Planning
           </h2>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
             gap: '40px'
           }}>
             {/* Benefit 1 */}
@@ -1419,7 +1423,7 @@ const LandingPage = () => {
       </section>
 
       {/* Advanced Features Section */}
-      <section style={{
+      <section id="features" style={{
         padding: '100px 20px',
         background: 'linear-gradient(135deg, #1A365D 0%, #2D5A7B 100%)',
         position: 'relative',
@@ -1468,13 +1472,13 @@ const LandingPage = () => {
               margin: '0 auto',
               lineHeight: '1.7'
             }}>
-              From uploaded administrative boundaries to auditable hazard scoring, the workspace keeps forecast, outlook, and prioritization aligned on the same evidence.
+              Combine map-based monitoring and admin-area analysis with workspace apps for immunization planning, outbreak evidence, response actions and briefings.
             </p>
           </div>
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
             gap: '28px'
           }}>
             {[
@@ -1655,35 +1659,35 @@ const LandingPage = () => {
               {
                 title: 'Persistent Workspace Storage',
                 icon: <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>,
-                description: 'IndexedDB-powered client-side workspace restore for low-connectivity environments',
+                description: 'Keep loaded map context, app plans and outbreak snapshots in your browser workspace',
                 features: [
-                  'Store 50MB+ of operational data locally',
+                  'Save app plans and outbreak snapshots on this device',
                   'Districts, WorldPop, OSM, and ACLED cached automatically',
                   'Storage statistics dashboard with clear controls',
                   'Restores loaded context after refresh',
-                  'Reduces repeated data loading in remote environments'
+                  'Reopen saved work in the same browser and workspace'
                 ]
               },
               {
-                title: 'Error Boundary Protection',
+                title: 'Outbreak Evidence & Response Tracking',
                 icon: <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>,
-                description: 'Enterprise-grade error handling prevents data loss from component crashes',
+                description: 'Review dated observations, source coverage and response decisions in the Outbreak Response app',
                 features: [
-                  'React Error Boundary catches unhandled errors',
-                  'Preserves user data during crashes',
-                  'Friendly reload prompts',
-                  'Production-grade reliability'
+                  'National and area-level trends kept separate',
+                  'Data coverage and missing-source prompts',
+                  'Response indicators and coordinator actions',
+                  'Snapshot comparisons and reviewed briefings'
                 ]
               },
               {
                 title: 'Export & Reporting',
                 icon: <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>,
-                description: 'Generate decision briefs and operation-readiness reports',
+                description: 'Export map assessments, app plans and outbreak briefings for operational review',
                 features: [
-                  'HTML/PDF export',
-                  'Individual site briefs',
-                  'System-wide readiness reports',
-                  'Situation report workspace'
+                  'Outbreak HTML, Markdown and print-to-PDF briefings',
+                  'SVG maps/charts and evidence JSON',
+                  'Immunization planning workbooks and JSON backups',
+                  'Site decision briefs and situation reports'
                 ]
               }
             ].map((feature, idx) => (
@@ -1764,7 +1768,7 @@ const LandingPage = () => {
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))',
             gap: '60px',
             alignItems: 'center'
           }}>
@@ -1803,7 +1807,7 @@ const LandingPage = () => {
                 color: '#475569',
                 marginBottom: '32px'
               }}>
-                Aidstack Disasters consolidates global disaster data, outbreak reports, admin-area evidence, infrastructure context, and AI decision support in one visual interface so operators can move from raw signals to reviewable judgments faster.
+                Aidstack Disasters connects map-based monitoring, admin-area evidence and AI decision support with focused workspace apps. Teams can assess exposure, build immunization session plans, track outbreak response and export briefings from the same workspace.
               </p>
               <div style={{
                 display: 'grid',
@@ -1862,7 +1866,7 @@ const LandingPage = () => {
       </section>
 
       {/* Operational Use Cases Section */}
-      <section style={{
+      <section id="use-cases" style={{
         padding: '100px 20px',
         background: 'linear-gradient(180deg, #F8FAFC 0%, white 100%)'
       }}>
@@ -1899,21 +1903,21 @@ const LandingPage = () => {
               margin: '0 auto',
               lineHeight: '1.7'
             }}>
-              Use the same admin-area evidence workflow across crisis response, public health, access, logistics, and field program planning without switching tools.
+              Use the map for shared operational context, then open workspace apps for detailed immunization planning and outbreak response.
             </p>
           </div>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 350px), 1fr))',
             gap: '28px'
           }}>
             {[
               {
                 title: 'Immunization Campaigns',
                 icon: <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2l4 4M7.5 12.5l-4 4M4.5 16.5L2 19l3 3 2.5-2.5M9 6l6 6M16.5 7.5l3-3L22 7l-3 3"/><path d="M7 7l9 9"/></svg>,
-                description: 'Assess campaign feasibility with admin boundaries, site data, conflict exposure, population context, and operation-specific decision rules',
-                features: ['Campaign site assessment', 'Conflict exposure review', 'Catch-up prioritization', 'Population-at-risk context'],
-                example: 'Prioritize selected admin areas where campaign sites overlap recent hazards or uploaded conflict events'
+                description: 'Build an immunization plan from settlement data and uploaded boundaries, with coverage gaps, session allocations and resource estimates',
+                features: ['Coverage and settlement gaps', 'Session dates, teams and delivery', 'Dose and team-day estimates', 'Scenario copies and planning workbooks'],
+                example: 'Allocate children to sessions, review team capacity and export a workbook with source data and assumptions'
               },
               {
                 title: 'Cholera/OCV Response',
@@ -1937,11 +1941,11 @@ const LandingPage = () => {
                 example: 'Review which selected admin areas have logistics gaps before a forecast or current hazard escalates'
               },
               {
-                title: 'Disease Surveillance',
+                title: 'Outbreak Response',
                 icon: <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#FF6B35" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
-                description: 'Map WHO outbreak reports alongside admin boundaries, hazards, population, and site data for rapid response planning',
-                features: ['WHO outbreak report mapping', 'Admin-area exposure review', 'Population context', 'Rapid response prioritization'],
-                example: 'Review outbreak reports near selected admin areas and generate a sitrep for coordination'
+                description: 'Open the Outbreak Response app to combine aggregate case trends, mobility context and dated operational indicators with a response plan',
+                features: ['Aggregate data imports and source dates', 'Area trends and mobility connections', 'Response indicators and assigned actions', 'Saved snapshots and leadership briefings'],
+                example: 'Review changes since a saved snapshot, assign response actions and export a source-linked coordination briefing'
               },
               {
                 title: 'Multi-Sector Assessment',
@@ -2122,7 +2126,7 @@ const LandingPage = () => {
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
             gap: '24px',
             marginBottom: '60px'
           }}>
@@ -2216,7 +2220,7 @@ const LandingPage = () => {
             </h3>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
               gap: '32px'
             }}>
               {[
@@ -2346,7 +2350,7 @@ const LandingPage = () => {
           </h2>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
             gap: '32px'
           }}>
             {[
@@ -2405,7 +2409,7 @@ const LandingPage = () => {
       </section>
 
       {/* How It Works Section */}
-      <section style={{
+      <section id="how-it-works" style={{
         padding: '80px 20px',
         background: 'white'
       }}>
@@ -2441,16 +2445,16 @@ const LandingPage = () => {
                 description: 'Choose the admin areas that matter, then load sites, WorldPop population, OSM infrastructure, optional hazard context overlays, and nighttime lights when needed'
               },
               {
-                title: 'Enable Evidence Layers Before Forecasting',
-                description: 'Turn on Flood Context, Drought Context, or Nighttime Lights when needed so the workspace can use loaded evidence instead of guessing from forecast or map context alone'
+                title: 'Choose Your Analysis or Workspace App',
+                description: 'Use forecast, outlook and prioritization with the required evidence layers, or open Apps on the map to install and launch Immunization planning or Outbreak Response'
               },
               {
-                title: 'Review Forecast, Outlook, and Prioritization',
-                description: 'Use the shared admin-level analysis pipeline to compare hazard drivers, read the Operational Outlook, and rank selected admin areas in the Prioritization Board'
+                title: 'Build and Review Your Plan',
+                description: 'Import the data your app needs. Review coverage gaps and session resources, or outbreak trends, source dates and response actions. Add owners and operational assumptions before briefing your team'
               },
               {
-                title: 'Export and Brief Stakeholders',
-                description: 'Use the map, annotations, and decision outputs together to produce evidence-based briefings and reviewable recommendations for coordination and planning'
+                title: 'Save, Export and Brief Your Team',
+                description: 'Save plans or outbreak snapshots in this browser workspace. Export a planning workbook or a source-linked outbreak briefing, with charts and maps for review and coordination'
               }
             ].map((step, idx) => (
               <div key={idx} style={{
@@ -2529,7 +2533,7 @@ const LandingPage = () => {
           </h2>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
             gap: '32px'
           }}>
             {/* GDACS */}
@@ -2818,6 +2822,18 @@ const LandingPage = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {[
               {
+                question: 'What is the App Hub and how do I open it?',
+                answer: 'Launch the workspace and select Apps on the map. Install and open the included Immunization planning or Outbreak Response app. Each app uses the workspace data it needs and saves its plans separately. Immunization planning requires uploaded administrative boundaries; Outbreak Response can start with tables and trends before you add boundaries for maps.'
+              },
+              {
+                question: 'Can I add my own workspace app?',
+                answer: 'Yes. In Workspace apps, choose Add app and upload a compatible app ZIP. Review the author, version, requested access and required data, then confirm installation. The hub includes a downloadable example. Installed apps and saved plans stay in this browser and workspace; disabling an app retains its plans.'
+              },
+              {
+                question: 'Can Outbreak Response work with my own data?',
+                answer: 'Yes. Start a new outbreak and import aggregate CSV, Excel or flat JSON data, then map the location, reporting date, value, units and measure type. You can also upload movement connections and operational indicators, or use the DRC public-source preset. Connected sources refresh when the app opens, while uploaded data must be replaced manually. Saved snapshots keep their recorded observations until you refresh. Export a reviewed briefing as HTML or Markdown, print to PDF, or export evidence JSON and individual SVG visuals.'
+              },
+              {
                 question: 'What is the Operational Outlook feature?',
                 answer: 'Operational Outlook is the narrative decision layer. It explains what is changing in the selected admin areas, why those areas matter, what evidence was used, and what operational implications follow from the shared hazard analysis.'
               },
@@ -2867,7 +2883,7 @@ const LandingPage = () => {
               },
               {
                 question: 'Is my data stored on servers?',
-                answer: 'Uploaded site data, admin boundaries, selected districts, WorldPop summaries, OSM data, and uploaded ACLED events are cached locally in your browser for workspace restore. There is no app database storing your workspace on the server. When using AI features, the relevant context is temporarily sent to OpenAI for analysis, and drawings are stored in browser local storage.'
+                answer: 'Uploaded site data, admin boundaries, selected districts, WorldPop summaries, OSM data, and uploaded ACLED events are cached locally in your browser for workspace restore. App installations, immunization plans and outbreak snapshots also stay in this browser and workspace; they do not automatically sync to other devices. Export the files you need to keep or share. There is no app database storing your workspace on the server. When using AI features, the relevant context is temporarily sent to OpenAI for analysis, and drawings are stored in browser local storage.'
               },
               {
                 question: 'How do flood and drought context layers work?',
@@ -2882,6 +2898,8 @@ const LandingPage = () => {
               }}>
                 <button
                   onClick={() => toggleFaq(idx)}
+                  aria-expanded={openFaq === idx}
+                  aria-controls={`landing-faq-${idx}`}
                   style={{
                     width: '100%',
                     padding: '20px 24px',
@@ -2905,7 +2923,7 @@ const LandingPage = () => {
                   </span>
                 </button>
                 {openFaq === idx && (
-                  <div style={{
+                  <div id={`landing-faq-${idx}`} style={{
                     padding: '20px 24px',
                     color: '#475569',
                     fontSize: '16px',
@@ -2935,14 +2953,14 @@ const LandingPage = () => {
             color: '#1A365D',
             marginBottom: '16px'
           }}>
-            Ready to Transform Your Disaster Response?
+            Ready to Build Your Response Workspace?
           </h2>
           <p style={{
             fontSize: '18px',
             color: '#475569',
             marginBottom: '40px'
           }}>
-            Start monitoring global disasters and protecting your sites today
+            Monitor the situation, open a workspace app, and turn your data into a plan your team can review.
           </p>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/app">
@@ -3003,7 +3021,7 @@ const LandingPage = () => {
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
             gap: '40px',
             marginBottom: '40px'
           }}>

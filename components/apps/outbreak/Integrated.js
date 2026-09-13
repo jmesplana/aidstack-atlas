@@ -13,8 +13,8 @@ export function IntegratedCharts({ epi,mining,security,geometry,boundaryLevel,as
       <div className={styles.chartGrid}>
         <HorizontalBars title="Largest reported burdens" subtitle={`Cumulative cases · ${epi.date}`} rows={epi.burden} source={epi.dataset.source||epi.dataset.url} onSelect={onSelect}/>
         <HorizontalBars title="Largest seven-day changes" subtitle={`${epi.baseline} → ${epi.date} · cumulative changes, not new infections`} rows={epi.growth.map(z=>({...z,value:z.delta}))} color="#e87b42" source={epi.dataset.source||epi.dataset.url} onSelect={onSelect} valueLabel={r=>`${r.value>0?'+':''}${formatValue(r.value)}`}/>
-      </div>
       {epi.provinces.length>0&&<HorizontalBars title="Burden by grouping area" subtitle="Sum of matched area records; incomplete baselines have no growth percentage" rows={epi.provinces} color="#276d82" source={`${epi.dataset.source||epi.dataset.url}; uploaded grouping field`} valueLabel={r=>`${formatValue(r.value)}${r.percent!==null?` (${r.percent>0?'+':''}${r.percent.toFixed(1)}%)`:''}`}/>}
+      </div>
       <p className={styles.scope}>{epi.missing} missing case values on {epi.date}; {epi.absent} previously observed areas have no record on that date. {epi.unmatched} area names unmatched to the uploaded boundaries. Reported cumulative changes can include backlogs and revisions.</p>
     </>:<div className={styles.panel}><h3>Automatic epidemiological insights</h3><p>Map a cumulative confirmed-case indicator in Data & uploads, or choose a source preset. Burden and comparable-period rankings will then be generated automatically. Operational indicators remain available below.</p></div>}
     {(mining||security)&&<div className={styles.chartGrid}>

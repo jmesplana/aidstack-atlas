@@ -14,8 +14,15 @@
 .header { padding: 14px 20px; border-bottom: 1px solid #dae2df; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .titleRow, .actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .muted { color: #63736d; font-size: 12px; }
-.catalog { padding: 24px; overflow: auto; }
-.appCard { border: 1px solid #d2ded9; border-radius: 6px; padding: 20px; max-width: 420px; }
+.catalog { padding: 20px; overflow: auto; min-height: 0; flex: 1; }
+.appGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; margin-top: 18px; }
+.appCard { border: 1px solid #d2ded9; border-radius: 6px; padding: 16px; min-width: 0; overflow-wrap: anywhere; }
+.appGrid .appCard { display: flex; flex-direction: column; gap: 8px; }
+.appCardTitle { display: flex; align-items: center; gap: 10px; }
+.appCardTitle svg { flex-shrink: 0; }
+.appCardTitle h2 { margin: 0; font-size: 16px; line-height: 1.35; }
+.appGrid .appCard p { margin: 0; line-height: 1.5; }
+.appCardActions { margin-top: auto; padding-top: 6px; }
 .workspace { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .toolbar { padding: 10px 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid #dae2df; }
 .toolbar select { max-width: 260px; }
@@ -51,6 +58,8 @@
   .shell h1 { font-size: 18px; }
   .header .muted { display: none; }
   .body { padding: 12px; }
+  .catalog { padding: 12px; }
+  .appGrid { gap: 12px; }
   .form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .split { grid-template-columns: minmax(0, 1fr); }
   .map { height: 240px; }

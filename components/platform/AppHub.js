@@ -123,23 +123,27 @@ export default function AppHub({ districts, facilities, acledData = [], disaster
           <button disabled={saving} onClick={() => setPendingPackage(null)}>Cancel</button>
         </section>}
         {!districts.length && <p role="status">No administrative boundaries loaded. Apps without boundary requirements can still be used.</p>}
+        <div className={styles.appGrid}>
         {catalog.map((app) => {
           const missing = missingAppData(app, { districts, facilities });
           const unavailable = !APP_COMPONENTS[app.id] && !packages.some((pkg) => pkg.manifest.id === app.id);
           return <article key={app.id} className={styles.appCard}>
-          <Boxes size={28} color="#087f6a" />
-          <h2>{app.name}</h2>
+          <div className={styles.appCardTitle}>
+            <Boxes size={22} color="#087f6a" aria-hidden="true" />
+            <h2>{app.name}</h2>
+          </div>
           <p>{app.description}</p>
           <p className={styles.muted}>By {app.author}</p>
           <p className={styles.muted}>Version {app.version} · {enabled.includes(app.id) ? 'Enabled in this workspace' : 'Not installed'}</p>
           {!!missing.length && <p role="status">Requires: {missing.map((value) => value.replaceAll('-', ' ')).join(', ')}.</p>}
           {unavailable && <p role="status">This app is unavailable in this release.</p>}
-          <div className={styles.actions}>
+          <div className={`${styles.actions} ${styles.appCardActions}`}>
             <button disabled={!ready || saving || (!enabled.includes(app.id) && (unavailable || !!missing.length))} onClick={() => toggleApp(app.id)}>{enabled.includes(app.id) ? <Trash2 size={16} /> : <Download size={16} />}{enabled.includes(app.id) ? 'Disable app' : 'Install app'}</button>
             {enabled.includes(app.id) && <button disabled={!ready || saving || unavailable || !!missing.length} className={styles.primary} onClick={() => setActive(app.id)}>Open <ArrowUpRight size={16} /></button>}
           </div>
           {enabled.includes(app.id) && <p className={styles.muted}>Saved plans are retained when this app is disabled.</p>}
         </article>; })}
+        </div>
       </div> : <AppBoundary key={`${workspaceId}:${active}`}>
         {activePackage ? <InstalledAppFrame pkg={activePackage} workspaceId={workspaceId} districts={districts} facilities={facilities} acledData={acledData} disasters={disasters} storage={storage} leaveGuard={leaveGuard} /> : ActiveApp ? <ActiveApp onOpenWorkspace={()=>requestLeave(onClose)} disasters={activeApp.capabilities.includes('read:disasters')?disasters:[]} storage={activeApp.capabilities.includes('write:plans') ? storage : undefined} workspaceId={workspaceId} districts={activeApp.capabilities.includes('read:boundaries') ? districts : []} facilities={activeApp.capabilities.includes('read:sites') ? facilities : []} acledData={activeApp.capabilities.includes('read:security') ? acledData : []} leaveGuard={leaveGuard} /> : <p role="alert">This app is unavailable. Return to Apps.</p>}
       </AppBoundary>}

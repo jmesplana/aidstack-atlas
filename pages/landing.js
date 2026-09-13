@@ -4,8 +4,8 @@ import LandingPage from '../components/LandingPage';
 export default function Landing() {
   const siteUrl = 'https://disasters.aidstack.ai';
   const title = 'Aidstack Disasters - Geospatial Operational Intelligence';
-  const description = 'Admin-area operational intelligence from uploaded boundary shapefiles. Combine GDACS disasters, WHO outbreak reports, uploaded ACLED events, WorldPop, OSM infrastructure, Earth Engine hazard context, and temporal trend analysis in one auditable workspace for crisis response, public health, field operations, forecast, outlook, prioritization, and sitrep workflows.';
-  const keywords = 'geospatial operational intelligence, crisis response, public health operations, field operations, humanitarian technology, disaster response, GDACS, WHO outbreaks, ACLED CSV upload, WorldPop, Google Earth Engine, admin boundary analysis, prioritization board, operational outlook, situation report, emergency response platform, conflict mapping, population data, OSM infrastructure, logistics assessment, trend analysis, temporal patterns';
+  const description = 'Monitor disasters and outbreaks, then open workspace apps for immunization planning, response tracking and source-linked briefings. Bring your data, save plans and export results with Aidstack Disasters.';
+  const keywords = 'workspace apps, app hub, immunization session planning, outbreak response, response indicators, leadership briefings, geospatial operational intelligence, crisis response, public health operations, field operations, humanitarian technology, disaster response, GDACS, WHO outbreaks, ACLED CSV upload, WorldPop, Google Earth Engine, admin boundary analysis, prioritization board, operational outlook, situation report, emergency response platform, conflict mapping, population data, OSM infrastructure, logistics assessment, trend analysis, temporal patterns';
 
   return (
     <>
@@ -13,7 +13,7 @@ export default function Landing() {
         {/* Primary Meta Tags */}
         <title>{title}</title>
         <meta name="title" content={title} />
-        <meta name="description" content={description} />
+        <meta name="description" content={description} key="description" />
         <meta name="keywords" content={keywords} />
         <meta name="author" content="Aidstack" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -69,6 +69,12 @@ export default function Landing() {
                 url: 'https://aidstack.ai'
               },
               featureList: [
+                'Workspace App Hub with compatible ZIP app installation',
+                'Immunization coverage, session planning and resource estimates',
+                'Outbreak aggregate data imports, trends and mobility context',
+                'Response indicators, coordinator actions and source-linked briefings',
+                'Browser-local app plans and outbreak snapshots',
+                'Planning workbook, briefing and SVG visual exports',
                 'Real-time GDACS disaster monitoring',
                 'WHO outbreak report mapping',
                 'Uploaded ACLED conflict event tracking',

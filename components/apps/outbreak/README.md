@@ -195,9 +195,16 @@ https://github.com/INRB-UMIE/BDBV2026-Data
 
 ## Interaction and briefing design
 
-The Situation view opens with a key message above the data controls. A deterministic
-summary includes dated case changes and supported receiving-area, mining and access
-review prompts. These describe reported evidence, not a transmission forecast.
+The Situation view opens with a key message above the data controls. The same
+message leads the briefing: overall reported trend, geographic priorities with
+province context where mapped, then up to two supported operational actions.
+Weekly direction requires all 14 daily observations in a single case source;
+partial area coverage is stated, and separate sources are never pooled. Without
+that basis, cumulative changes are labelled as changes in reported totals, with
+downward revisions and missing comparisons distinguished from improvement.
+Highest cumulative burden and largest recent increase are separate priorities.
+Receiving-area, mining and access prompts describe reported evidence, not a
+transmission forecast; further suggestions remain in the detailed briefing.
 Coordinators can edit the message in place or in Briefing; their saved wording takes
 precedence until cleared. The same message appears in the briefing and HTML/PDF and
 Markdown exports. Missing evidence has an explicit setup message. Coordinator text

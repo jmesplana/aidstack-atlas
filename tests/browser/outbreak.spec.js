@@ -3,6 +3,42 @@ const { readFileSync } = require('node:fs');
 const XLSX = require('xlsx');
 
 const areas=[{id:'A',name:'A',properties:{nom:'A'},geometry:{type:'Polygon',coordinates:[[[29,1],[30,1],[30,2],[29,2],[29,1]]]}}];
+test('key message leads with weekly trend, then province focus, and retains that flow in exports',async({page},testInfo)=>{
+  const cutOff='2026-09-11';
+  const datasets=[
+    {id:'area-cases',metricId:'cumulative_confirmed_cases',purpose:'cases',label:'Area confirmed cases',unit:'people',kind:'cumulative',level:'health_zone',status:'ready',source:'Fixture cases',records:[{location:'A',date:'2026-09-04',value:12},{location:'A',date:cutOff,value:20}]},
+    {id:'national-daily',metricId:'national_new_confirmed_cases',purpose:'cases',label:'Reported confirmed cases',unit:'cases',kind:'daily',level:'national',status:'ready',source:'Fixture national reports',records:Array.from({length:14},(_,i)=>({location:'Country',date:new Date(Date.parse(cutOff)-i*86400000).toISOString().slice(0,10),value:i<7?2:4}))}
+  ];
+  await openOutbreak(page,[{...areas[0],properties:{nom:'A',province:'Province B'}}],route=>{
+    const kind=new URL(route.request().url()).searchParams.get('kind');
+    return route.fulfill({json:kind==='indicators'?{datasets}:kind==='mines'?{data:[],url:'https://example.test/mines'}:kind==='relocations'?{routes:[],start:'2026-08-01',end:'2026-08-31',unit:'people',source:'Fixture'}:{products:[]}});
+  });
+  await page.getByLabel('Reporting cut-off',{exact:true}).fill(cutOff);
+  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByLabel('Optional public source preset').selectOption('drc');
+  await expect(page.getByRole('button',{name:'Refresh data',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'Situation',exact:true}).click();
+  const key=page.getByRole('region',{name:'Key message',exact:true});
+  await expect(key.locator(':scope > p').nth(0)).toContainText('decreased: 14 versus 28 cases');
+  await expect(key.locator(':scope > p').nth(1)).toContainText('Province B — A (+8)');
+  await expect(key.locator(':scope > p').nth(2)).toContainText('review case investigations');
+  const wording=(await key.locator(':scope > p').allTextContents()).join('\n\n');
+  await page.getByRole('button',{name:'Briefing',exact:true}).click();
+  await expect(key.locator(':scope > p').nth(0)).toContainText('decreased: 14 versus 28 cases');
+  for(const [button,format] of [['Export briefing Markdown','md'],['Export briefing HTML with visuals','html']]) {
+    const downloadPromise=page.waitForEvent('download');
+    await page.getByRole('button',{name:button,exact:true}).click();
+    const download=await downloadPromise;
+    const file=testInfo.outputPath(`trend-first.${format}`);
+    await download.saveAs(file);
+    const contents=readFileSync(file,'utf8');
+    expect(contents.indexOf('decreased: 14 versus 28 cases')).toBeLessThan(contents.indexOf('Province B — A (+8)'));
+    if(format==='md')expect(contents).toContain(wording);
+  }
+  await page.getByLabel('Bottom line for decision-makers',{exact:false}).fill('Coordinator decision: confirm staffing.');
+  await expect(key.locator(':scope > p')).toHaveCount(1);
+  await expect(key.locator(':scope > p')).toHaveText('Coordinator decision: confirm staffing.');
+});
 test('uploaded mining history and case replacements survive refresh and saved snapshots',async({page})=>{
   const sourceId='insp:cumulative_confirmed_cases';
   const seed=[{...areas[0],properties:{nom:'A',insp_sitrep:{cumulative_confirmed_cases:{_date:'2026-09-08',cumulative_confirmed_cases:3}}}}];

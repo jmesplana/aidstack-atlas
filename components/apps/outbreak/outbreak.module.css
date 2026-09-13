@@ -1,6 +1,6 @@
 .app{color:#18324b;background:#f4f7fa;padding:28px;overflow:auto;height:100%;min-height:450px;font-family:Arial,sans-serif;line-height:1.5}
 .fieldset{border:0;margin:0;padding:0;min-width:0}
-.chartGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:18px;margin:20px 0}
+.chartGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,590px),1fr));gap:16px;margin:16px 0;align-items:start}
 .insightIntro{margin:28px 0 12px}.insightIntro h3{font-size:22px;margin-bottom:4px}.insightIntro p{color:#587187;font-size:14px;margin-top:4px}
 .insightCards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin:18px 0}.insightCards article{background:#163c56;color:white;padding:20px;border-radius:8px}.insightCards span,.insightCards small{display:block;font-size:12px}.insightCards strong{display:block;font-size:34px;margin:8px 0}.insightCards small{color:#c9dce8}.printOnly{display:none}
 .header{display:flex;justify-content:space-between;align-items:center;gap:20px;border-bottom:1px solid #d5e0eb;padding-bottom:20px;margin-bottom:20px}
@@ -37,3 +37,11 @@
 .app button.selectedProposal:disabled{background:#eaf5f1;color:#195e46;border-color:#23785d;opacity:1;cursor:default}
 .proposalStatus{display:block;font-size:12px;color:#536c81;margin-top:6px}
 @media(max-width:700px){.keyMessage{padding:16px}.keyMessage p{font-size:15px}}
+
+.chartCard{background:white;border:1px solid #dce5ed;border-radius:8px;padding:12px;min-width:0;overflow:hidden}
+.chartViewport{overflow-x:auto;max-width:100%;margin-bottom:10px}
+.chartViewport:focus-visible{outline:3px solid #e88b51;outline-offset:2px}
+.chartViewport svg{display:block;width:100%;min-width:560px;max-width:760px;max-height:360px;margin:0 auto}
+.trendCard{margin:16px 0}
+.trendCard .chartViewport svg{min-width:640px;max-width:900px}
+@media print{.chartViewport{overflow:visible}.chartViewport svg,.trendCard .chartViewport svg{min-width:0;max-width:100%}.chartCard{break-inside:avoid}}
