@@ -22,7 +22,11 @@ test('key message leads with weekly trend, then province focus, and retains that
   await expect(key.locator(':scope > p').nth(0)).toContainText('decreased: 14 versus 28 cases');
   await expect(key.locator(':scope > p').nth(1)).toContainText('Province B — A (+8)');
   await expect(key.locator(':scope > p').nth(2)).toContainText('review case investigations');
+  // Attribution is one condensed line; full coverage stays available behind the disclosure.
+  await expect(key.locator(':scope > small').first()).toContainText('Fixture national reports');
   const evidence=key.getByRole('group',{name:'Key message evidence'});
+  await expect(evidence).not.toBeVisible();
+  await key.getByText('Evidence and coverage',{exact:true}).click();
   await expect(evidence).toContainText('Source: Fixture national reports');
   await expect(evidence).toContainText('Coverage: 1/1 national series have all 14 daily observations');
   await expect(evidence).toContainText('Area priorities: Area confirmed cases');
@@ -84,6 +88,7 @@ test('response gaps remain unavailable and cumulative revisions stay neutral in 
   const file=testInfo.outputPath('neutral-revision.svg');await download.saveAs(file);
   expect(readFileSync(file,'utf8')).toContain('revision, not improvement');
   await page.getByRole('button',{name:'Briefing',exact:true}).click();
+  await page.getByText('Evidence and coverage',{exact:true}).click();
   await expect(page.getByRole('group',{name:'Key message evidence'})).toContainText('Case register');
   await page.setViewportSize({width:390,height:844});
   const key=page.getByRole('region',{name:'Key message',exact:true});

@@ -238,10 +238,13 @@ downward revisions and missing comparisons distinguished from improvement.
 Highest cumulative burden and largest recent increase are separate priorities.
 Receiving-area, mining and access prompts describe reported evidence, not a
 transmission forecast; further suggestions remain in the detailed briefing.
-An evidence line below the generated message names the case source, reporting
-period and comparison coverage. National trend and local priority sources remain
-separate when different datasets supply them. These details are retained in
-HTML/PDF and Markdown exports. Coordinator-written messages are identified as
+A single condensed line below the generated message names the source hosts and the
+reporting period, so attribution is present without crowding out the message. Full
+details — dataset label, complete URL, period and comparison coverage — open from
+an "Evidence and coverage" disclosure beneath it. National trend and local priority
+sources remain separate when different datasets supply them. The expanded details
+are force-opened in HTML/PDF exports and written in full to Markdown exports, so
+nothing is lost by collapsing them on screen. Coordinator-written messages are identified as
 such and do not receive automatic source attribution. The mobility-indicator
 evidence item carries the same attribution — source, date basis, reporting
 coverage and units — because it is the claim most open to being read as a
