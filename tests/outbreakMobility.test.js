@@ -10,6 +10,38 @@ test('OD direction, missingness, duplicates and period guards',async()=>{
  assert.deepEqual(districtRoutes(data,'Alpha','outflow','2026-04-01'),[]);
  assert.throws(()=>normalizeRoutes([{o:'A',d:'B',v:1},{o:'A',d:'B',v:2}],{origin:'o',destination:'d',value:'v'}),/Duplicate/);
 });
+test('mobility summary states exclusion explicitly and ranks only links from reporting areas',async()=>{
+ const {mobilitySummary}=await lib;
+ const epi={date:'2026-09-01',affected:[{location:'Alpha',value:10},{location:'Beta',value:4}]};
+ const data={routes:[{origin:'Alpha',destination:'Gamma',value:20},{origin:'Alpha',destination:'Delta',value:5},
+   {origin:'Zeta',destination:'Gamma',value:99},{origin:'Alpha',destination:'Alpha',value:50},{origin:'Beta',destination:'Eta',value:null}],
+   start:'2026-03-01',end:'2026-04-30',unit:'estimated relocations',source:'https://example.org/od.csv'};
+
+ assert.equal(mobilitySummary(null,epi,'2026-09-01').state,'none');
+
+ // A period after the cut-off is excluded, and says so rather than reporting a date.
+ const after=mobilitySummary({...data,end:'2026-12-01'},epi,'2026-09-01');
+ assert.equal(after.state,'after-cutoff');
+ assert.deepEqual(after.links,[]);
+ assert.match(after.note,/after this reporting cut-off/);
+
+ assert.equal(mobilitySummary({...data,end:'not-a-date'},epi,'2026-09-01').state,'undated');
+ assert.equal(mobilitySummary(data,null,'2026-09-01').state,'no-cases');
+
+ const summary=mobilitySummary(data,epi,'2026-09-01');
+ assert.equal(summary.state,'links');
+ // Only links originating in a reporting area; self-links, missing values and
+ // non-reporting origins (Zeta, the largest value) are all excluded.
+ assert.deepEqual(summary.links.map(r=>[r.origin,r.destination,r.value]),[['Alpha','Gamma',20],['Alpha','Delta',5]]);
+ assert.match(summary.note,/does not identify infected travellers/);
+ assert.equal(summary.basis.period,'2026-03-01–2026-04-30');
+ assert.equal(summary.basis.url,'https://example.org/od.csv');
+
+ // No positive link from a reporting area is distinct from having no data at all.
+ const none=mobilitySummary({...data,routes:[{origin:'Zeta',destination:'Gamma',value:99}]},epi,'2026-09-01');
+ assert.equal(none.state,'no-links');
+ assert.deepEqual(none.links,[]);
+});
 test('focus reasons are derived from loaded evidence without inferring infection',async()=>{
  const {focusAreas}=await lib;
  const epi={date:'2026-09-01',burden:[{location:'Alpha',value:10}],growth:[{location:'Beta',delta:3}],affected:[{location:'Alpha'}]};

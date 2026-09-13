@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {zoomView,placeLabels} from '../../../lib/outbreak/mapInteraction';
 import { zoneName, formatValue, epiWeek } from '../../../lib/outbreak/data';
 import styles from './outbreak.module.css';
+import { deltaPresentation } from '../../../lib/outbreak/response';
 
 export function download(name, content, type='text/plain') {
   const url=URL.createObjectURL(new Blob([content],{type}));
@@ -233,7 +234,7 @@ export function NationalTrendChart({ datasets, asOf, source }) {
     if(!dataset)return null;
     const location=dataset.records.find(r=>r.date<=asOf)?.location;
     const points=dataset.records.filter(r=>r.location===location&&r.date<=asOf).sort((a,b)=>a.date.localeCompare(b.date));
-    return points.length?{...def,label:dataset.label,points}:null;
+    return points.length?{...def,label:dataset.label,kind:dataset.kind,points}:null;
   }).filter(Boolean),[datasets,asOf]);
   if(series.length<2)return null;
   const allDates=[...new Set(series.flatMap(s=>s.points.map(p=>p.date)))].sort();
@@ -252,7 +253,7 @@ export function NationalTrendChart({ datasets, asOf, source }) {
   const hoverLabel=d=>axis==='epiweek'?epiWeek(d).label:d;
   // Trend of each series across the visible window: compare first and last non-missing values.
   // Rising is adverse for every series except recoveries, where more is better.
-  const trendOf=s=>{const known=s.points.filter(p=>p.value!==null);if(known.length<2)return {glyph:'▬',delta:null,color:'#5f7488'};const d=known.at(-1).value-known[0].value;const good=s.key==='recoveries';const adverse=d>0?!good:good;return {glyph:d>0?'▲':d<0?'▼':'▬',delta:d,color:d===0?'#5f7488':adverse?'#c43b30':'#1f8a5b'};};
+  const trendOf=s=>{const known=s.points.filter(p=>p.value!==null);const delta=known.length<2?null:known.at(-1).value-known[0].value;const presentation=deltaPresentation(delta,{kind:s.kind,rising:s.key!=='recoveries'});return {...presentation,delta,color:{neutral:'#5f7488',adverse:'#c43b30',good:'#1f8a5b'}[presentation.tone]};};
   // Connect the line across date gaps; break only where a value is actually missing (null).
   const segmentsFor=s=>{const segs=[];let seg=[];s.points.forEach(p=>{if(p.value===null){if(seg.length)segs.push(seg);seg=[];}else seg.push([x(p.date),y(p.value)]);});if(seg.length)segs.push(seg);return segs;};
   const nearest=frac=>{const t=minDate+frac*span;return dates.reduce((best,d)=>Math.abs(Date.parse(d)-t)<Math.abs(Date.parse(best)-t)?d:best,dates[0]);};
@@ -269,7 +270,7 @@ export function NationalTrendChart({ datasets, asOf, source }) {
     <div className={styles.chartViewport} tabIndex={0} role="region" aria-label="Scrollable chart"><svg ref={ref} viewBox="0 0 820 340" role="img" aria-label="National cumulative indicators trend" style={{width:'100%',background:'white'}} onMouseMove={hover} onMouseLeave={()=>setHoverDate(null)}>
       <rect width="820" height="340" fill="white"/>
       <text x="20" y="26" fontFamily="sans-serif" fontSize="18" fontWeight="bold" fill="#18334b">National indicators over time</text>
-      <text x="20" y="46" fontFamily="sans-serif" fontSize="12" fill="#597086">Reported cumulative people · through {axis==='epiweek'?epiWeek(last).label:last} · cut-off {asOf} · {axis==='epiweek'?'epi weeks (ISO-8601)':'calendar dates'} · gaps left missing</text>
+      <text x="20" y="46" fontFamily="sans-serif" fontSize="12" fill="#597086">Reported indicators · through {axis==='epiweek'?epiWeek(last).label:last} · cut-off {asOf} · {axis==='epiweek'?'epi weeks (ISO-8601)':'calendar dates'} · ↺ revision, not improvement</text>
       <g aria-label="Legend">{legendItems.map(item=><g key={item.s.key}><line x1={item.x} y1="72" x2={item.x+24} y2="72" stroke={item.s.color} strokeWidth="3" strokeDasharray={item.s.dash} strokeLinecap="round"/><text x={item.x+30} y="76" fontFamily="sans-serif" fontSize="12" fill="#28435b"><tspan fontWeight="700">{item.s.short}</tspan><tspan fill="#4a6076" dx="5">{item.latest?formatValue(item.latest.value):'—'}</tspan><tspan fill={item.t.color} fontWeight="700" dx="5">{item.t.glyph}{item.t.delta!==null?` ${item.t.delta>0?'+':''}${formatValue(item.t.delta)}`:''}</tspan></text></g>)}</g>
       <line x1="20" y1="88" x2="800" y2="88" stroke="#eef2f6" strokeWidth="1"/>
       {[0,.25,.5,.75,1].map(n=><g key={n}><line x1="92" x2="782" y1={y(n*max)} y2={y(n*max)} stroke="#eef2f6" strokeWidth="1"/><text x="84" y={y(n*max)+4} textAnchor="end" fontSize="11" fontFamily="sans-serif" fill="#8195a6">{formatValue(Number((n*max).toPrecision(3)))}</text></g>)}

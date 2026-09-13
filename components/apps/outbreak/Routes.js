@@ -17,7 +17,7 @@ export function RouteUpload({onImport,current}) {
     {!!raw.length&&<><div className={styles.controls}>{Object.keys(mapping).map(key=><label key={key}>Mobility {key} column<select value={mapping[key]} onChange={e=>setMapping({...mapping,[key]:e.target.value})}><option value="">Choose column</option>{Object.keys(raw[0]).map(k=><option key={k}>{k}</option>)}</select></label>)}<label>Mobility period start<input type="date" value={start} onChange={e=>setStart(e.target.value)}/></label><label>Mobility period end<input type="date" value={end} onChange={e=>setEnd(e.target.value)}/></label><label>Mobility units<input value={unit} onChange={e=>setUnit(e.target.value)} placeholder="e.g. estimated relocations"/></label></div><button onClick={()=>{try{if(!validDate(start)||!validDate(end)||start>end||!unit.trim())throw new Error('Supply a valid observation period and source units.');const routes=normalizeRoutes(raw,mapping);onImport({origin:'upload',mapping,routes,start,end,unit:unit.trim(),source:file,limitation:'User-supplied OD observations. Coverage and definitions require source review.'});setRaw([]);setError('');}catch(e){setError(e.message);}}}>Import mobility routes</button></>}{error&&<p role="alert">{error}</p>}
   </div>;
 }
-export default function Routes({data,onLoad,loading,error,epi,security,geometry,boundaryLevel,asOf,selected,onSelect,direction='outflow',onDirection=()=>{},limit='10',onLimit=()=>{},showFocus=true,briefing=false,overlays}) {
+export default function Routes({data,onLoad,loading,error,epi,security,geometry,boundaryLevel,asOf,selected,onSelect,direction='outflow',onDirection=()=>{},limit='10',onLimit=()=>{},showFocus=true,briefing=false,overlays,layerCount=0,onLayers}) {
   const focus=useMemo(()=>focusAreas(epi,security,data,asOf),[epi,security,data,asOf]);
   const area=selected||focus[0]?.name||data?.routes[0]?.origin||'';
   const routes=useMemo(()=>districtRoutes(data,area,direction,asOf),[data,area,direction,asOf]);
@@ -31,7 +31,8 @@ export default function Routes({data,onLoad,loading,error,epi,security,geometry,
     {!focus.length&&<p>Load area-level confirmed cases to generate burden and growth priorities. Mobility connections can still be explored independently.</p>}
     </>}
     {!briefing&&<button disabled={loading} onClick={onLoad}>{loading?'Loading relocation matrix…':data?'Refresh Flowminder relocation matrix':'Load Flowminder relocation matrix (DRC source)'}</button>}{error&&<p role="alert">{error}</p>}
-    {!data?<p>Upload an origin–destination CSV in Data & uploads, or load the source matrix. GeoJSON cohort destination percentages alone cannot identify individual origin–destination routes.</p>:<>
+    {!data?<><p>Upload an origin–destination CSV in Data & uploads, or load the source matrix. GeoJSON cohort destination percentages alone cannot identify individual origin–destination routes.</p>
+      {layerCount>0&&<p role="status">{layerCount} mobility {layerCount===1?'indicator was':'indicators were'} detected in the uploaded GeoJSON. {onLayers&&<button type="button" onClick={onLayers}>View mobility indicators</button>} These are area values, not origin–destination routes.</p>}</>:<>
       <p><strong>Mobility observation period: {data.start}–{data.end}</strong> · {data.unit}. <span>Source: {data.source}</span></p><p>{data.limitation}</p>
       {data.end>asOf?<p role="status">Mobility period is after the reporting cut-off; connections are hidden.</p>:<>
       <p>These connections describe the mobility observation period, not necessarily current movement. Imported infections cannot be classified without case investigation or travel-history evidence. Outbound connections indicate places to assess for surveillance readiness, not infected travellers.</p>

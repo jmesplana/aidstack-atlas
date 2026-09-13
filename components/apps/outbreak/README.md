@@ -116,9 +116,21 @@ facility locations do not imply verified response capacity. Upload dated respons
 indicators; the sample provincial footprint is not a computed data source.
 
 The Situation view opens with an overall snapshot, trends, areas to review and
-suggested actions. Detail maps, mobility controls and observation tables live in
-an expandable area explorer. Recommendations are deterministic evidence-based
+suggested actions, followed by movement connections and mobility indicators as a
+top-level section. Indicator trends, observation tables and the indicator map live
+in an expandable area explorer. Recommendations are deterministic evidence-based
 review prompts with observation periods, and can be added to the response plan.
+
+The snapshot's mobility cell names the largest reported connections originating in
+areas reporting cases, with the observation period and units, rather than only a
+date. Self-links, missing values and links from areas without reported cases are
+excluded. One deterministic summary drives the snapshot cell, the freshness bar and
+the panel, so a period after the reporting cut-off is reported as excluded in all
+three rather than appearing as an available observation date in one. Loaded data
+with no valid period, and data whose positive links do not originate in a reporting
+area, are distinguished from having no data at all. Where only GeoJSON mobility
+indicators are present, the connections panel says so and links to them; area values
+are never presented as origin–destination routes.
 
 When two or more national series are loaded (confirmed cases, deaths, recoveries,
 suspected-in-isolation), the Trends panel shows a single multi-series line chart
@@ -136,6 +148,10 @@ two series it falls back to the single-series area/national trend chart.
 Overall-snapshot cards and the briefing narrative carry the same direction cues:
 a change is shown with an arrow and colour (adverse red, favourable green, no
 comparable basis neutral) so the trend is legible at a glance.
+Cumulative decreases use a neutral revision symbol (↺), including cards, snapshot
+comparisons and exported SVG legends. They are never styled as improvement.
+Which direction is favourable is resolved from the metric identifier where the
+source supplies one, falling back to the dataset label for uploaded series.
 
 ## Response status and leadership briefing
 
@@ -155,6 +171,23 @@ to be a backlog: safe-burial completion needs both a "requested"/"reported" and 
 occupancy needs "occupied"/"beds", and exceeding 100% is flagged as Attention.
 Targets (e.g. 95% follow-up) are shown alongside the value. Missing values are
 never zero and no status is asserted for a pillar without loaded indicators.
+
+Rates require exactly one distinct numerator and denominator source, recognised
+count units, matching geographic levels and measure types, and non-missing
+observations for the same area on the latest reporting date. Only matched areas
+enter a rate; the date and matched/available coverage are displayed. Ambiguous,
+missing, zero-denominator or incompatible inputs show insufficient comparable
+data. The existing label-based rules and thresholds remain in use.
+
+Response indicators remain separate, including their units and observation dates.
+Seven-day changes include only areas with both observations; new reporting areas
+do not inflate the change. Snapshot comparisons match source ID, indicator
+definition, units, measure type and geography. Response changes show matched
+areas, newly reporting areas and missing baselines separately, with neutral
+direction cues rather than interpreting every additional count as improvement.
+Because each response indicator is compared separately, Since last brief collapses
+the per-indicator lines behind a disclosure once there are more than six. No line
+is ever dropped: print and HTML/PDF exports always list every indicator in full.
 
 The Briefing opens with an optional coordinator-written Bottom line for
 decision-makers (never AI-generated), a Since last brief block that diffs the
@@ -205,6 +238,14 @@ downward revisions and missing comparisons distinguished from improvement.
 Highest cumulative burden and largest recent increase are separate priorities.
 Receiving-area, mining and access prompts describe reported evidence, not a
 transmission forecast; further suggestions remain in the detailed briefing.
+An evidence line below the generated message names the case source, reporting
+period and comparison coverage. National trend and local priority sources remain
+separate when different datasets supply them. These details are retained in
+HTML/PDF and Markdown exports. Coordinator-written messages are identified as
+such and do not receive automatic source attribution. The mobility-indicator
+evidence item carries the same attribution — source, date basis, reporting
+coverage and units — because it is the claim most open to being read as a
+transmission finding.
 Coordinators can edit the message in place or in Briefing; their saved wording takes
 precedence until cleared. The same message appears in the briefing and HTML/PDF and
 Markdown exports. Missing evidence has an explicit setup message. Coordinator text

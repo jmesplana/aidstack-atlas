@@ -12,7 +12,7 @@ export default function ResponseStatus({ datasets, actions = [], asOf, onData, b
     <div className={styles.pillarGrid}>
       {status.pillars.map(p => <article key={p.id} className={p.loaded ? styles[`pillar_${p.level}`] : styles.pillar_none}>
         <strong>{p.label}</strong>
-        <span className={styles.pillarBadge}>{p.loaded ? LEVEL_LABEL[p.level] : 'No data'}{p.loaded && p.delta !== null && p.delta !== undefined ? <> · <Delta delta={p.delta} rising={false} /></> : null}</span>
+        <span className={styles.pillarBadge}>{p.loaded ? LEVEL_LABEL[p.level] : 'No data'}{p.loaded && p.delta !== null && p.delta !== undefined ? <> · <Delta delta={p.delta} kind={p.indicators[0]?.kind} neutral /></> : null}</span>
         <p>{p.note}</p>
       </article>)}
     </div>

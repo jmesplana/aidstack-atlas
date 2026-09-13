@@ -22,6 +22,10 @@ test('key message leads with weekly trend, then province focus, and retains that
   await expect(key.locator(':scope > p').nth(0)).toContainText('decreased: 14 versus 28 cases');
   await expect(key.locator(':scope > p').nth(1)).toContainText('Province B — A (+8)');
   await expect(key.locator(':scope > p').nth(2)).toContainText('review case investigations');
+  const evidence=key.getByRole('group',{name:'Key message evidence'});
+  await expect(evidence).toContainText('Source: Fixture national reports');
+  await expect(evidence).toContainText('Coverage: 1/1 national series have all 14 daily observations');
+  await expect(evidence).toContainText('Area priorities: Area confirmed cases');
   const wording=(await key.locator(':scope > p').allTextContents()).join('\n\n');
   await page.getByRole('button',{name:'Briefing',exact:true}).click();
   await expect(key.locator(':scope > p').nth(0)).toContainText('decreased: 14 versus 28 cases');
@@ -33,11 +37,59 @@ test('key message leads with weekly trend, then province focus, and retains that
     await download.saveAs(file);
     const contents=readFileSync(file,'utf8');
     expect(contents.indexOf('decreased: 14 versus 28 cases')).toBeLessThan(contents.indexOf('Province B — A (+8)'));
+    expect(contents).toContain('Fixture national reports');
+    expect(contents).toContain('1/1 national series have all 14 daily observations');
     if(format==='md')expect(contents).toContain(wording);
   }
   await page.getByLabel('Bottom line for decision-makers',{exact:false}).fill('Coordinator decision: confirm staffing.');
   await expect(key.locator(':scope > p')).toHaveCount(1);
   await expect(key.locator(':scope > p')).toHaveText('Coordinator decision: confirm staffing.');
+  await expect(evidence).toHaveCount(0);
+});
+
+test('response gaps remain unavailable and cumulative revisions stay neutral in cards and exported charts',async({page},testInfo)=>{
+  const cutOff='2026-09-08';
+  const indicator=(id,label,category,records)=>({id,label,category,level:'health_zone',kind:'snapshot',unit:'count',status:'ready',records});
+  const datasets=[
+    {id:'national-deaths',metricId:'national_cumulative_confirmed_deaths',label:'National cumulative confirmed deaths',unit:'people',kind:'cumulative',level:'national',status:'ready',records:[{location:'Country',date:'2026-09-01',value:2},{location:'Country',date:cutOff,value:2}]},
+    {id:'national-cases',metricId:'national_cumulative_confirmed_cases',label:'National cumulative confirmed cases',unit:'people',kind:'cumulative',level:'national',status:'ready',source:'Case register',records:[{location:'Country',date:'2026-09-01',value:100},{location:'Country',date:cutOff,value:90}]},
+    indicator('requested','Burials requested','sdb',[{location:'A',date:cutOff,value:100}]),
+    indicator('completed','Burials completed','sdb',[{location:'A',date:cutOff,value:null}]),
+    indicator('engagement','Engagement sessions','rcce',[{location:'A',date:'2026-09-01',value:10},{location:'A',date:cutOff,value:10},{location:'B',date:cutOff,value:100}])
+  ];
+  await openOutbreak(page,areas,route=>{
+    const kind=new URL(route.request().url()).searchParams.get('kind');
+    return route.fulfill({json:kind==='indicators'?{datasets}:kind==='mines'?{data:[],url:'https://example.test/mines'}:kind==='relocations'?{routes:[],start:'2026-08-01',end:'2026-08-31',unit:'people',source:'Fixture'}:{products:[]}});
+  });
+  await page.getByLabel('Reporting cut-off',{exact:true}).fill(cutOff);
+  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByLabel('Optional public source preset').selectOption('drc');
+  await expect(page.getByRole('button',{name:'Refresh data',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'Situation',exact:true}).click();
+  const revision=page.getByRole('region',{name:'Overall snapshot'}).getByText('-10 (revision)',{exact:false});
+  await expect(revision).toBeVisible();
+  await expect(revision).toHaveCSS('color','rgb(95, 116, 136)');
+  const status=page.getByRole('region',{name:'Response status'});
+  const sdb=status.locator('article').filter({hasText:'Safe & dignified burial'});
+  await expect(sdb).toContainText('insufficient comparable data');
+  await expect(sdb).not.toContainText('0%');
+  await expect(status.locator('article').filter({hasText:'Community engagement'})).toContainText('+0 over seven days across 1 matched areas only');
+  const chart=page.getByRole('img',{name:'National cumulative indicators trend'});
+  const legend=chart.getByLabel('Legend');
+  await expect(legend.locator('tspan').filter({hasText:'↺'})).toHaveAttribute('fill','#5f7488');
+  await expect(chart).toContainText('revision, not improvement');
+  const downloadPromise=page.waitForEvent('download');
+  await page.getByRole('region',{name:'Trends'}).getByRole('button',{name:'Export chart SVG',exact:true}).click();
+  const download=await downloadPromise;
+  const file=testInfo.outputPath('neutral-revision.svg');await download.saveAs(file);
+  expect(readFileSync(file,'utf8')).toContain('revision, not improvement');
+  await page.getByRole('button',{name:'Briefing',exact:true}).click();
+  await expect(page.getByRole('group',{name:'Key message evidence'})).toContainText('Case register');
+  await page.setViewportSize({width:390,height:844});
+  const key=page.getByRole('region',{name:'Key message',exact:true});
+  await key.scrollIntoViewIfNeeded();
+  expect(await key.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+  await key.screenshot({path:testInfo.outputPath('key-message-evidence-mobile.png')});
 });
 test('uploaded mining history and case replacements survive refresh and saved snapshots',async({page})=>{
   const sourceId='insp:cumulative_confirmed_cases';
@@ -108,7 +160,11 @@ test('mobility maps share IPIS and ACLED toggles through directions, briefing, e
     return route.fulfill({json:data});
   },[event,{...event,event_id:'old-event',event_date:'2020-01-01'}]);
   await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-08');
-  await page.getByText('Explore an area',{exact:true}).click();
+  // The largest connection from a reporting area is named in the snapshot, not just dated.
+  const snapshotPanel=page.getByRole('region',{name:'Overall snapshot',exact:true});
+  await expect(snapshotPanel).toContainText('A → B');
+  await expect(snapshotPanel).toContainText('20 estimated relocations');
+  // Movement connections and mobility indicators are top-level in Situation, not behind a disclosure.
   const controls=page.getByRole('group',{name:'Overlays for Outflow from A',exact:true});
   await expect(controls.getByRole('checkbox',{name:'IPIS mining sites',exact:true})).toBeEnabled();
   await controls.getByRole('checkbox',{name:'IPIS mining sites',exact:true}).check();
@@ -121,7 +177,6 @@ test('mobility maps share IPIS and ACLED toggles through directions, briefing, e
   const inflow=page.getByRole('img',{name:'Inflow to A map',exact:true});
   await expect(inflow.locator('[data-ipis-site]')).toHaveCount(1);
   await expect(inflow.locator('[data-acled-event]')).toHaveCount(0);
-  await page.getByText('Additional comparisons and mobility indicators',{exact:true}).click();
   const cohort=page.getByRole('group',{name:/Overlays for Outflow —/});
   await expect(cohort.getByRole('checkbox',{name:'IPIS mining sites',exact:true})).toBeChecked();
   await cohort.getByRole('checkbox',{name:'ACLED security events',exact:true}).check();

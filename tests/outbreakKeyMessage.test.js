@@ -89,3 +89,28 @@ test('reported zero is distinct from missing evidence, including national-only d
   const dataset={id:'cases',metricId:'national_cumulative_confirmed_cases',status:'ready',level:'national',kind:'cumulative',records:[{location:'DRC',date:'2026-09-08',value:0},{location:'DRC',date:'2026-09-20',value:90}]};
   assert.match(keyMessage({asOf,datasets:[dataset]}).text,/0 cumulative confirmed cases.*2026-09-08/);
 });
+
+test('key-message evidence follows the source actually used, with separate area coverage',()=>{
+  const dataset={...daily(),source:'National reporting team',url:'https://example.test/national'};
+  const local={...epi,dataset:{id:'areas',label:'Local cases',source:'Uploaded district file'},zones:[{location:'Origin'},{location:'Missing'}],absent:1};
+  const message=keyMessage({asOf,datasets:[dataset],epi:local});
+  assert.equal(message.basis.length,2);
+  assert.equal(message.basis[0].sourceId,'daily');
+  assert.equal(message.basis[0].url,'https://example.test/national');
+  assert.match(message.basis[0].coverage,/1\/1 national series have all 14 daily observations/);
+  assert.match(message.basis[0].period,/2026-09-05–2026-09-11/);
+  assert.equal(message.basis[1].role,'Area priorities');
+  assert.match(message.basis[1].coverage,/1\/2 areas.*1 previously reporting areas absent/);
+  const fallback=keyMessage({asOf,epi:local,datasets:[{...dataset,records:dataset.records.slice(1)}]});
+  assert.equal(fallback.basis.length,1);
+  assert.equal(fallback.basis[0].sourceId,'areas');
+  assert.equal(fallback.basis[0].role,'Trend and area priorities');
+});
+
+test('incomplete source coverage remains visible without assigning evidence to coordinator text',()=>{
+  const dataset={...daily(),records:daily().records.slice(1),source:'Uploaded file'};
+  const message=keyMessage({asOf,datasets:[dataset]});
+  assert.match(message.text,/not enough case evidence/);
+  assert.match(message.basis[0].coverage,/0\/1 national series/);
+  assert.equal(keyMessage({asOf,datasets:[dataset],override:'Local judgement.'}).basis,undefined);
+});
