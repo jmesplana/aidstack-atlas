@@ -3,9 +3,9 @@ import LandingPage from '../components/LandingPage';
 
 export default function Landing() {
   const siteUrl = 'https://disasters.aidstack.ai';
-  const title = 'Aidstack Disasters - Geospatial Operational Intelligence';
-  const description = 'Monitor disasters and outbreaks, then open workspace apps for immunization planning, response tracking and source-linked briefings. Bring your data, save plans and export results with Aidstack Disasters.';
-  const keywords = 'workspace apps, app hub, immunization session planning, outbreak response, response indicators, leadership briefings, geospatial operational intelligence, crisis response, public health operations, field operations, humanitarian technology, disaster response, GDACS, WHO outbreaks, ACLED CSV upload, WorldPop, Google Earth Engine, admin boundary analysis, prioritization board, operational outlook, situation report, emergency response platform, conflict mapping, population data, OSM infrastructure, logistics assessment, trend analysis, temporal patterns';
+  const title = 'Aidstack - Global Risk Intelligence';
+  const description = 'Aidstack turns fragmented global signals - disasters, conflict, outbreaks, population, infrastructure and environmental conditions - into decision-ready intelligence around the assets and operations that matter to you. See risk before it becomes disruption.';
+  const keywords = 'global risk intelligence, risk intelligence platform, geospatial intelligence, earth observation, decision intelligence, operational intelligence, asset exposure, supply chain risk, business continuity, climate risk, conflict risk, disruption risk, situational awareness, AI geospatial analysis, GDACS, WHO outbreaks, ACLED, WorldPop, Google Earth Engine, OpenStreetMap infrastructure, admin boundary analysis, logistics assessment, trend analysis, humanitarian technology, public health operations';
 
   return (
     <>
@@ -29,7 +29,7 @@ export default function Landing() {
         <meta property="og:url" content={`${siteUrl}/landing`} />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
-        <meta property="og:site_name" content="Aidstack Disasters" />
+        <meta property="og:site_name" content="Aidstack" />
         <meta property="og:locale" content="en_US" />
 
         {/* Twitter */}
@@ -53,7 +53,8 @@ export default function Landing() {
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'SoftwareApplication',
-              name: 'Aidstack Disasters',
+              name: 'Aidstack Global Risk Intelligence',
+              alternateName: 'Aidstack Disasters',
               applicationCategory: 'BusinessApplication',
               operatingSystem: 'Web',
               offers: {
@@ -69,31 +70,20 @@ export default function Landing() {
                 url: 'https://aidstack.ai'
               },
               featureList: [
-                'Workspace App Hub with compatible ZIP app installation',
-                'Immunization coverage, session planning and resource estimates',
-                'Outbreak aggregate data imports, trends and mobility context',
-                'Response indicators, coordinator actions and source-linked briefings',
-                'Browser-local app plans and outbreak snapshots',
-                'Planning workbook, briefing and SVG visual exports',
-                'Real-time GDACS disaster monitoring',
-                'WHO outbreak report mapping',
-                'Uploaded ACLED conflict event tracking',
-                'WorldPop population demographics',
-                'Admin boundary shapefile analysis',
-                'District hazard analysis with auditable drivers',
-                'Operational outlook and prioritization board',
-                'Operation viability analysis',
+                'Multi-signal risk monitoring: disasters, outbreaks, conflict and environmental conditions',
+                'Bring your own assets: facility CSV and boundary shapefile/GeoJSON upload',
+                'Asset and area exposure analysis against live hazard signals',
+                'Access and logistics assessment from OpenStreetMap infrastructure',
+                'Population exposure context via WorldPop',
                 'Six Google Earth Engine context layers (nighttime lights, Sentinel-2, Sentinel-1, flood/drought, accessibility)',
                 'Healthcare accessibility overlay (Oxford MAP travel time)',
-                'IndexedDB workspace persistence for low-connectivity workflows',
-                'Error boundary crash protection',
-                'Enhanced choropleth styling with 7 color palettes',
-                'Batch site assessment',
-                'Interactive geospatial mapping',
-                'AI-assisted decision support',
-                'OSM infrastructure integration and logistics assessment',
-                'Temporal trend analysis and pattern detection',
-                'Multi-tier caching with IndexedDB storage'
+                'Area prioritization with visible drivers and confidence',
+                'Temporal trend analysis and change detection',
+                'Natural-language querying of the operational environment',
+                'Forward-looking operational outlook',
+                'Source-linked briefings and exportable decision briefs',
+                'Workspace app hub for specialist workflows',
+                'Browser-local (IndexedDB) persistence for low-connectivity environments'
               ]
             })
           }}

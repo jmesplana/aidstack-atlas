@@ -109,9 +109,14 @@ export default function AppHub({ districts, facilities, acledData = [], disaster
         <div className={styles.actions}>
           <button className={styles.primary} disabled={!ready || saving} onClick={() => upload.current.click()}>Add app</button>
           <a href="/apps/activity-planner.zip" download>Download example app</a>
+          <a
+            href="https://github.com/jmesplana/gdacs_ai/blob/main/templates/installable-app/README.md"
+            target="_blank"
+            rel="noopener noreferrer"
+          >Build your own app</a>
           <input ref={upload} hidden type="file" accept=".zip" aria-label="App ZIP package" onChange={previewPackage} />
         </div>
-        <p className={styles.muted}>Upload an app ZIP. Apps and saved plans stay in this browser and workspace.</p>
+        <p className={styles.muted}>Upload an app ZIP. Apps and saved plans stay in this browser and workspace. Start from the example app and the developer guide to build your own.</p>
         {pendingPackage && <section className={styles.appCard} aria-label="Review app installation">
           <h2>{pendingPackage.manifest.name}</h2>
           <p>{pendingPackage.manifest.description}</p>

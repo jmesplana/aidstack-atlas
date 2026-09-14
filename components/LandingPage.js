@@ -122,6 +122,16 @@ const LandingPage = () => {
           }
         }
 
+        @media (max-width: 900px) {
+          .byod-flow {
+            grid-template-columns: 1fr !important;
+          }
+
+          .byod-op {
+            transform: rotate(90deg);
+          }
+        }
+
         @media (max-width: 768px) {
           .landing-header-inner {
             flex-direction: column;
@@ -196,7 +206,7 @@ const LandingPage = () => {
                   letterSpacing: '0.5px',
                   marginTop: '2px'
                 }}>
-                  Operational intelligence for field teams
+                  Global Risk Intelligence
                 </div>
               </div>
             </div>
@@ -226,7 +236,7 @@ const LandingPage = () => {
               e.target.style.boxShadow = '0 2px 8px rgba(255, 107, 53, 0.25)';
             }}
             >
-              Launch App →
+              Explore the Platform →
             </button>
           </Link>
         </div>
@@ -284,7 +294,7 @@ const LandingPage = () => {
                 fontWeight: 600,
                 color: 'white'
               }}>
-                Live GDACS & WHO, Uploaded ACLED
+                GLOBAL RISK INTELLIGENCE
               </span>
             </div>
 
@@ -297,7 +307,7 @@ const LandingPage = () => {
               marginBottom: '24px',
               letterSpacing: '-0.02em'
             }}>
-              Geospatial Operational Intelligence
+              See risk before it
               <br />
               <span style={{
                 background: 'linear-gradient(90deg, #FF6B35 0%, #FFA366 100%)',
@@ -305,7 +315,7 @@ const LandingPage = () => {
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text'
               }}>
-                for Crisis, Health, and Field Operations
+                becomes disruption.
               </span>
             </h1>
             <p style={{
@@ -315,7 +325,9 @@ const LandingPage = () => {
               marginBottom: '32px',
               maxWidth: '540px'
             }}>
-              Monitor disasters, outbreaks and access constraints in one map workspace. Open focused apps to plan immunization sessions, track outbreak response, and turn your data into source-linked briefings.
+              Aidstack turns fragmented global signals — disasters, conflict, outbreaks, population, infrastructure, environmental conditions, and your own operational data — into decision-ready intelligence.
+              <br /><br />
+              Understand what is happening, what is exposed, and where to act next.
             </p>
             <div style={{
               display: 'inline-flex',
@@ -344,9 +356,9 @@ const LandingPage = () => {
               }}>
                 Evidence-Gated
               </span>
-              <span>Forecast, outlook and prioritization show the evidence behind hazard scores. Workspace apps keep plans, source dates and response decisions available for review.</span>
+              <span>Every score, ranking and outlook exposes the drivers and sources behind it. Analysts can audit the reasoning, not just read the conclusion.</span>
             </div>
-            <a href="#workspace-apps" style={{ display: 'inline-block', color: '#FFD2BF', marginBottom: '24px', fontWeight: 600 }}>Explore workspace apps →</a>
+            <a href="#signals-to-decisions" style={{ display: 'inline-block', color: '#FFD2BF', marginBottom: '24px', fontWeight: 600 }}>How it works: signals to decisions →</a>
             <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginBottom: '40px' }}>
               <Link href="/app">
                 <button style={{
@@ -371,10 +383,10 @@ const LandingPage = () => {
                   e.target.style.boxShadow = '0 4px 16px rgba(255, 107, 53, 0.4)';
                 }}
                 >
-                  Launch App →
+                  Explore the Platform →
                 </button>
               </Link>
-              <a href="https://github.com/jmesplana" target="_blank" rel="noopener noreferrer">
+              <a href="#see-it-in-action">
                 <button style={{
                   background: 'rgba(255, 255, 255, 0.1)',
                   color: 'white',
@@ -397,7 +409,7 @@ const LandingPage = () => {
                   e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
                 }}
                 >
-                  View on GitHub
+                  See It in Action
                 </button>
               </a>
             </div>
@@ -410,9 +422,9 @@ const LandingPage = () => {
               maxWidth: '600px'
             }}>
               {[
-                { number: 'Admin-First', label: 'Analysis Workflow' },
-                { number: '1000+', label: 'Site Assessments' },
-                { number: 'Auditable', label: 'Hazard Evidence' }
+                { number: '8+', label: 'Signal Layers Combined' },
+                { number: 'Your Data', label: 'Assets & Operations' },
+                { number: 'Auditable', label: 'Drivers & Sources' }
               ].map((item, idx) => (
                 <div key={idx} style={{
                   display: 'flex',
@@ -899,12 +911,564 @@ const LandingPage = () => {
         </div>
       </section>
 
+      {/* Signals to Decisions Section */}
+      <section id="signals-to-decisions" style={{
+        padding: '100px 20px',
+        background: '#0F172A',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          opacity: 0.04,
+          backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }}></div>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+            <span style={{
+              display: 'inline-block',
+              background: 'rgba(255, 107, 53, 0.15)',
+              border: '1px solid rgba(255, 107, 53, 0.35)',
+              color: '#FFA366',
+              padding: '6px 16px',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              fontFamily: "'Inter', sans-serif"
+            }}>
+              THE INTELLIGENCE LAYER
+            </span>
+          </div>
+          <h2 style={{
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 700,
+            fontSize: '42px',
+            textAlign: 'center',
+            color: 'white',
+            marginBottom: '16px',
+            letterSpacing: '-0.01em'
+          }}>
+            From fragmented signals to decisions
+          </h2>
+          <p style={{
+            fontSize: '18px',
+            color: 'rgba(255,255,255,0.7)',
+            textAlign: 'center',
+            maxWidth: '720px',
+            margin: '0 auto 56px',
+            lineHeight: '1.7'
+          }}>
+            Aidstack sits between raw data and operational decisions — the layer that turns
+            disconnected feeds into something a team can act on.
+          </p>
+
+          <div className="pipeline-grid" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+            gap: '20px',
+            alignItems: 'stretch'
+          }}>
+            {[
+              {
+                step: 'OBSERVE',
+                caption: 'What is happening?',
+                items: ['Disasters', 'Conflict', 'Outbreaks', 'Climate & environment', 'Population', 'Infrastructure', 'Satellite signals', 'Your own data']
+              },
+              {
+                step: 'UNDERSTAND',
+                caption: 'What is exposed?',
+                items: ['Exposure', 'Vulnerability', 'Connectivity', 'Accessibility', 'Dependencies', 'Operational context']
+              },
+              {
+                step: 'ANTICIPATE',
+                caption: 'What is changing?',
+                items: ['Emerging risk', 'Potential disruption', 'Risk corridors', 'Asset exposure', 'Operational constraints', 'Information blind spots']
+              },
+              {
+                step: 'ACT',
+                caption: 'What deserves attention?',
+                items: ['Prioritize', 'Pre-position', 'Reroute', 'Protect', 'Deploy', 'Investigate']
+              }
+            ].map((col, idx) => (
+              <div key={idx} style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '14px',
+                padding: '28px 24px',
+                position: 'relative'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginBottom: '6px'
+                }}>
+                  <span style={{
+                    width: '26px',
+                    height: '26px',
+                    borderRadius: '7px',
+                    background: idx === 3 ? '#FF6B35' : 'rgba(255,107,53,0.18)',
+                    color: idx === 3 ? 'white' : '#FFA366',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    fontFamily: "'Space Grotesk', sans-serif"
+                  }}>{idx + 1}</span>
+                  <span style={{
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontWeight: 700,
+                    fontSize: '15px',
+                    letterSpacing: '0.08em',
+                    color: 'white'
+                  }}>{col.step}</span>
+                </div>
+                <div style={{
+                  fontSize: '13px',
+                  color: '#FFA366',
+                  marginBottom: '18px',
+                  fontStyle: 'italic'
+                }}>{col.caption}</div>
+                <ul style={{
+                  listStyle: 'none',
+                  padding: 0,
+                  margin: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '9px'
+                }}>
+                  {col.items.map((item, i) => (
+                    <li key={i} style={{
+                      fontSize: '14px',
+                      color: 'rgba(255,255,255,0.8)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <span style={{
+                        width: '4px',
+                        height: '4px',
+                        borderRadius: '50%',
+                        background: '#FF6B35',
+                        flexShrink: 0
+                      }}></span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Intelligence, not another dashboard */}
+      <section style={{ padding: '100px 20px', background: 'white' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))',
+            gap: '56px',
+            alignItems: 'center'
+          }}>
+            <div>
+              <h2 style={{
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 700,
+                fontSize: '40px',
+                color: '#1A365D',
+                marginBottom: '22px',
+                letterSpacing: '-0.01em',
+                lineHeight: 1.15
+              }}>
+                Intelligence, not another dashboard.
+              </h2>
+              <p style={{ fontSize: '18px', lineHeight: '1.8', color: '#475569', marginBottom: '18px' }}>
+                Organizations already have access to enormous amounts of data. The difficult part is
+                understanding what those signals mean <em>together</em>.
+              </p>
+              <p style={{ fontSize: '18px', lineHeight: '1.8', color: '#475569' }}>
+                Aidstack connects hazards, conflict, population, infrastructure, health and environmental
+                conditions with your operational data to identify meaningful changes around the places
+                that matter.
+              </p>
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+              gap: '12px'
+            }}>
+              {[
+                'Emerging Risk', 'Exposure', 'Access Constraints',
+                'Dependencies', 'Risk Corridors', 'Operational Implications',
+                'Confidence', 'Evidence'
+              ].map((label, idx) => (
+                <div key={idx} style={{
+                  background: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  borderLeft: '3px solid #FF6B35',
+                  borderRadius: '8px',
+                  padding: '16px 14px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: '#1A365D',
+                  fontFamily: "'Inter', sans-serif"
+                }}>
+                  {label}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Bring Your Own Data */}
+      <section style={{ padding: '100px 20px', background: '#F8FAFC' }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+            <h2 style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 700,
+              fontSize: '40px',
+              color: '#1A365D',
+              marginBottom: '18px',
+              letterSpacing: '-0.01em'
+            }}>
+              Bring your assets. Aidstack brings the context.
+            </h2>
+            <p style={{
+              fontSize: '18px',
+              color: '#475569',
+              maxWidth: '720px',
+              margin: '0 auto',
+              lineHeight: '1.7'
+            }}>
+              Add the locations and operations that matter to you. Aidstack surrounds them with relevant
+              global context so you can understand what is changing around them.
+            </p>
+          </div>
+
+          <div className="byod-flow" style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr auto 1fr auto 1fr',
+            gap: '18px',
+            alignItems: 'center',
+            marginBottom: '44px'
+          }}>
+            <div style={{
+              background: 'white',
+              border: '2px solid #1A365D',
+              borderRadius: '12px',
+              padding: '24px 20px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 700,
+                fontSize: '16px',
+                color: '#1A365D',
+                marginBottom: '6px'
+              }}>YOUR DATA</div>
+              <div style={{ fontSize: '13px', color: '#475569' }}>Assets, sites, areas and operations</div>
+            </div>
+            <div className="byod-op" style={{ fontSize: '26px', color: '#FF6B35', fontWeight: 700, textAlign: 'center' }}>+</div>
+            <div style={{
+              background: 'white',
+              border: '2px solid #1A365D',
+              borderRadius: '12px',
+              padding: '24px 20px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 700,
+                fontSize: '16px',
+                color: '#1A365D',
+                marginBottom: '6px'
+              }}>GLOBAL SIGNALS</div>
+              <div style={{ fontSize: '13px', color: '#475569' }}>Hazards, conflict, health, population, environment</div>
+            </div>
+            <div className="byod-op" style={{ fontSize: '26px', color: '#FF6B35', fontWeight: 700, textAlign: 'center' }}>→</div>
+            <div style={{
+              background: '#1A365D',
+              border: '2px solid #1A365D',
+              borderRadius: '12px',
+              padding: '24px 20px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 700,
+                fontSize: '16px',
+                color: 'white',
+                marginBottom: '6px'
+              }}>YOUR RISK INTELLIGENCE</div>
+              <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)' }}>Exposure, change and what to act on</div>
+            </div>
+          </div>
+
+          <div style={{
+            background: 'white',
+            border: '1px solid #E2E8F0',
+            borderRadius: '12px',
+            padding: '28px'
+          }}>
+            <div style={{
+              fontSize: '13px',
+              fontWeight: 700,
+              letterSpacing: '0.06em',
+              color: '#94A3B8',
+              marginBottom: '16px',
+              fontFamily: "'Inter', sans-serif"
+            }}>
+              AN ASSET CAN BE ANY LOCATION YOU DEPEND ON
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '9px', marginBottom: '22px' }}>
+              {['Warehouse', 'Office', 'Mine', 'Hospital', 'School', 'Port', 'Airport', 'Distribution centre', 'Infrastructure', 'Project location', 'Community', 'Route'].map((tag, idx) => (
+                <span key={idx} style={{
+                  background: '#F1F5F9',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '999px',
+                  padding: '7px 14px',
+                  fontSize: '13px',
+                  color: '#475569',
+                  fontWeight: 500
+                }}>{tag}</span>
+              ))}
+            </div>
+            <div style={{
+              borderTop: '1px solid #F1F5F9',
+              paddingTop: '18px',
+              fontSize: '14px',
+              color: '#475569',
+              lineHeight: 1.7
+            }}>
+              <strong style={{ color: '#1A365D' }}>Supported today:</strong> point locations via CSV upload,
+              and operational geographies via shapefile (ZIP) or GeoJSON. Your data is processed in your
+              browser and stored locally, so it never has to leave your control to be analyzed.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* One location. Multiple risks. */}
+      <section style={{ padding: '100px 20px', background: 'white' }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+            <h2 style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 700,
+              fontSize: '40px',
+              color: '#1A365D',
+              marginBottom: '18px',
+              letterSpacing: '-0.01em'
+            }}>
+              One location. Multiple risks.
+            </h2>
+            <p style={{
+              fontSize: '18px',
+              color: '#475569',
+              maxWidth: '740px',
+              margin: '0 auto',
+              lineHeight: '1.7'
+            }}>
+              Operational risk rarely comes from a single hazard. Aidstack brings multiple signals together
+              around the same location, so you can see how hazards, security, infrastructure, population,
+              health and accessibility interact.
+            </p>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 330px), 1fr))',
+            gap: '32px',
+            alignItems: 'start'
+          }}>
+            <div style={{
+              background: '#0F172A',
+              borderRadius: '14px',
+              padding: '28px',
+              border: '1px solid #1E293B'
+            }}>
+              <div style={{
+                fontSize: '12px',
+                letterSpacing: '0.08em',
+                color: '#94A3B8',
+                marginBottom: '4px',
+                fontWeight: 600
+              }}>ILLUSTRATIVE EXAMPLE</div>
+              <div style={{
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 700,
+                fontSize: '20px',
+                color: 'white',
+                marginBottom: '22px'
+              }}>Distribution Hub</div>
+
+              {[
+                { label: 'Flood exposure', dir: 'up', tone: 'bad' },
+                { label: 'Nearby conflict activity', dir: 'up', tone: 'bad' },
+                { label: 'Road accessibility', dir: 'down', tone: 'bad' },
+                { label: 'Population displacement', dir: 'up', tone: 'bad' },
+                { label: 'Disease activity', dir: 'up', tone: 'bad' }
+              ].map((row, idx) => (
+                <div key={idx} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '11px 0',
+                  borderBottom: idx === 4 ? 'none' : '1px solid rgba(255,255,255,0.08)'
+                }}>
+                  <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)' }}>{row.label}</span>
+                  <span style={{
+                    color: '#FF6B35',
+                    fontWeight: 700,
+                    fontSize: '16px'
+                  }}>{row.dir === 'up' ? '↑' : '↓'}</span>
+                </div>
+              ))}
+
+              <div style={{
+                marginTop: '22px',
+                paddingTop: '18px',
+                borderTop: '1px solid rgba(255,255,255,0.15)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span style={{
+                  fontSize: '13px',
+                  color: 'rgba(255,255,255,0.7)',
+                  letterSpacing: '0.04em'
+                }}>SIGNALS CONVERGING</span>
+                <span style={{
+                  background: 'rgba(255,107,53,0.18)',
+                  border: '1px solid rgba(255,107,53,0.45)',
+                  color: '#FFA366',
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  fontFamily: "'Space Grotesk', sans-serif"
+                }}>5 OF 5</span>
+              </div>
+            </div>
+
+            <div>
+              <h3 style={{
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 700,
+                fontSize: '22px',
+                color: '#0F172A',
+                marginBottom: '16px'
+              }}>
+                The value is in the convergence
+              </h3>
+              <p style={{ fontSize: '16px', lineHeight: '1.8', color: '#475569', marginBottom: '20px' }}>
+                Any one of these signals might be tolerable on its own. Together, they describe a site that
+                is becoming harder to reach at exactly the moment demand around it is rising — the kind of
+                pattern that is easy to miss when each signal lives in a different system.
+              </p>
+              <p style={{ fontSize: '16px', lineHeight: '1.8', color: '#475569', marginBottom: '20px' }}>
+                Aidstack surfaces each contributing driver separately, with its source and recency, so an
+                analyst can interrogate the picture rather than trust a single opaque number.
+              </p>
+              <div style={{
+                background: '#FFF7ED',
+                border: '1px solid #FED7AA',
+                borderRadius: '10px',
+                padding: '16px 18px',
+                fontSize: '14px',
+                color: '#9A3412',
+                lineHeight: 1.6
+              }}>
+                Aidstack presents drivers individually with visible evidence. A single cross-hazard composite
+                score is on the product roadmap, not a current capability.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Ask your operational environment anything */}
+      <section style={{
+        padding: '100px 20px',
+        background: 'linear-gradient(135deg, #1A365D 0%, #2D5A7B 100%)',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          opacity: 0.05,
+          backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }}></div>
+        <div style={{ maxWidth: '900px', margin: '0 auto', position: 'relative', zIndex: 1, textAlign: 'center' }}>
+          <h2 style={{
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 700,
+            fontSize: '40px',
+            color: 'white',
+            marginBottom: '18px',
+            letterSpacing: '-0.01em'
+          }}>
+            Ask your operational environment anything.
+          </h2>
+          <p style={{
+            fontSize: '18px',
+            color: 'rgba(255,255,255,0.8)',
+            marginBottom: '44px',
+            lineHeight: 1.7
+          }}>
+            Query the same context the analysis runs on — in plain language, grounded in the layers you
+            have loaded.
+          </p>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
+            gap: '14px',
+            textAlign: 'left'
+          }}>
+            {[
+              'Which of our facilities face the greatest disruption risk?',
+              'What changed in the last 72 hours?',
+              'Which routes are exposed to both flooding and insecurity?',
+              'Which sites are seeing increasing conflict activity nearby?',
+              'Where is population exposure highest across our areas?',
+              'What should we look at first this week, and why?'
+            ].map((q, idx) => (
+              <div key={idx} style={{
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.18)',
+                borderRadius: '10px',
+                padding: '18px 20px',
+                color: 'white',
+                fontSize: '15px',
+                lineHeight: 1.5,
+                display: 'flex',
+                gap: '12px',
+                alignItems: 'flex-start'
+              }}>
+                <span style={{ color: '#FF6B35', fontWeight: 700, flexShrink: 0 }}>›</span>
+                {q}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <LandingWorkspaceApps />
 
       {/* Video Demo Section */}
-      <section style={{
+      <section id="see-it-in-action" style={{
         padding: '80px 20px',
         background: 'linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%)',
+        scrollMarginTop: '90px',
         position: 'relative'
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -1603,7 +2167,7 @@ const LandingPage = () => {
                 description: 'Replay disaster evolution with adjustable playback speed',
                 features: [
                   'Progressive event visualization',
-                  'Speed control (0.5x to 2x)',
+                  'Speed control (1x to 10x)',
                   'Play/pause animation',
                   'Temporal pattern analysis'
                 ]
@@ -1788,7 +2352,7 @@ const LandingPage = () => {
                 color: '#475569',
                 marginBottom: '20px'
               }}>
-                Response teams, public health programs, and field operations groups struggle to see which areas, sites, and routes are exposed when hazards, outbreaks, conflict, and access constraints overlap. Manual monitoring across multiple data sources slows operational decisions.
+                Organizations that depend on physical locations — networks, facilities, supply routes, workforces and programs — rarely find out early enough when the environment around them shifts. Hazard, conflict, health, population and infrastructure signals each live in a separate system, on a separate cadence, in a separate format. By the time someone connects them manually, the disruption has usually already happened.
               </p>
             </div>
             <div>
@@ -1807,58 +2371,35 @@ const LandingPage = () => {
                 color: '#475569',
                 marginBottom: '32px'
               }}>
-                Aidstack Disasters connects map-based monitoring, admin-area evidence and AI decision support with focused workspace apps. Teams can assess exposure, build immunization session plans, track outbreak response and export briefings from the same workspace.
+                Aidstack unifies those signals around the assets and areas you actually care about, then applies AI analysis on top of that combined context. Teams see what is exposed, what is changing, and what deserves attention first — with the drivers, sources and confidence behind every conclusion visible for review.
               </p>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
                 gap: '20px'
               }}>
-                <div style={{
-                  background: 'white',
-                  padding: '20px',
-                  borderRadius: '8px',
-                  textAlign: 'center',
-                  border: '1px solid #94A3B8'
-                }}>
-                  <div style={{
-                    fontSize: '32px',
-                    fontWeight: 700,
-                    color: '#FF6B35',
-                    marginBottom: '8px'
-                  }}>100+</div>
-                  <div style={{ fontSize: '14px', color: '#475569' }}>Disasters Monitored</div>
-                </div>
-                <div style={{
-                  background: 'white',
-                  padding: '20px',
-                  borderRadius: '8px',
-                  textAlign: 'center',
-                  border: '1px solid #94A3B8'
-                }}>
-                  <div style={{
-                    fontSize: '32px',
-                    fontWeight: 700,
-                    color: '#FF6B35',
-                    marginBottom: '8px'
-                  }}>1,000+</div>
-                  <div style={{ fontSize: '14px', color: '#475569' }}>Sites Assessed</div>
-                </div>
-                <div style={{
-                  background: 'white',
-                  padding: '20px',
-                  borderRadius: '8px',
-                  textAlign: 'center',
-                  border: '1px solid #94A3B8'
-                }}>
-                  <div style={{
-                    fontSize: '32px',
-                    fontWeight: 700,
-                    color: '#FF6B35',
-                    marginBottom: '8px'
-                  }}>&lt;30s</div>
-                  <div style={{ fontSize: '14px', color: '#475569' }}>AI Analysis Time</div>
-                </div>
+                {[
+                  { label: 'Unified signal layers', value: 'Multi-source' },
+                  { label: 'Scoped to your geography', value: 'Area-based' },
+                  { label: 'Drivers and sources shown', value: 'Auditable' }
+                ].map((tile, idx) => (
+                  <div key={idx} style={{
+                    background: 'white',
+                    padding: '20px',
+                    borderRadius: '8px',
+                    textAlign: 'center',
+                    border: '1px solid #94A3B8'
+                  }}>
+                    <div style={{
+                      fontSize: '22px',
+                      fontWeight: 700,
+                      color: '#FF6B35',
+                      marginBottom: '8px',
+                      fontFamily: "'Space Grotesk', sans-serif"
+                    }}>{tile.value}</div>
+                    <div style={{ fontSize: '14px', color: '#475569' }}>{tile.label}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -1884,7 +2425,7 @@ const LandingPage = () => {
               marginBottom: '20px',
               fontFamily: "'Inter', sans-serif"
             }}>
-              ONE PLATFORM, MULTIPLE OPERATIONS
+              PROVEN IN THE HARDEST OPERATING ENVIRONMENTS
             </div>
             <h2 style={{
               fontFamily: "'Space Grotesk', sans-serif",
@@ -1894,7 +2435,7 @@ const LandingPage = () => {
               marginBottom: '20px',
               letterSpacing: '-0.01em'
             }}>
-              Purpose-Built for <span style={{ color: '#FF6B35' }}>Operational Excellence</span>
+              Built for where <span style={{ color: '#FF6B35' }}>risk is hardest to read</span>
             </h2>
             <p style={{
               fontSize: '20px',
@@ -1903,7 +2444,7 @@ const LandingPage = () => {
               margin: '0 auto',
               lineHeight: '1.7'
             }}>
-              Use the map for shared operational context, then open workspace apps for detailed immunization planning and outbreak response.
+              Aidstack was hardened in crisis, health and field operations — environments with fragmented data, poor connectivity and decisions that cannot wait. The same intelligence layer applies wherever operations depend on physical locations: supply chains, infrastructure networks, resource operations, business continuity and government planning.
             </p>
           </div>
           <div style={{
@@ -2827,7 +3368,7 @@ const LandingPage = () => {
               },
               {
                 question: 'Can I add my own workspace app?',
-                answer: 'Yes. In Workspace apps, choose Add app and upload a compatible app ZIP. Review the author, version, requested access and required data, then confirm installation. The hub includes a downloadable example. Installed apps and saved plans stay in this browser and workspace; disabling an app retains its plans.'
+                answer: 'Yes. In Workspace apps, choose Add app and upload a compatible app ZIP. Review the author, version, requested access and required data, then confirm installation. The hub includes a downloadable example app, and packages must be 5 MB or smaller. Installed apps and saved plans stay in this browser and workspace; disabling an app retains its plans.'
               },
               {
                 question: 'Can Outbreak Response work with my own data?',
@@ -2843,7 +3384,7 @@ const LandingPage = () => {
               },
               {
                 question: 'What is Operation Viability Assessment?',
-                answer: 'Operation Viability provides GO/CAUTION/DELAY/NOGO decisions for field operations. You can assess individual sites or batch-process 1000+ sites simultaneously. The system evaluates security risks, disaster impacts, accessibility, and population data to generate decision briefs exportable as HTML/PDF.'
+                answer: 'Operation Viability scores a site and returns one of four recommendations: GO, PROCEED WITH CAUTION, DELAY RECOMMENDED, or DO NOT PROCEED. It evaluates security risks from uploaded ACLED events, disaster impacts, accessibility and population context, and produces a decision brief you can export as HTML and print to PDF from your browser. Sites can be assessed individually or as an uploaded batch.'
               },
               {
                 question: 'How does weather forecast integration work?',
@@ -2851,7 +3392,7 @@ const LandingPage = () => {
               },
               {
                 question: 'What is Timeline Playback?',
-                answer: 'Timeline Playback lets you replay disasters and conflict events over time with adjustable speed controls (0.5x to 2x). Watch how disasters evolved, identify progression patterns, and understand temporal relationships between events. Perfect for after-action reviews and historical analysis.'
+                answer: 'Timeline Playback replays disasters and uploaded conflict events over time, with speed controls at 1x, 2x, 5x and 10x, plus a scrubber for stepping through dates manually. Use it to see how a situation developed, spot progression patterns, and review the temporal relationship between events.'
               },
               {
                 question: 'How does the AI use real-time web search?',
@@ -2859,19 +3400,19 @@ const LandingPage = () => {
               },
               {
                 question: 'What are the drawing tools used for?',
-                answer: 'Drawing tools allow you to annotate maps with freehand drawings, measure areas, plan routes, and mark zones of interest. Choose custom colors for different annotations and persist drawings across sessions for ongoing operational planning.'
+                answer: 'Drawing tools let you annotate the map with polygons, lines, rectangles, circles, markers and freehand shapes to outline zones of interest, sketch routes and mark locations, in the colours you choose. Drawings are held in the current map session — export or screenshot anything you need to keep before reloading.'
               },
               {
                 question: 'How does security risk scoring work with ACLED data?',
-                answer: 'Download an ACLED CSV export using your ACLED account, upload it into the app, and then filter the uploaded events by country. The platform uses those uploaded conflict events to create proximity zones (0-10km, 10-25km, 25-50km, 50-100km) around sites and classify security levels based on incident type, recency, and proximity.'
+                answer: 'Download an ACLED CSV export using your own ACLED account, upload it into the app, then filter the uploaded events by country. The platform places each site in weighted proximity zones (0-10km, 10-25km, 25-50km, 50-100km) and classifies security levels from incident type, recency and proximity. Security assessments look at incidents from the last 60 days within 100km, so the picture is only as current as the export you uploaded.'
               },
               {
                 question: 'Can I batch-assess multiple sites?',
-                answer: 'Absolutely. Upload CSV files with 1000+ sites and run batch operation-viability assessments. The system processes all sites simultaneously and generates individual decision briefs plus a system-wide readiness report, helping prioritize which locations to operate in.'
+                answer: 'Yes. Upload a CSV of sites and run a batch viability assessment across them rather than one at a time. The batch returns a per-site recommendation plus a combined readiness view to help prioritize where to operate. No fixed site limit is enforced, but very large files take longer and depend on your browser and connection.'
               },
               {
                 question: 'What operation types are supported?',
-                answer: 'Pre-configured templates exist for Immunization, Cholera/OCV, Malaria Control, WASH, Mental Health & Psychosocial Support, Nutrition/RUTF Distribution, and Disease Surveillance. Each template has operation-specific risk factors and decision criteria.'
+                answer: 'Seven templates ship today: Immunization Campaign, Malaria Control, Water, Sanitation & Hygiene, Nutrition Program, Medical Supply Distribution, Emergency Shelter, and General Humanitarian Operation. Each carries its own risk factors and decision criteria, so the same site can score differently depending on the operation you are planning.'
               },
               {
                 question: 'Can I use my own site data?',
@@ -2883,7 +3424,7 @@ const LandingPage = () => {
               },
               {
                 question: 'Is my data stored on servers?',
-                answer: 'Uploaded site data, admin boundaries, selected districts, WorldPop summaries, OSM data, and uploaded ACLED events are cached locally in your browser for workspace restore. App installations, immunization plans and outbreak snapshots also stay in this browser and workspace; they do not automatically sync to other devices. Export the files you need to keep or share. There is no app database storing your workspace on the server. When using AI features, the relevant context is temporarily sent to OpenAI for analysis, and drawings are stored in browser local storage.'
+                answer: 'Uploaded site data, admin boundaries, selected districts, WorldPop summaries, OSM data, and uploaded ACLED events are cached locally in your browser for workspace restore. App installations, immunization plans and outbreak snapshots also stay in this browser and workspace; they do not automatically sync to other devices. Export the files you need to keep or share. There is no app database storing your workspace on the server. When using AI features, the relevant context is temporarily sent to OpenAI for analysis. Map drawings are not saved — they last only for the current map session.'
               },
               {
                 question: 'How do flood and drought context layers work?',
