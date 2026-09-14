@@ -367,7 +367,7 @@ District B Warehouse,2.345,33.678,30000,60,12,warehouse,MoH
 ## Links
 
 - Live Platform: [https://disasters.aidstack.ai](https://disasters.aidstack.ai)
-- GitHub: [https://github.com/jmesplana/gdacs_ai](https://github.com/jmesplana/aidstack-atlas)
+- GitHub: [https://github.com/jmesplana/aidstack-atlas](https://github.com/jmesplana/aidstack-atlas)
 
 ---
 
