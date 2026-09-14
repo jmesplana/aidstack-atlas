@@ -3,9 +3,9 @@ import LandingPage from '../components/LandingPage';
 
 export default function Landing() {
   const siteUrl = 'https://disasters.aidstack.ai';
-  const title = 'Aidstack - Global Risk Intelligence';
-  const description = 'Aidstack turns fragmented global signals - disasters, conflict, outbreaks, population, infrastructure and environmental conditions - into decision-ready intelligence around the assets and operations that matter to you. See risk before it becomes disruption.';
-  const keywords = 'global risk intelligence, risk intelligence platform, geospatial intelligence, earth observation, decision intelligence, operational intelligence, asset exposure, supply chain risk, business continuity, climate risk, conflict risk, disruption risk, situational awareness, AI geospatial analysis, GDACS, WHO outbreaks, ACLED, WorldPop, Google Earth Engine, OpenStreetMap infrastructure, admin boundary analysis, logistics assessment, trend analysis, humanitarian technology, public health operations';
+  const title = 'Aidstack — Geospatial Operational Intelligence';
+  const description = 'Combine global risk signals with your own locations and operational data to understand exposure, changing conditions, and operational risk.';
+  const keywords = 'geospatial intelligence, operational intelligence, risk intelligence, geospatial risk, operational risk, disaster response, outbreak response, field operations';
 
   return (
     <>
@@ -53,8 +53,7 @@ export default function Landing() {
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'SoftwareApplication',
-              name: 'Aidstack Global Risk Intelligence',
-              alternateName: 'Aidstack Disasters',
+              name: 'Aidstack Disasters',
               applicationCategory: 'BusinessApplication',
               operatingSystem: 'Web',
               offers: {
@@ -70,20 +69,13 @@ export default function Landing() {
                 url: 'https://aidstack.ai'
               },
               featureList: [
-                'Multi-signal risk monitoring: disasters, outbreaks, conflict and environmental conditions',
-                'Bring your own assets: facility CSV and boundary shapefile/GeoJSON upload',
-                'Asset and area exposure analysis against live hazard signals',
-                'Access and logistics assessment from OpenStreetMap infrastructure',
-                'Population exposure context via WorldPop',
-                'Six Google Earth Engine context layers (nighttime lights, Sentinel-2, Sentinel-1, flood/drought, accessibility)',
-                'Healthcare accessibility overlay (Oxford MAP travel time)',
-                'Area prioritization with visible drivers and confidence',
-                'Temporal trend analysis and change detection',
-                'Natural-language querying of the operational environment',
-                'Forward-looking operational outlook',
-                'Source-linked briefings and exportable decision briefs',
-                'Workspace app hub for specialist workflows',
-                'Browser-local (IndexedDB) persistence for low-connectivity environments'
+                'Site uploads and administrative boundary mapping',
+                'Hazard and outbreak reports with uploaded conflict context',
+                'Optional population, infrastructure and earth-observation layers',
+                'Site exposure analysis and experimental batch Operation Viability',
+                'Experimental area-scoped prioritization and Operational Outlook',
+                'Decision brief exports and source-linked outbreak briefings',
+                'Workspace apps for immunization planning and outbreak response'
               ]
             })
           }}

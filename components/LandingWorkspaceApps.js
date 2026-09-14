@@ -9,7 +9,7 @@ export default function LandingWorkspaceApps() {
         <div>
           <span className={styles.eyebrow}><Boxes size={18} aria-hidden="true" /> Workspace apps</span>
           <h2 id="workspace-apps-title">One workspace. Apps for the work ahead.</h2>
-          <p>Move from monitoring the situation to planning a response. The App Hub brings focused tools into your map workspace, using the boundaries and context each app needs.</p>
+          <p>Build on the core intelligence platform with focused workflows. The App Hub brings specialized tools into your map workspace, using the boundaries and context each app needs.</p>
         </div>
         <Link href="/app" className={styles.cta}>Open workspace <ArrowRight size={18} aria-hidden="true" /></Link>
       </div>
