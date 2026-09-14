@@ -1,8 +1,8 @@
-# Geospatial Operational Intelligence for Crisis, Health, and Field Operations
+# Aidstack Disasters — Geospatial Operational Intelligence
 
 **Live Demo:** [https://disasters.aidstack.ai](https://disasters.aidstack.ai)
 
-A web-based operational intelligence workspace for combining **GDACS disasters**, **WHO outbreak reports**, **uploaded ACLED conflict data**, **administrative boundaries**, **site datasets**, **WorldPop population layers**, **OSM infrastructure**, and **Google Earth Engine hazard context** into one scoped operational view. The platform supports impact assessment, operation viability, logistics and security analysis, forward-looking outlooks, situation reporting, and ranked action prioritization.
+Aidstack Disasters is an open geospatial operational intelligence platform that combines hazards, conflict, population, infrastructure, health, and user-provided operational data to assess exposure and support location-based decisions.
 
 ---
 
