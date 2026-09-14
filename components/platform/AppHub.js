@@ -110,7 +110,7 @@ export default function AppHub({ districts, facilities, acledData = [], disaster
           <button className={styles.primary} disabled={!ready || saving} onClick={() => upload.current.click()}>Add app</button>
           <a href="/apps/activity-planner.zip" download>Download example app</a>
           <a
-            href="https://github.com/jmesplana/gdacs_ai/blob/main/templates/installable-app/README.md"
+            href="https://github.com/jmesplana/aidstack-atlas/blob/main/templates/installable-app/README.md"
             target="_blank"
             rel="noopener noreferrer"
           >Build your own app</a>

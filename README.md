@@ -272,8 +272,8 @@ When those layers are missing, the board shows lower-confidence / missing-signal
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/jmesplana/gdacs_ai.git
-   cd gdacs_ai
+   git clone https://github.com/jmesplana/aidstack-atlas.git
+   cd aidstack-atlas
    ```
 
 2. Install dependencies:
@@ -367,7 +367,7 @@ District B Warehouse,2.345,33.678,30000,60,12,warehouse,MoH
 ## Links
 
 - Live Platform: [https://disasters.aidstack.ai](https://disasters.aidstack.ai)
-- GitHub: [https://github.com/jmesplana/gdacs_ai](https://github.com/jmesplana/gdacs_ai)
+- GitHub: [https://github.com/jmesplana/aidstack-atlas](https://github.com/jmesplana/aidstack-atlas)
 
 ---
 

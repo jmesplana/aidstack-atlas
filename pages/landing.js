@@ -91,7 +91,7 @@ export default function Landing() {
               name: 'Aidstack',
               url: 'https://aidstack.ai',
               sameAs: [
-                'https://github.com/jmesplana/gdacs_ai'
+                'https://github.com/jmesplana/aidstack-atlas'
               ]
             })
           }}
