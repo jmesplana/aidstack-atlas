@@ -272,8 +272,8 @@ When those layers are missing, the board shows lower-confidence / missing-signal
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/jmesplana/gdacs_ai.git
-   cd gdacs_ai
+   git clone https://github.com/jmesplana/aidstack-atlas.git
+   cd aidstack-atlas
    ```
 
 2. Install dependencies:

@@ -1,0 +1,90 @@
+.preview {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #c8d4d8;
+  border-radius: 12px;
+  background: #fff;
+  color: #304452;
+  box-shadow: 0 28px 70px #071c2920;
+  text-align: left;
+}
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 20px; background: #fdfdfb; border-bottom: 1px solid #dce3df; }
+.workspaceName { display: flex; align-items: center; gap: 12px; font-size: 12px; font-weight: 600; }
+.appMark { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 6px; color: #fff; background: #173b48; font-size: 18px; font-weight: 700; }
+.slash { color: #b5bcb8; font-weight: 400; }
+.demoLabel { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #66756d; white-space: nowrap; }
+.body { display: grid; grid-template-columns: minmax(0, 1fr) 290px; }
+.map { position: relative; min-height: 395px; overflow: hidden; background: #e8eddf; }
+.geography { position: absolute; width: 100%; height: 100%; inset: 0; }
+.mapLabel { position: absolute; top: 20px; left: 20px; display: flex; align-items: center; gap: 7px; color: #425647; font-size: 10px; font-weight: 600; }
+.mapLabel span { color: #5c7063; font-weight: 400; }
+.compass { position: absolute; right: 20px; top: 16px; display: flex; flex-direction: column; align-items: center; font-size: 9px; font-weight: 650; color: #536854; }
+.compass span { font-size: 25px; line-height: 1.2; }
+.marker { position: absolute; display: flex; align-items: center; gap: 8px; transform: translate(-17px, -17px); min-width: 44px; min-height: 44px; background: transparent; border: 0; cursor: pointer; padding: 4px; color: #274235; font-family: inherit; }
+.pin { display: grid; place-items: center; width: 29px; height: 29px; background: #254b46; border: 2px solid #fff; color: #fff; border-radius: 50%; box-shadow: 0 2px 6px #29473730; transition: box-shadow .18s, background .18s; }
+.markerName { background: #ffffffdc; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 650; white-space: nowrap; }
+.selectedMarker .pin { background: #b44822; box-shadow: 0 0 0 9px #d86d3525, 0 0 0 18px #d86d3510; }
+.selectedMarker .markerName { color: #9f3a18; background: #fff; }
+.marker:hover .pin { box-shadow: 0 0 0 7px #254b4620; }
+.marker:focus-visible, .siteRow:focus-visible { outline: 3px solid #b94e22; outline-offset: 3px; border-radius: 4px; }
+.legend { position: absolute; left: 20px; bottom: 36px; display: flex; flex-wrap: wrap; gap: 14px; background: #fffffff0; padding: 9px 12px; border: 1px solid #d1dad0; border-radius: 4px; font-size: 9px; }
+.legend span { display: flex; align-items: center; gap: 5px; }
+.legend i { display: inline-block; width: 8px; height: 8px; }
+.siteKey { background: #254b46; border-radius: 50%; }
+.hazardKey { background: #e5c58b; border: 1px solid #b49255; }
+.boundaryKey { border: 1px dashed #648879; }
+.mapFooter { position: absolute; bottom: 13px; left: 20px; color: #526657; font-size: 9px; }
+.assessment { padding: 25px 24px 20px; border-left: 1px solid #dce3df; }
+.panelEyebrow { display: flex; align-items: center; gap: 6px; color: #687b7b; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; }
+.siteTitle { display: flex; align-items: baseline; gap: 12px; margin: 12px 0 22px; }
+.siteTitle h3 { margin: 0 !important; font-size: 28px !important; }
+.siteTitle>span { font-size: 10px; color: #728079; }
+.assessmentHeading { font-size: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.assessmentHeading>span { font-size: 8px; color: #8b5719; background: #f9efda; padding: 3px 5px; border-radius: 3px; }
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 9px; font-weight: 750; letter-spacing: .05em; border-radius: 4px; padding: 4px 8px; background: #faebc8; color: #85590c; }
+.status:before { content: ''; width: 4px; height: 4px; background: currentColor; border-radius: 50%; }
+.go { color: #316e52; background: #e7f2e9; }
+.delay { color: #a04527; background: #f9e8df; }
+.assessment h4 { font-size: 13px; margin: 15px 0 6px; font-weight: 600; }
+.assessment p { font-size: 11px; line-height: 1.7; margin: 0 0 18px !important; color: #6a787b; }
+.contextRows { border-top: 1px solid #e4e9e5; padding: 6px 0; }
+.contextRows>div { display: flex; justify-content: space-between; gap: 6px; padding: 7px 0; font-size: 9px; }
+.contextRows span { color: #6a7c77; }
+.contextRows strong { font-weight: 500; color: #415950; }
+.evidenceLink { display: flex; align-items: center; justify-content: space-between; font-size: 10px; font-weight: 600; color: #9d4927; border-top: 1px solid #e4e9e5; padding-top: 12px; }
+.preview figcaption { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 13px 20px; border-top: 1px solid #e0e6de; font-size: 10px; color: #485e54; background: #fcfdfa; }
+.preview figcaption>span:last-child { margin-left: auto; color: #718076; }
+.captionDot { width: 5px; height: 5px; background: #487761; border-radius: 50%; }
+.portfolio .body { grid-template-columns: 330px minmax(0, 1fr); }
+.locationList { border-right: 1px solid #d7e0d7; }
+.listHeading { padding: 22px 22px 14px; }
+.listHeading>span { display: block; font-size: 15px; font-weight: 600; }
+.listHeading small { font-size: 10px; color: #79867d; }
+.siteRow { display: block; width: 100%; text-align: left; padding: 16px 22px; border: 0; border-top: 1px solid #edf0eb; border-left: 3px solid transparent; background: #fff; cursor: pointer; font-family: inherit; color: #233e3e; }
+.selectedRow { background: #f5f7ef; border-left-color: #bd5a31; }
+.siteRow:hover { background: #f4f6f1; }
+.rowTitle { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
+.rowReason { display: flex; align-items: center; justify-content: space-between; margin-top: 7px; font-size: 10px; color: #728077; }
+.listNote { padding: 15px 22px; font-size: 10px; color: #6d7c73; margin: 0 !important; }
+@media (max-width: 700px) {
+  .toolbar { padding: 12px; }
+  .workspaceName { gap: 7px; font-size: 10px; }
+  .demoLabel { font-size: 8px; }
+  .workspaceName .appMark { display: none; }
+  .body, .portfolio .body { grid-template-columns: 1fr; }
+  .map { min-height: 290px; }
+  .assessment { border-left: 0; border-top: 1px solid #dce3df; padding: 22px; }
+  .mapLabel { top: 15px; left: 12px; font-size: 9px; }
+  .mapLabel span { display: none; }
+  .markerName { font-size: 10px; }
+  .marker { gap: 3px; }
+  .legend { left: 12px; bottom: 12px; gap: 9px; padding: 7px; }
+  .mapFooter { display: none; }
+  .preview figcaption { padding: 12px; font-size: 9px; }
+  .preview figcaption>span:last-child { margin-left: 0; width: 100%; }
+  .portfolio .map { grid-row: 1; }
+  .locationList { border-right: 0; }
+  .siteRow { padding: 13px 20px; }
+  .contextRows>div, .assessment p { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .pin { transition: none; } }

@@ -1,10 +1,11 @@
 import Link from 'next/link';
-import { Activity, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
+import { Activity, ArrowRight, ArrowUpRight, FileText, Layers, MapPin, Check } from 'lucide-react';
 import LandingWorkspaceApps from './LandingWorkspaceApps';
-import LandingAssessmentPreview from './LandingAssessmentPreview';
+import LandingAssessmentPreview, { EXAMPLE_SITES, ExampleStatus } from './LandingAssessmentPreview';
 import styles from './LandingPage.module.css';
 
-const github = 'https://github.com/jmesplana/gdacs_ai';
+const github = 'https://github.com/jmesplana/aidstack-atlas';
 const applications = [
   ['Humanitarian & Global Health', 'Bring disaster response, outbreak response, immunization, WASH and field operations into a shared geographic context.'],
   ['Government & Civil Protection', 'Review hazards, exposed locations and infrastructure across selected operational areas.'],
@@ -34,66 +35,117 @@ function Explore({ children = 'Explore the Platform' }) {
   return <Link href="/app" className={styles.primary}>{children}<ArrowRight size={17} aria-hidden="true" /></Link>;
 }
 export default function LandingPage() {
+  const [selectedId, setSelectedId] = useState('A');
+  const selected = EXAMPLE_SITES.find(site => site.id === selectedId);
+
   return <div className={styles.page}>
     <a className={styles.skip} href="#main">Skip to content</a>
-    <header className={styles.header}><div className={styles.navInner}>
-      <Link href="/landing" className={styles.brand}><Activity size={30} aria-hidden="true" /><span>Aidstack <strong>Atlas</strong></span></Link>
-      <nav aria-label="Main navigation"><a href="#platform">Platform</a><a href="#how-it-works">How It Works</a><a href="#use-cases">Use Cases</a><a href="#workspace-apps">Apps</a><a href="#data-evidence">Data & Evidence</a><a href={github}>GitHub</a></nav>
-      <Explore>Explore Platform</Explore>
-    </div></header>
+    <header className={styles.header}>
+      <div className={styles.navInner}>
+        <Link href="/landing" className={styles.brand}><Activity size={27} aria-hidden="true" /><span>Aidstack <strong>Atlas</strong></span></Link>
+        <nav aria-label="Main navigation">
+          <a href="#platform">Platform</a><a href="#how-it-works">How It Works</a><a href="#use-cases">Use Cases</a><a href="#workspace-apps">Apps</a><a href="#data-evidence">Data & Evidence</a>
+        </nav>
+        <Explore>Explore Platform</Explore>
+      </div>
+    </header>
     <main id="main">
       <section className={styles.hero}>
-        <div className={`${styles.container} ${styles.heroGrid}`}>
-          <div><p className={styles.eyebrow}>Geospatial operational intelligence</p>
-            <h1>See what’s changing around the places that matter to you.</h1>
-            <p className={styles.lead}>Combine global risk signals with your own locations and operational data to understand exposure, emerging conditions, and where attention may be needed next.</p>
-            <p className={styles.signals}>Hazards · Conflict · Population · Weather · Outbreaks · Infrastructure · Earth observation</p>
-            <div className={styles.actions}><Explore /><a className={styles.secondary} href="#how-it-works">See How It Works <span aria-hidden="true">↓</span></a></div>
-            <p className={styles.heroEvidence}>Review available sources, drivers, dates and limitations. Evidence detail varies by assessment.</p>
-          </div><LandingAssessmentPreview />
+        <div className={styles.container}>
+          <div className={styles.heroTop}>
+            <div><p className={styles.eyebrow}><span className={styles.orangeDot} />Geospatial operational intelligence</p>
+              <h1>See what’s changing around the places that <em>matter to you.</em></h1>
+            </div>
+            <div className={styles.heroCopy}>
+              <p>Combine global risk signals with your own locations and operational data. Understand exposure, changing conditions, and where attention may be needed next.</p>
+              <div className={styles.actions}><Explore /><a className={styles.heroLink} href="#how-it-works">See How It Works <ArrowRight size={15} aria-hidden="true" /></a></div>
+              <p className={styles.heroEvidence}>Your locations. The surrounding context.<br />A clearer basis for the next decision.</p>
+            </div>
+          </div>
+          <LandingAssessmentPreview selectedId={selectedId} onSelect={setSelectedId} />
+          <div className={styles.signalStrip}><span>Context, connected</span><p>Hazards <i>·</i> Conflict <i>·</i> Population <i>·</i> Weather <i>·</i> Outbreaks <i>·</i> Infrastructure <i>·</i> Earth observation</p></div>
         </div>
       </section>
-      <section id="platform" className={styles.section}><div className={styles.container}>
-        <p className={styles.eyebrow}>Global signals + your operational data</p>
-        <div className={styles.split}><h2>Start with the places that matter to you.</h2><div><p className={styles.lead}>Your locations give the signals meaning.</p><p>Bring sites, boundaries and operational attributes into one map workspace. Select an area, add the context you need, and assess what external conditions could mean for your work.</p></div></div>
-        <div className={styles.locationTypes}>{['Facilities','Warehouses','Infrastructure','Project sites','Field locations','Communities'].map(x => <span key={x}>{x}</span>)}</div>
-        <div className={styles.pipeline} aria-label="From your data to operational decisions">
-          <div><span>01 / Inputs</span><h3>Your locations + context</h3><p>Sites, operational areas and uploaded attributes, alongside hazards, conflict, population, weather, outbreaks, roads and earth observation.</p></div>
-          <div><span>02 / Aidstack intelligence</span><h3>Understand the conditions</h3><p>Geospatial exposure analysis, risk drivers and available evidence. Experimental outlooks and prioritization support further review.</p></div>
-          <div><span>03 / Decision workflows</span><h3>Put the context to work</h3><p>Explore the map, assess a portfolio, review viability, use workspace apps and export briefs. Investigate, prioritize, adjust and brief your team.</p></div>
+
+      <section id="platform" className={styles.section}>
+        <div className={styles.container}>
+          <div className={styles.sectionHeading}><p className={styles.eyebrow}>01 / Start with your world</p><span className={styles.marginNote}>Global signals + your operational data</span></div>
+          <div className={styles.split}><h2>Your locations give<br />the signals meaning.</h2><div><p className={styles.lead}>Start with the places that matter to you.</p><p>Bring your sites, boundaries and operational attributes into one workspace. Connect the conditions around them to the work you need to do.</p></div></div>
+          <div className={styles.locationTypes}>{['Facilities','Warehouses','Infrastructure','Project sites','Field locations','Communities'].map(x => <span key={x}><MapPin size={13} aria-hidden="true" />{x}</span>)}</div>
+          <div id="how-it-works" className={styles.workflow}>
+            <div className={styles.workflowTitle}><span>How it works</span><span>From a location to a decision <ArrowRight size={14} aria-hidden="true" /></span></div>
+            <ol className={styles.steps}>
+              <li><span className={styles.stepNumber}>01</span><h3>Bring your places</h3><p>Upload sites and administrative boundaries. Include the attributes that matter to your operation.</p><span className={styles.stepFoot}>CSV / Excel / GeoJSON / Shapefile</span></li>
+              <li><span className={styles.stepNumber}>02</span><h3>Add the context</h3><p>Select an area, review connected feeds, and load optional population, security and infrastructure context.</p><span className={styles.stepFoot}>Connected feeds + uploaded evidence</span></li>
+              <li><span className={styles.stepNumber}>03</span><h3>Assess and brief</h3><p>Review exposure and experimental decision views. Check the evidence and export a briefing for your team.</p><span className={styles.stepFoot}>Map / Assessment / Briefing</span></li>
+            </ol>
+          </div>
         </div>
-      </div></section>
-      <section className={`${styles.section} ${styles.light}`}><div className={`${styles.container} ${styles.split}`}>
-        <div><p className={styles.eyebrow}>One place, multiple risks</p><h2>Risk rarely happens one layer at a time.</h2></div>
-        <div><p className={styles.lead}>A nearby hazard is only part of the picture.</p><p>Security events, population exposure, outbreak reports and mapped infrastructure can add context around the same location. Review them together to understand what needs investigation.</p><p>Infrastructure coverage does not establish that a road is passable or a facility is operating. Missing or older evidence remains a reason to check conditions locally.</p></div>
-      </div></section>
-      <section className={`${styles.section} ${styles.dark}`}><div className={styles.container}>
-        <div className={styles.split}><div><p className={styles.eyebrow}>Operation Viability <span className={styles.experimental}>Experimental</span></p><h2>Can we operate here?</h2><p className={styles.lead}>Assess one location or an entire portfolio.</p></div><div><p>Review site-level recommendations using available disaster impacts, security and operational context. Batch assessment provides a combined readiness view based on site impacts.</p><p>These statuses support operational decisions. They are planning recommendations for people to review, with detail and inputs varying between individual and batch assessments.</p></div></div>
-        <div className={styles.statusGrid}>{[['GO','Review readiness'],['CAUTION','Investigate constraints'],['DELAY','Review timing'],['NOGO','Reassess before proceeding']].map(([status,detail]) => <div key={status}><strong>{status}</strong><span>{detail}</span></div>)}</div>
-      </div></section>
-      <section className={styles.section}><div className={`${styles.container} ${styles.split}`}>
-        <div><p className={styles.eyebrow}>Portfolio intelligence</p><h2>Understand risk across an entire portfolio.</h2><p>Upload many locations, compare detected impacts and batch viability recommendations, and identify sites requiring attention. Export a system-level decision brief for review.</p><p>The experimental Prioritization Board ranks facilities and actions within selected administrative areas, with confidence and missing-signal context. Uploaded boundaries and an area selection are required.</p></div>
-        <div className={styles.portfolio}><div className={styles.tableHeading}><strong>Locations for review</strong><span>Illustrative batch view</span></div>
-          <table><caption className={styles.srOnly}>Illustrative locations and assessment reasons, not real results</caption><thead><tr><th>Location</th><th>Status</th><th>Assessment reason</th></tr></thead><tbody>{[['Site A','CAUTION','Hazard impact detected'],['Site B','GO','No current impacts detected'],['Site C','DELAY','Multiple hazard impacts'],['Site D','CAUTION','Hazard impact detected']].map(row => <tr key={row[0]}>{row.map((cell,i) => <td key={i} data-label={['Location','Status','Reason'][i]}>{i === 1 ? <span className={cell === 'GO' ? styles.go : styles.caution}>{cell}</span> : cell}</td>)}</tr>)}</tbody></table>
-          <p className={styles.small}>No detected impact does not establish that a location is safe. Follow up on missing context.</p>
+      </section>
+
+      <section className={`${styles.section} ${styles.portfolioSection}`}>
+        <div className={styles.container}>
+          <div className={styles.sectionHeading}><p className={styles.eyebrow}>02 / See the whole portfolio</p><span className={styles.marginNote}>One place, multiple risks</span></div>
+          <div className={styles.split}><h2>Know where to<br />look next.</h2><div><p className={styles.lead}>Understand risk across an entire portfolio.</p><p>Compare detected impacts and batch viability recommendations. Investigate locations requiring attention, with hazards, security and infrastructure as context.</p></div></div>
+          <LandingAssessmentPreview selectedId={selectedId} onSelect={setSelectedId} portfolio />
+          <div className={styles.portfolioFoot}><p><strong>From a portfolio to a place.</strong> Select a location to see it in context. Export a system-level decision brief for review.</p><p><span className={styles.experimental}>Experimental</span> The Prioritization Board ranks facilities and actions within selected administrative areas. Uploaded boundaries and an area selection are required.</p></div>
         </div>
-      </div></section>
-      <section id="evidence" className={`${styles.section} ${styles.light}`}><div className={styles.container}>
-        <p className={styles.eyebrow}>Evidence & explainability</p><div className={styles.split}><h2>See the evidence behind the assessment.</h2><div><p className={styles.lead}>A score needs context.</p><p>Hazard decision views show contributing drivers, sources and limitations. Outbreak Response retains observation dates and source provenance in briefings and evidence exports. Coverage differs by workflow; not every score has the same evidence detail.</p></div></div>
-        <div className={styles.evidenceGrid}>{[['Sources & dates','Distinguish a reporting date from a retrieval date, and an uploaded file from a connected feed.'],['Drivers & gaps','Review contributing signals and missing layers in supported assessment views.'],['Assumptions & limits','Check coverage and planning assumptions before sharing or acting on an output.']].map(([title,body]) => <div key={title}><h3>{title}</h3><p>{body}</p></div>)}</div>
-        <div className={styles.brief}><div><p className={styles.eyebrow}>From data to briefing</p><h2>From data to a briefing your team can use.</h2></div><div><p>Use AI-assisted narrative analysis and situation reports to interpret workspace context. Export decision briefs, or use Outbreak Response for a dated, source-linked briefing.</p><p><span className={styles.experimental}>Experimental</span> Forecasts and Operational Outlook offer planning scenarios and drivers to review. They do not establish what will happen next.</p></div></div>
-      </div></section>
-      <section id="use-cases" className={styles.section}><div className={styles.container}>
-        <p className={styles.eyebrow}>Example applications</p><h2>For work that depends on place.</h2><p className={styles.intro}>Different operational questions, the same location-based intelligence platform. These are applications of existing tools, not dedicated industry products or customer claims.</p>
-        <div className={styles.useCases}>{applications.map(([title,body],i) => <article key={title}><span>0{i+1}</span><h3>{title}</h3><p>{body}</p></article>)}</div>
-        <div className={styles.origin}><div><p className={styles.eyebrow}>Humanitarian & global-health origins</p><h2>Built in complex operating environments</h2><p>Aidstack originated from the need to bring fragmented disaster, health, population, security, infrastructure and operational data together for teams working in complex environments.</p></div><div><h3>Outbreak response: the platform in practice</h3><p>Combine reported case indicators with population denominators, uploaded movement connections, workspace security and facility context, and dated response indicators in the Outbreak Response app.</p><ul><li>Where are reported conditions changing?</li><li>Where do movement links or security events warrant investigation?</li><li>Where are response gaps documented, or evidence missing?</li></ul><p className={styles.small}>Workflow example, not outbreak findings. Movement does not establish transmission; facility locations do not establish response capacity.</p></div></div>
-      </div></section>
+      </section>
+
+      <section className={`${styles.section} ${styles.viabilitySection}`}>
+        <div className={`${styles.container} ${styles.viabilityGrid}`}>
+          <div><p className={styles.eyebrow}>Operation Viability <span className={styles.experimental}>Experimental</span></p><h2>Can we<br /><em>operate here?</em></h2><p className={styles.lead}>Assess one location or an entire portfolio.</p><p>Review site recommendations using available disaster impacts, security and operational context. Batch assessment uses a more limited, impact-based view.</p><p className={styles.muted}>These are planning recommendations for human review. Confirm current field conditions before acting.</p></div>
+          <div className={styles.statusList}>{[['GO','Review readiness','Confirm the conditions needed for your operation.'],['CAUTION','Investigate constraints','Understand the drivers and what needs follow-up.'],['DELAY','Review timing','Consider constraints, timing and alternatives.'],['NOGO','Reassess before proceeding','Review the recommendation with your operational team.']].map(([status,title,body]) => <div key={status}><span className={styles.statusCode}>{status}</span><div><h3>{title}</h3><p>{body}</p></div></div>)}</div>
+        </div>
+      </section>
+
+      <section id="evidence" className={styles.section}>
+        <div className={styles.container}>
+          <div className={styles.sectionHeading}><p className={styles.eyebrow}>03 / Follow the evidence</p><span className={styles.marginNote}>Context behind the assessment</span></div>
+          <div className={styles.evidenceLayout}>
+            <div><h2>A score is a starting point.<br /><em>Ask what’s behind it.</em></h2><p>Hazard decision views show contributing drivers, sources and limitations. Outbreak Response retains observation dates and source provenance in briefings and evidence exports.</p><div className={styles.evidenceChecklist}>{[['Sources & dates','Distinguish a reporting date from retrieval time.'],['Drivers & missing signals','Review contributing evidence and coverage gaps.'],['Assumptions & limitations','Check what an assessment can and cannot establish.']].map(([title,body]) => <div key={title}><Check size={16} aria-hidden="true" /><p><strong>{title}</strong><span>{body}</span></p></div>)}</div><p className={styles.small}>Evidence detail varies by workflow. Mapped infrastructure does not confirm current access or operating capacity.</p></div>
+            <div className={styles.evidenceSheet}>
+              <div className={styles.sheetHeader}><Layers size={17} aria-hidden="true" /><span>Evidence review</span><small>Illustrative checklist</small></div>
+              <div className={styles.sheetTitle}><span>{selected.name} / Review context</span><ExampleStatus status={selected.status} /></div>
+              <p className={styles.sheetReason}>{selected.reason}</p>
+              <details open><summary>Hazard context <span>Source check</span></summary><p>Review the source report, its reporting date and the location of detected impacts. No source observations are loaded in this illustration.</p></details>
+              <details><summary>Security & infrastructure <span>Coverage check</span></summary><p>Review uploaded security-event dates and the coverage of optional infrastructure layers. A mapped road does not establish current access.</p></details>
+              <details><summary>What needs follow-up <span>Field check</span></summary><p>{selected.action}. Confirm local conditions and missing evidence with your team before deciding.</p></details>
+              <div className={styles.sheetFooter}>Evidence first. Judgment stays with your team.</div>
+            </div>
+          </div>
+          <div className={styles.briefingRow}>
+            <div className={styles.briefDocument}><div className={styles.documentHeader}><FileText size={17} aria-hidden="true" /><span>Operational briefing</span><span>Illustrative</span></div><h3>{selected.name}</h3><p>{selected.reason}</p><div className={styles.documentRule} /><span className={styles.documentLabel}>Review prompt</span><p>{selected.action}.</p><div className={styles.documentBottom}>Context · Drivers · Follow-up</div></div>
+            <div><p className={styles.eyebrow}>From data to briefing</p><h2>Give your team<br />a shared starting point.</h2><p>Use AI-assisted analysis and situation reports to interpret workspace context. Export decision briefs, or use Outbreak Response for dated, source-linked briefings.</p><p className={styles.small}><span className={styles.experimental}>Experimental</span> Forecasts and Operational Outlook offer planning scenarios and drivers to review. They do not establish what will happen next.</p><Link href="/app" className={styles.textLink}>Explore the workspace <ArrowUpRight size={17} aria-hidden="true" /></Link></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="use-cases" className={`${styles.section} ${styles.useCaseSection}`}>
+        <div className={styles.container}>
+          <div className={styles.sectionHeading}><p className={styles.eyebrow}>Built around the work</p><span className={styles.marginNote}>Example applications</span></div>
+          <div className={styles.split}><h2>Different missions.<br />A shared need for context.</h2><p className={styles.lead}>For teams whose work depends on physical places, from field operations to distributed infrastructure.</p></div>
+          <div className={styles.useCases}>{applications.map(([title,body],i) => <article key={title}><span>0{i+1}</span><h3>{title}</h3><p>{body}</p></article>)}</div>
+          <p className={styles.small}>Applications of existing platform tools, not separate industry products or customer claims.</p>
+          <div className={styles.origin}><div><p className={styles.eyebrow}>Our starting point</p><h3>Built in complex operating environments.</h3><p>Aidstack originated from the need to bring fragmented disaster, health, population, security and operational data together for teams working in complex environments.</p></div><div><h3>Outbreak response in practice</h3><p>Connect reported case indicators with population denominators, uploaded movement connections, workspace security and facility context, and dated response indicators.</p><p className={styles.small}>Where are conditions changing? Where is response evidence missing? These are prompts for investigation; movement does not establish transmission.</p></div></div>
+        </div>
+      </section>
+
       <LandingWorkspaceApps />
-      <section id="data-evidence" className={styles.section}><div className={styles.container}><p className={styles.eyebrow}>Data & evidence</p><h2>Built on multiple sources of evidence</h2><p className={styles.intro}>Combine connected feeds with your own data and optional context layers. Each source has its own coverage, dates and limitations.</p><div className={styles.sources}>{sources.map(([name,type,body]) => <article key={name}><div><h3>{name}</h3><span>{type}</span></div><p>{body}</p></article>)}</div></div></section>
-      <section id="how-it-works" className={`${styles.section} ${styles.light}`}><div className={styles.container}><p className={styles.eyebrow}>How it works</p><h2>Bring the places. Build the context. Review the evidence.</h2><ol className={styles.steps}><li><h3>Add your geography</h3><p>Upload sites and administrative boundaries. Include the attributes that matter to your operation.</p></li><li><h3>Choose the context</h3><p>Select an area. Review hazard and outbreak reports, upload conflict data, and load optional population or infrastructure layers.</p></li><li><h3>Assess and brief</h3><p>Review exposure, experimental viability and prioritization. Check assumptions, use a specialized app, and export the relevant output.</p></li></ol></div></section>
-      <section className={styles.section}><div className={`${styles.container} ${styles.faq}`}><p className={styles.eyebrow}>FAQ</p><h2>Before you explore</h2>{faqs.map(([question,answer]) => <details key={question}><summary>{question}</summary><p>{answer}</p></details>)}</div></section>
-      <section className={styles.finalCta}><div className={styles.container}><p className={styles.eyebrow}>Your next operational picture</p><h2>Your locations already exist.<br />The context around them keeps changing.</h2><p>Bring your sites and operational data into one workspace and understand the conditions developing around them.</p><div className={styles.actions}><Explore /><a className={styles.secondary} href={github}>View on GitHub <span aria-hidden="true">↗</span></a></div></div></section>
+
+      <section id="data-evidence" className={styles.section}>
+        <div className={styles.container}>
+          <div className={styles.split}><div><p className={styles.eyebrow}>Data & evidence</p><h2>Multiple sources.<br />One geographic context.</h2></div><p>Combine connected feeds with your own data and optional layers. Each source has its own coverage, dates and limitations.</p></div>
+          <div className={styles.sources}>{sources.map(([name,type,body]) => <details key={name}><summary><span>{name}</span><small>{type}</small></summary><p>{body}</p></details>)}</div>
+        </div>
+      </section>
+
+      <section className={`${styles.section} ${styles.faqSection}`}>
+        <div className={`${styles.container} ${styles.faqLayout}`}><div><p className={styles.eyebrow}>A few practical questions</p><h2>Before you explore.</h2><p>Start with your geography.<br />Build the context from there.</p></div><div className={styles.faq}>{faqs.map(([question,answer]) => <details key={question}><summary>{question}</summary><p>{answer}</p></details>)}</div></div>
+      </section>
+
+      <section className={styles.finalCta}><div className={styles.container}><p className={styles.eyebrow}>A clearer view starts here</p><h2>Your locations already exist.<br />The context around them<br /><em>keeps changing.</em></h2><p>Bring your sites and operational data into one workspace and understand the conditions developing around them.</p><div className={styles.actions}><Explore /><a className={styles.heroLink} href={github}>View on GitHub <ArrowUpRight size={16} aria-hidden="true" /></a></div></div></section>
     </main>
-    <footer className={styles.footer}><div className={styles.container}><Link href="/landing">Aidstack Atlas</Link><p>Geospatial operational intelligence</p><a href={github}>GitHub</a></div></footer>
+    <footer className={styles.footer}><div className={styles.container}><Link href="/landing" className={styles.brand}><Activity size={24} aria-hidden="true" />Aidstack <strong>Atlas</strong></Link><p>Geospatial operational intelligence</p><a href={github}>GitHub <ArrowUpRight size={12} aria-hidden="true" /></a></div></footer>
   </div>;
 }
