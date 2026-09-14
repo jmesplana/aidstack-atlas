@@ -37,7 +37,7 @@ export default function LandingPage() {
   return <div className={styles.page}>
     <a className={styles.skip} href="#main">Skip to content</a>
     <header className={styles.header}><div className={styles.navInner}>
-      <Link href="/landing" className={styles.brand}><Activity size={30} aria-hidden="true" /><span>Aidstack <strong>Disasters</strong></span></Link>
+      <Link href="/landing" className={styles.brand}><Activity size={30} aria-hidden="true" /><span>Aidstack <strong>Atlas</strong></span></Link>
       <nav aria-label="Main navigation"><a href="#platform">Platform</a><a href="#how-it-works">How It Works</a><a href="#use-cases">Use Cases</a><a href="#workspace-apps">Apps</a><a href="#data-evidence">Data & Evidence</a><a href={github}>GitHub</a></nav>
       <Explore>Explore Platform</Explore>
     </div></header>
@@ -94,6 +94,6 @@ export default function LandingPage() {
       <section className={styles.section}><div className={`${styles.container} ${styles.faq}`}><p className={styles.eyebrow}>FAQ</p><h2>Before you explore</h2>{faqs.map(([question,answer]) => <details key={question}><summary>{question}</summary><p>{answer}</p></details>)}</div></section>
       <section className={styles.finalCta}><div className={styles.container}><p className={styles.eyebrow}>Your next operational picture</p><h2>Your locations already exist.<br />The context around them keeps changing.</h2><p>Bring your sites and operational data into one workspace and understand the conditions developing around them.</p><div className={styles.actions}><Explore /><a className={styles.secondary} href={github}>View on GitHub <span aria-hidden="true">↗</span></a></div></div></section>
     </main>
-    <footer className={styles.footer}><div className={styles.container}><Link href="/landing">Aidstack Disasters</Link><p>Geospatial operational intelligence</p><a href={github}>GitHub</a></div></footer>
+    <footer className={styles.footer}><div className={styles.container}><Link href="/landing">Aidstack Atlas</Link><p>Geospatial operational intelligence</p><a href={github}>GitHub</a></div></footer>
   </div>;
 }

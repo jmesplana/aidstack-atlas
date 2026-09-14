@@ -3,7 +3,7 @@ import LandingPage from '../components/LandingPage';
 
 export default function Landing() {
   const siteUrl = 'https://disasters.aidstack.ai';
-  const title = 'Aidstack — Geospatial Operational Intelligence';
+  const title = 'Aidstack Atlas — Geospatial Operational Intelligence';
   const description = 'Combine global risk signals with your own locations and operational data to understand exposure, changing conditions, and operational risk.';
   const keywords = 'geospatial intelligence, operational intelligence, risk intelligence, geospatial risk, operational risk, disaster response, outbreak response, field operations';
 
@@ -29,7 +29,7 @@ export default function Landing() {
         <meta property="og:url" content={`${siteUrl}/landing`} />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
-        <meta property="og:site_name" content="Aidstack" />
+        <meta property="og:site_name" content="Aidstack Atlas" />
         <meta property="og:locale" content="en_US" />
 
         {/* Twitter */}
@@ -53,7 +53,7 @@ export default function Landing() {
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'SoftwareApplication',
-              name: 'Aidstack Disasters',
+              name: 'Aidstack Atlas',
               applicationCategory: 'BusinessApplication',
               operatingSystem: 'Web',
               offers: {
