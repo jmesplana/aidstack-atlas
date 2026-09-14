@@ -1,8 +1,8 @@
-# Aidstack Disasters — Geospatial Operational Intelligence
+# Aidstack Atlas — Geospatial Operational Intelligence
 
 **Live Demo:** [https://disasters.aidstack.ai](https://disasters.aidstack.ai)
 
-Aidstack Disasters is an open geospatial operational intelligence platform that combines hazards, conflict, population, infrastructure, health, and user-provided operational data to assess exposure and support location-based decisions.
+Aidstack Atlas is an open geospatial operational intelligence platform that combines hazards, conflict, population, infrastructure, health, and user-provided operational data to assess exposure and support location-based decisions.
 
 ---
 

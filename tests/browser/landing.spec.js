@@ -6,7 +6,7 @@ test('landing positioning, responsive layout, navigation and workspace route', a
   // Layout and route checks must not depend on external feeds or services.
   await page.route(/^https?:\/\/(?!127\.0\.0\.1|localhost).*$/, route => route.abort());
   await page.goto('/landing');
-  await expect(page).toHaveTitle('Aidstack — Geospatial Operational Intelligence');
+  await expect(page).toHaveTitle('Aidstack Atlas — Geospatial Operational Intelligence');
   await expect(page.locator('h1')).toHaveText('See what’s changing around the places that matter to you.');
   await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /your own locations and operational data/);
   for (const width of [1440, 768, 390, 320]) {
@@ -34,4 +34,5 @@ test('landing positioning, responsive layout, navigation and workspace route', a
   await page.getByRole('link', { name: 'Explore Platform', exact: true }).click();
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.locator('main')).toBeVisible();
+  await expect(page).toHaveTitle('Aidstack Atlas — Geospatial Operational Intelligence');
 });

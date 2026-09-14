@@ -2,7 +2,7 @@ import styles from './LandingPage.module.css';
 
 export default function LandingAssessmentPreview() {
   return <figure className={styles.preview} aria-label="Illustrative workspace with uploaded sites, contextual layers and a selected site assessment">
-    <div className={styles.previewBar}><span>Aidstack Disasters / Workspace</span><span className={styles.previewLabel}>Illustrative</span></div>
+    <div className={styles.previewBar}><span>Aidstack Atlas / Workspace</span><span className={styles.previewLabel}>Illustrative</span></div>
     <div className={styles.previewBody}>
       <div className={styles.map}>
         <svg viewBox="0 0 440 410" role="img" aria-label="Schematic map showing four uploaded sites, an operational boundary, roads and hazard context">

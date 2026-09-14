@@ -108,7 +108,7 @@ export default function OnboardingModal({ onClose }) {
               margin: 0, fontSize: '20px', fontWeight: 700,
               color: '#1A365D', fontFamily: "'Space Grotesk', sans-serif",
             }}>
-              Welcome to Aidstack Disasters
+              Welcome to Aidstack Atlas
             </h2>
             <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
               Intelligence for impact workers

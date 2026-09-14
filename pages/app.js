@@ -2836,8 +2836,8 @@ export default function Home() {
     <ErrorBoundary>
     <div className="container">
       <Head>
-        <title>Aidstack Disasters - Real-time Disaster Intelligence Platform</title>
-        <meta name="description" content="Intelligence for impact workers: Monitor global disasters, assess site impacts, predict disease outbreaks, and optimize humanitarian operations with AI-powered real-time analysis" />
+        <title>Aidstack Atlas — Geospatial Operational Intelligence</title>
+        <meta name="description" content="Combine global risk signals with your own locations and operational data to understand exposure, changing conditions, and operational risk." key="description" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="robots" content="noindex" />
         <link rel="icon" type="image/svg+xml" href="/images/gdacs/warning.svg" />
@@ -3822,7 +3822,7 @@ export default function Home() {
         position: 'relative',
         bottom: '0'
       }}>
-        Created by <a href="https://github.com/jmesplana" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--aidstack-orange)', textDecoration: 'none', fontWeight: '500' }}>John Mark Esplana</a> <span style={{color: '#ccc', margin: '0 6px'}}>|</span> <span style={{color: '#bbb'}}>Aidstack Disasters</span>
+        Created by <a href="https://github.com/jmesplana" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--aidstack-orange)', textDecoration: 'none', fontWeight: '500' }}>John Mark Esplana</a> <span style={{color: '#ccc', margin: '0 6px'}}>|</span> <span style={{color: '#bbb'}}>Aidstack Atlas</span>
       </footer>
 
       {/* Storage status panel */}
