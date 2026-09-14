@@ -2967,7 +2967,7 @@ export default function Home() {
               <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
             </svg>
             <div style={{display: 'flex', flexDirection: 'column', gap: '2px'}}>
-              <span>aidstack<span style={{color: 'var(--aidstack-slate-medium)', fontWeight: 500}}>.disasters</span></span>
+              <span>Aidstack <span style={{color: 'var(--aidstack-slate-medium)', fontWeight: 500}}>Atlas</span></span>
               <span style={{
                 fontSize: '12px',
                 fontWeight: 500,

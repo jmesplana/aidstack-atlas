@@ -73,7 +73,7 @@ const GeocodingSearch = () => {
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`,
         {
           headers: {
-            'User-Agent': 'Aidstack Disasters Platform'
+            'User-Agent': 'Aidstack Atlas Platform'
           }
         }
       );
