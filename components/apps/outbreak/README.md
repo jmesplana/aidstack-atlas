@@ -7,6 +7,41 @@ available for explicit field/level matching; unmatched locations remain visible.
 
 ## Workflow
 
+### Daily response brief
+
+Movement connections are visible in Situation without opening the area explorer,
+and immediately follow the key message in Briefing. Use Inflow map / Outflow map
+to switch direction; the briefing also provides a focus-area selector. The selected
+direction is retained in visual exports. Evidence dates and gaps appear collapsed
+at the bottom of Briefing. Check “Include evidence dates and gaps in the exported
+report” to append them to Markdown and HTML/PDF; this option is saved with snapshots.
+Evidence JSON always retains the underlying data for audit purposes.
+
+Use the four-step briefing guide to check inputs, review changes and priorities,
+assign actions, and review/export the brief. Choose the operational scope and
+reporting cut-off first. Select **Compare with previous brief** explicitly, or
+use **Use open snapshot as baseline** before updating the current data. Compare
+snapshots from the same operation; a later reporting cut-off is rejected as a
+baseline. Each Save snapshot creates a separate record, preserving earlier briefs.
+The selected comparison inputs are saved with the new brief and restored with it.
+
+Situation and Briefing show the same changes and evidence-date register. Response
+indicator changes require the same dataset, unit, measure type, level and location;
+unmatched or missing observations do not produce a change. Action additions,
+edits and removals are included. Older observations are flagged relative to the
+cut-off, not assigned an arbitrary freshness threshold. Distinct response indicators
+are not summed, and capacity ratios require matching locations and dates.
+
+Selected suggestions retain their rationale, cut-off and contextual source references
+when edited. Assign an owner and due date in Response & decisions, then update the
+status. The guide counts unassigned, undated, overdue and blocked actions. Review
+the briefing before sharing; changes invalidate the reviewed flag. Markdown,
+HTML/PDF and evidence JSON preserve the comparison and action evidence.
+
+Pilot with one coordinator using representative DRC data: record preparation time,
+factual corrections, unsupported claims, and actions receiving a decision. The
+software supports the pilot; operational usefulness still requires this user review.
+
 ### Updating data
 
 Data & uploads includes a dedicated IPIS Excel/CSV import. Map mine ID, visit date

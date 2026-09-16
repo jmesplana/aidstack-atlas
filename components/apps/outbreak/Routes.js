@@ -26,6 +26,8 @@ export default function Routes({data,onLoad,loading,error,epi,security,geometry,
   const unmatched=shown.filter(r=>!names.has(r.origin)||!names.has(r.destination));
   const areas=[...new Set([...(epi?.zones.map(z=>z.location)||[]),...(data?.routes.flatMap(r=>[r.origin,r.destination])||[]),...names])].sort();
   return <section className={styles.panel} aria-label="District mobility and focus"><h3>Movement connections</h3>
+    <div className={`${styles.toolbar} ${styles.noPrint}`} data-print-hide="true" role="group" aria-label="Movement map direction"><button aria-pressed={direction==='inflow'} onClick={()=>onDirection('inflow')}>Inflow map</button><button aria-pressed={direction==='outflow'} onClick={()=>onDirection('outflow')}>Outflow map</button></div>
+    {briefing&&data&&<label className={styles.noPrint}>Focus area for movement maps<select value={area} onChange={e=>onSelect?.(e.target.value)}>{!areas.includes(area)&&<option>{area}</option>}{areas.map(n=><option key={n}>{n}</option>)}</select></label>}
     {showFocus&&<><p>Suggested review priorities, grouped by evidence; no transmission forecast or composite risk score. Click an area to inspect its connections.</p>
     <div className={styles.insightCards}>{focus.map(f=><article key={f.name}><button onClick={()=>onSelect?.(f.name)}>{f.name}</button><span className={styles.printOnly}>{f.name}</span>{f.reasons.map(r=><p key={r}>{r}</p>)}</article>)}</div>
     {!focus.length&&<p>Load area-level confirmed cases to generate burden and growth priorities. Mobility connections can still be explored independently.</p>}

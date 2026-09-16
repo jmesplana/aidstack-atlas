@@ -3,6 +3,50 @@ const { readFileSync } = require('node:fs');
 const XLSX = require('xlsx');
 
 const areas=[{id:'A',name:'A',properties:{nom:'A'},geometry:{type:'Polygon',coordinates:[[[29,1],[30,1],[30,2],[29,2],[29,1]]]}}];
+test('daily briefing retains separate snapshots, action evidence and the chosen comparison in exports',async({page},testInfo)=>{
+  await openOutbreak(page,areas);
+  await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-08');
+  await upload(page,'zone,date,completed\nA,2026-09-01,5\nA,2026-09-08,10\n');
+  await page.getByLabel('Indicator label',{exact:true}).fill('Area cases');
+  await page.getByRole('combobox',{name:'Measure type',exact:true}).selectOption('cumulative');
+  await page.getByRole('combobox',{name:'Analysis role',exact:true}).selectOption('cases');
+  await page.getByRole('button',{name:'Confirm mapped import',exact:true}).click();
+  await page.getByRole('button',{name:'Situation',exact:true}).click();
+  await page.getByRole('button',{name:'Add to response plan',exact:true}).first().click();
+  await page.getByRole('button',{name:/Save snapshot/}).click();
+  await expect(page.getByLabel('Saved snapshots').locator('option')).toHaveCount(2);
+  await page.getByRole('button',{name:'Use open snapshot as baseline'}).click();
+  await expect(page.getByRole('region',{name:'Changes since comparison brief'})).toContainText('Since last brief');
+  await page.getByRole('button',{name:'3. Assign response actions'}).click();
+  await page.getByLabel('Owner',{exact:true}).fill('Response coordinator');
+  await page.getByLabel('Due date',{exact:true}).fill('2026-09-09');
+  await page.getByRole('combobox',{name:'Status',exact:true}).selectOption('Approved');
+  await page.getByRole('button',{name:'4. Review and export brief'}).click();
+  await expect(page.getByRole('region',{name:'Changes since comparison brief'})).toContainText('Proposed → Approved');
+  await expect(page.getByRole('region',{name:'Briefing evidence readiness'})).not.toBeVisible();
+  for(const button of ['Export briefing Markdown','Export briefing HTML with visuals']){
+    const pending=page.waitForEvent('download');await page.getByRole('button',{name:button,exact:true}).click();
+    const download=await pending,file=testInfo.outputPath(`without-dates-${button.endsWith('Markdown')?'md':'html'}`);await download.saveAs(file);
+    expect(readFileSync(file,'utf8')).not.toContain('Evidence dates and gaps');
+  }
+  await page.getByLabel('Include evidence dates and gaps in the exported report').check();
+  await page.getByLabel('I have reviewed this snapshot and its evidence for sharing.').check();
+  await page.getByRole('button',{name:/Save snapshot/}).click();
+  await expect(page.getByLabel('Saved snapshots').locator('option')).toHaveCount(3);
+  await page.getByLabel('Saved snapshots').selectOption({index:1});
+  await expect(page.getByText('Reviewed by user',{exact:true})).toBeVisible();
+  await expect(page.getByLabel('Include evidence dates and gaps in the exported report')).toBeChecked();
+  await expect(page.getByRole('region',{name:'Changes since comparison brief'})).toContainText('Proposed → Approved');
+  for(const [button,extension] of [['Export briefing Markdown','md'],['Export briefing HTML with visuals','html']]){
+    const pending=page.waitForEvent('download');await page.getByRole('button',{name:button,exact:true}).click();
+    const download=await pending,file=testInfo.outputPath(`daily-brief.${extension}`);await download.saveAs(file);
+    const text=readFileSync(file,'utf8');expect(text).toContain('Response coordinator');expect(text).toContain('Proposed → Approved');expect(text).toContain('2026-09-09');expect(text).toContain('Evidence dates and gaps');
+  }
+  await page.getByLabel('Saved snapshots').selectOption({index:2});
+  await page.getByRole('button',{name:'Response & decisions',exact:true}).click();
+  await expect(page.getByLabel('Owner',{exact:true})).toHaveValue('');
+  await expect(page.getByRole('combobox',{name:'Status',exact:true})).toHaveValue('Proposed');
+});
 test('key message leads with weekly trend, then province focus, and retains that flow in exports',async({page},testInfo)=>{
   const cutOff='2026-09-11';
   const datasets=[
@@ -108,6 +152,11 @@ test('mobility maps share IPIS and ACLED toggles through directions, briefing, e
     return route.fulfill({json:data});
   },[event,{...event,event_id:'old-event',event_date:'2020-01-01'}]);
   await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-08');
+  await expect(page.getByRole('img',{name:'Outflow from A map',exact:true})).toBeVisible();
+  await expect(page.getByRole('img',{name:'Outflow from A map',exact:true}).locator('xpath=ancestor::details')).toHaveCount(0);
+  await page.getByRole('button',{name:'Inflow map',exact:true}).click();
+  await expect(page.getByRole('img',{name:'Inflow to A map',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Outflow map',exact:true}).click();
   await page.getByText('Explore an area',{exact:true}).click();
   const controls=page.getByRole('group',{name:'Overlays for Outflow from A',exact:true});
   await expect(controls.getByRole('checkbox',{name:'IPIS mining sites',exact:true})).toBeEnabled();
@@ -132,6 +181,9 @@ test('mobility maps share IPIS and ACLED toggles through directions, briefing, e
   await expect(cohortMap.locator('[data-acled-event]')).toHaveCount(1);
   await page.getByRole('button',{name:'Briefing',exact:true}).click();
   await expect(inflow.locator('[data-ipis-site]')).toHaveCount(1);
+  await page.getByRole('button',{name:'Outflow map',exact:true}).click();
+  await expect(page.getByRole('img',{name:'Outflow from A map',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Inflow map',exact:true}).click();
   await expect(inflow.locator('[data-acled-event]')).toHaveCount(1);
   await inflow.screenshot({path:testInfo.outputPath('mobility-overlays.png')});
   await page.getByRole('checkbox',{name:'Include detailed evidence and extra maps in this briefing and exports'}).check();
@@ -376,7 +428,7 @@ test('connected source refreshes on opening, summary precedes detail, failed ref
   await page.setViewportSize({width:1440,height:1200});
   await page.getByRole('region',{name:'Overall snapshot'}).screenshot({path:testInfo.outputPath('overall-snapshot.png')});
   const headings=await page.getByRole('region',{name:'Outbreak response'}).locator('h3:visible').allTextContents();
-  expect(headings.slice(0,5)).toEqual(['Key message','Overall snapshot','Trends','Areas to review','Suggested actions']);
+  expect(headings.slice(0,7)).toEqual(['Key message','Prepare daily response brief','Since last brief','Overall snapshot','Trends','Areas to review','Suggested actions']);
   const message=page.getByRole('region',{name:'Key message',exact:true});
   await expect(message).toContainText('A (+10)');
   const messageBox=await message.boundingBox();
