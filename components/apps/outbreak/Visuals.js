@@ -261,27 +261,24 @@ export function NationalTrendChart({ datasets, asOf, source }) {
   const ticks=[...new Set(Array.from({length:6},(_,i)=>Math.round((minDate+(maxDate-minDate)*i/5)/86400000)*86400000))];
   const tickLabel=t=>axis==='epiweek'?epiWeek(new Date(t).toISOString().slice(0,10)).label.replace(/^\d{4}-/,''):new Date(t).toISOString().slice(5,10);
   const hoverLabel=d=>axis==='epiweek'?epiWeek(d).label:d;
-  // Trend of each series across the visible window: compare first and last non-missing values.
-  // Rising is adverse for every series except recoveries, where more is better.
-  const trendOf=s=>{const known=s.points.filter(p=>p.value!==null);if(known.length<2)return {glyph:'▬',delta:null,color:'#5f7488'};const d=known.at(-1).value-known[0].value;const good=s.key==='recoveries';const adverse=d>0?!good:good;return {glyph:d>0?'▲':d<0?'▼':'▬',delta:d,color:d===0?'#5f7488':adverse?'#c43b30':'#1f8a5b'};};
   // Connect the line across date gaps; break only where a value is actually missing (null).
   const segmentsFor=s=>{const segs=[];let seg=[];s.points.forEach(p=>{if(p.value===null){if(seg.length)segs.push(seg);seg=[];}else seg.push([x(p.date),y(p.value)]);});if(seg.length)segs.push(seg);return segs;};
   const nearest=frac=>{const t=minDate+frac*span;return dates.reduce((best,d)=>Math.abs(Date.parse(d)-t)<Math.abs(Date.parse(best)-t)?d:best,dates[0]);};
   const hover=e=>{const svg=ref.current;const pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const loc=pt.matrixTransform(svg.getScreenCTM().inverse());if(loc.x<92||loc.x>782){setHoverDate(null);return;}setHoverDate(nearest((loc.x-92)/690));};
   const hx=hoverDate?x(hoverDate):0;
-  // In-SVG legend: swatch (with the series' dash) + label + latest value + coloured trend arrow.
-  const legend=windowed.map(s=>{const t=trendOf(s),latest=s.points.filter(p=>p.value!==null).at(-1);return {s,t,latest,text:`${s.short}  ${latest?formatValue(latest.value):'—'}  ${t.glyph}${t.delta!==null?` ${t.delta>0?'+':''}${formatValue(t.delta)}`:''}`};});
+  // In-SVG legend shows reported values without treating cumulative growth as an outcome rating.
+  const legend=windowed.map(s=>{const latest=s.points.filter(p=>p.value!==null).at(-1);return {s,latest,text:`${s.short}  ${latest?formatValue(latest.value):'—'}`};});
   let lx=20;const legendItems=legend.map(item=>{const width=item.text.length*6.0+34;const node={...item,x:lx,width};lx+=width;return node;});
   return <div className={`${styles.chartCard} ${styles.trendCard}`}>
     <div data-print-hide="true" style={{display:'flex',gap:10,justifyContent:'flex-end',alignItems:'flex-end',flexWrap:'wrap'}}>
       <label>X-axis<select aria-label="National trend x-axis" value={axis} onChange={e=>setAxis(e.target.value)}><option value="date">Calendar dates</option><option value="epiweek">Epi weeks</option></select></label>
       <label>Trend window<select aria-label="National trend window" value={period} onChange={e=>setPeriod(e.target.value)}><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="all">Full series</option></select></label>
     </div>
-    <div className={styles.chartViewport} tabIndex={0} role="region" aria-label="Scrollable chart"><svg ref={ref} viewBox="0 0 820 340" role="img" aria-label="National cumulative indicators trend" style={{width:'100%',background:'white'}} onMouseMove={hover} onMouseLeave={()=>setHoverDate(null)}>
-      <rect width="820" height="340" fill="white"/>
+    <div className={styles.chartViewport} tabIndex={0} role="region" aria-label="Scrollable chart"><svg ref={ref} viewBox="0 0 820 350" role="img" aria-label="National indicators trend" style={{width:'100%',background:'white'}} onMouseMove={hover} onMouseLeave={()=>setHoverDate(null)}>
+      <rect width="820" height="350" fill="white"/>
       <text x="20" y="26" fontFamily="sans-serif" fontSize="18" fontWeight="bold" fill="#18334b">National indicators over time</text>
-      <text x="20" y="46" fontFamily="sans-serif" fontSize="12" fill="#597086">Reported cumulative people · through {axis==='epiweek'?epiWeek(last).label:last} · cut-off {asOf} · {axis==='epiweek'?'epi weeks (ISO-8601)':'calendar dates'} · gaps left missing</text>
-      <g aria-label="Legend">{legendItems.map(item=><g key={item.s.key}><line x1={item.x} y1="72" x2={item.x+24} y2="72" stroke={item.s.color} strokeWidth="3" strokeDasharray={item.s.dash} strokeLinecap="round"/><text x={item.x+30} y="76" fontFamily="sans-serif" fontSize="12" fill="#28435b"><tspan fontWeight="700">{item.s.short}</tspan><tspan fill="#4a6076" dx="5">{item.latest?formatValue(item.latest.value):'—'}</tspan><tspan fill={item.t.color} fontWeight="700" dx="5">{item.t.glyph}{item.t.delta!==null?` ${item.t.delta>0?'+':''}${formatValue(item.t.delta)}`:''}</tspan></text></g>)}</g>
+      <text x="20" y="46" fontFamily="sans-serif" fontSize="12" fill="#597086">Reported indicator values · through {axis==='epiweek'?epiWeek(last).label:last} · cut-off {asOf} · {axis==='epiweek'?'epi weeks (ISO-8601)':'calendar dates'}</text>
+      <g aria-label="Legend">{legendItems.map(item=><g key={item.s.key}><line x1={item.x} y1="72" x2={item.x+24} y2="72" stroke={item.s.color} strokeWidth="3" strokeDasharray={item.s.dash} strokeLinecap="round"/><text x={item.x+30} y="76" fontFamily="sans-serif" fontSize="12" fill="#28435b"><tspan fontWeight="700">{item.s.short}</tspan><tspan fill="#4a6076" dx="5">{item.latest?formatValue(item.latest.value):'—'}</tspan></text></g>)}</g>
       <line x1="20" y1="88" x2="800" y2="88" stroke="#eef2f6" strokeWidth="1"/>
       {[0,.25,.5,.75,1].map(n=><g key={n}><line x1="92" x2="782" y1={y(n*max)} y2={y(n*max)} stroke="#eef2f6" strokeWidth="1"/><text x="84" y={y(n*max)+4} textAnchor="end" fontSize="11" fontFamily="sans-serif" fill="#8195a6">{formatValue(Number((n*max).toPrecision(3)))}</text></g>)}
       {hoverDate&&<line x1={hx} x2={hx} y1={PLOT_TOP} y2={PLOT_BOTTOM} stroke="#b9c9d9" strokeWidth="1" strokeDasharray="3 3"/>}
@@ -295,8 +292,10 @@ export function NationalTrendChart({ datasets, asOf, source }) {
       })()}
       {ticks.map(t=><text key={t} x={x(new Date(t).toISOString().slice(0,10))} y={PLOT_BOTTOM+22} textAnchor="middle" fontSize="11" fontFamily="sans-serif" fill="#8195a6">{tickLabel(t)}</text>)}
       {hoverDate&&(()=>{const rows=windowed.map(s=>({s,p:s.points.find(q=>q.date===hoverDate)})).filter(r=>r.p&&r.p.value!==null);const bw=155,bh=20+rows.length*17,bx=Math.min(650,Math.max(10,hx+10)),by=PLOT_TOP+2;return <g pointerEvents="none"><rect x={bx} y={by} width={bw} height={bh} rx="5" fill="white" stroke="#cddce7"/><text x={bx+10} y={by+15} fontSize="11" fontWeight="700" fontFamily="sans-serif" fill="#28435b">{hoverLabel(hoverDate)}</text>{rows.map((r,i)=><g key={r.s.key}><line x1={bx+10} y1={by+24+i*17-3} x2={bx+22} y2={by+24+i*17-3} stroke={r.s.color} strokeWidth="3" strokeDasharray={r.s.dash}/><text x={bx+28} y={by+24+i*17} fontSize="11" fontFamily="sans-serif" fill="#3f5468">{r.s.short}: {formatValue(r.p.value)}</text></g>)}</g>;})()}
-      <text x="20" y="322" fontSize="9" fontFamily="sans-serif" fill="#8195a6">Source: {String(source||'National reported series').slice(0,150)} · Rising cumulative totals reflect additional reports, not onset timing.</text>
+      <text x="20" y="322" fontSize="9" fontFamily="sans-serif" fill="#8195a6">Source: {String(source || 'National reported series').slice(0,140)}</text>
+      <text x="20" y="338" fontSize="9" fontFamily="sans-serif" fill="#8195a6">Lines join reported observations; explicit missing values break lines. Cumulative totals do not show onset timing.</text>
     </svg></div>
+    {windowed.some(s=>s.key==='isolation') && <small>Isolation is shown as reported; its source definition determines whether it is a current count or cumulative measure.</small>}
     <button type="button" onClick={()=>exportSVG(ref,'national-indicators.svg')}>Export chart SVG</button>
   </div>;
 }

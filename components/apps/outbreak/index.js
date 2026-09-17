@@ -55,7 +55,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   const [mines,setMines]=useState(null),[showMines,setShowMines]=useState(false);
   const [actions,setActions]=useState([]),[factIds,setFactIds]=useState([]),[reviewed,setReviewed]=useState(false);
   const [saved,setSaved]=useState([]),[record,setRecord]=useState(null),[dirty,setDirty]=useState(false);
-  const [compareId,setCompareId]=useState(''),[compareSnapshot,setCompareSnapshot]=useState(null),[briefDirection,setBriefDirection]=useState('inflow');
+  const [compareId,setCompareId]=useState(''),[compareSnapshot,setCompareSnapshot]=useState(null),[briefDirection,setBriefDirection]=useState('outflow');
   const [boundarySource,setBoundarySource]=useState('Main app uploaded boundaries');
   const [restoredGeometry,setRestoredGeometry]=useState(null);
   const [routeDirection,setRouteDirection]=useState('outflow'),[routeLimit,setRouteLimit]=useState('10');
@@ -192,7 +192,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
     if(autoConnection.current)return;
     let remembered='';try{remembered=localStorage.getItem(connectionKey)||'';}catch{}
     if(!registeredEpi&&remembered!=='drc')return;
-    autoConnection.current='drc';setPreset('drc');refreshConnected('drc');
+    autoConnection.current='drc';setPreset('drc');setName(current=>current===INITIAL_NAME?'DRC Ebola (BVD) outbreak':current);refreshConnected('drc');
   },[registeredEpi,connectionKey]);
   function connectSource(value){
     refreshGeneration.current++;setRefreshing(false);autoConnection.current='manual';change();setPreset(value);if(value==='drc'&&name===INITIAL_NAME)setName('DRC Ebola (BVD) outbreak');
@@ -228,14 +228,14 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   function applySnapshot(s) {
       compareGeneration.current++;setCompareLoading(false);setCompareSnapshot(s.comparison||null);setCompareId(s.comparison?.id||'');
       setReportOptions(s.reportOptions||{notes:{},mobilityAreas:[]});setIntakeVersion(v=>v+1);setIncludeEvidenceDates(s.includeEvidenceDates??false);setRcceDocuments(s.rcceDocuments||[]);setDocumentFilter(s.documentFilter||{kind:'',theme:'',from:'',measure:''});
-      setRestoredDisasters(s.disasters||[]);setIncludeAppendix(s.includeAppendix||false);setBottomLine(s.bottomLine||'');setBriefDirection(s.briefDirection||'inflow');setRouteDirection(s.routeDirection||'outflow');setRouteLimit(s.routeLimit||'10');setRouteData(s.routeData||null);setName(s.name);setPreset(s.preset);setAsOf(s.asOf);setDatasets(s.datasets);setSelectedId(s.selectedId);setLocation(s.location);setBoundaryField(s.boundaryField);setBoundaryLevel(s.boundaryLevel);setBoundarySource(s.boundarySource);setRestoredGeometry(s.geometry);setMines(s.mines);setShowMines(s.showMines);setActions(s.actions);setFactIds(s.factIds);setReviewed(s.schemaVersion===2&&s.reviewed);setFlowCatalogue(s.flowCatalogue||null);setUseWorkspaceContext(s.useWorkspaceContext??true);setProvinceField(s.provinceField||'province');setEpiSource(s.epiSource||'');setMovementDirection(s.movementDirection||'outflow');setMovementField(s.movementField||'');setSecurityFrom(s.securityFrom||'');setSecurityTo(s.securityTo||'');setRestoredSecurity(s.securityEvents||[]);setShowSecurity(s.showSecurity??true);setShowSites(s.showSites??false);setMapMode(s.mapMode||'indicator');setRecord(s);setDirty(false);setNotice('Saved snapshot opened. Sources were not refreshed.');
+      setRestoredDisasters(s.disasters||[]);setIncludeAppendix(s.includeAppendix||false);setBottomLine(s.bottomLine||'');setBriefDirection(s.briefDirection||'outflow');setRouteDirection(s.routeDirection||'outflow');setRouteLimit(s.routeLimit||'10');setRouteData(s.routeData||null);setName(s.name);setPreset(s.preset);setAsOf(s.asOf);setDatasets(s.datasets);setSelectedId(s.selectedId);setLocation(s.location);setBoundaryField(s.boundaryField);setBoundaryLevel(s.boundaryLevel);setBoundarySource(s.boundarySource);setRestoredGeometry(s.geometry);setMines(s.mines);setShowMines(s.showMines);setActions(s.actions);setFactIds(s.factIds);setReviewed(s.schemaVersion===2&&s.reviewed);setFlowCatalogue(s.flowCatalogue||null);setUseWorkspaceContext(s.useWorkspaceContext??true);setProvinceField(s.provinceField||'province');setEpiSource(s.epiSource||'');setMovementDirection(s.movementDirection||'outflow');setMovementField(s.movementField||'');setSecurityFrom(s.securityFrom||'');setSecurityTo(s.securityTo||'');setRestoredSecurity(s.securityEvents||[]);setShowSecurity(s.showSecurity??true);setShowSites(s.showSites??false);setMapMode(s.mapMode||'indicator');setRecord(s);setDirty(false);setNotice('Saved snapshot opened. Sources were not refreshed.');
   }
   function newOutbreak() {
     if(dirty&&!window.confirm('Start another outbreak without saving current changes?'))return;
     compareGeneration.current++;setCompareLoading(false);setCompareId('');setCompareSnapshot(null);
     refreshGeneration.current++;autoConnection.current='manual';setRefreshing(false);setRefreshStatus('No live source connected.');setLastChecked('');try{localStorage.removeItem(connectionKey);}catch{}
     setReportOptions({notes:{},mobilityAreas:[]});setIntakeVersion(v=>v+1);setDataView('reports');setIncludeEvidenceDates(false);setRcceDocuments([]);setDocumentFilter({kind:'',theme:'',from:'',measure:''});
-    setRestoredDisasters(null);setIncludeAppendix(false);setBottomLine('');setBriefDirection('inflow');setRouteData(null);setName('New outbreak');setPreset('custom');setDatasets([]);setSelectedId('');setLocation('');setAsOf(today());setActions([]);setFactIds([]);setMines(null);setShowMines(false);setRecord(null);setRestoredGeometry(null);setRestoredSecurity(null);setUseWorkspaceContext(false);setSecurityFrom('');setSecurityTo('');setEpiSource('');setMovementField('');setMapMode('indicator');change();
+    setRestoredDisasters(null);setIncludeAppendix(false);setBottomLine('');setBriefDirection('outflow');setRouteData(null);setName('New outbreak');setPreset('custom');setDatasets([]);setSelectedId('');setLocation('');setAsOf(today());setActions([]);setFactIds([]);setMines(null);setShowMines(false);setRecord(null);setRestoredGeometry(null);setRestoredSecurity(null);setUseWorkspaceContext(false);setSecurityFrom('');setSecurityTo('');setEpiSource('');setMovementField('');setMapMode('indicator');change();
   }
   const updateAction=(i,key,value)=>{change();setActions(actions.map((a,n)=>i===n?{...a,[key]:value}:a));};
   function selectProposal(suggestion) {

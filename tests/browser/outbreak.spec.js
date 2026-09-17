@@ -68,7 +68,6 @@ test('key message leads with weekly trend, then province focus, and retains that
   await expect(key.locator(':scope > p').nth(0)).toContainText('decreased: 14 versus 28 cases');
   await expect(key.locator('p').nth(1)).toContainText('Province B — A (+8)');
   await expect(key.locator('p').nth(2)).toContainText('review case investigations');
-  const wording=(await key.locator('p').allTextContents()).slice(0,3).join('\n\n');
   await openSitrep(page);
   await expect(key.locator(':scope > p').nth(0)).toContainText('decreased: 14 versus 28 cases');
   for(const [button,format] of [['Export briefing Markdown','md'],['Export briefing HTML with visuals','html']]) {
@@ -78,8 +77,8 @@ test('key message leads with weekly trend, then province focus, and retains that
     const file=testInfo.outputPath(`trend-first.${format}`);
     await download.saveAs(file);
     const contents=readFileSync(file,'utf8');
-    expect(contents.indexOf('decreased: 14 versus 28 cases')).toBeLessThan(contents.indexOf('Province B — A (+8)'));
-    if(format==='md')expect(contents).toContain(wording);
+    expect(contents.indexOf('decreased: 14 versus 28 cases')).toBeLessThan(contents.indexOf('A (Province B): 20'));
+    expect(contents).toContain('Review case investigations and surveillance workload.');
   }
   await page.getByLabel('Bottom line for decision-makers',{exact:false}).fill('Coordinator decision: confirm staffing.');
   await expect(key.locator(':scope > p')).toHaveCount(1);
@@ -185,7 +184,7 @@ test('mobility maps share IPIS and ACLED toggles through directions, briefing, e
   await expect(cohortMap.locator('[data-ipis-site]')).toHaveCount(1);
   await expect(cohortMap.locator('[data-acled-event]')).toHaveCount(1);
   await openSitrep(page);
-  await expect(inflow.locator('[data-ipis-site]')).toHaveCount(1);
+  await expect(outflow.locator('[data-ipis-site]')).toHaveCount(1);
   await page.getByLabel('Mobility view',{exact:true}).selectOption('outflow');
   await expect(page.getByRole('img',{name:'Outflow from A map',exact:true})).toBeVisible();
   await page.getByLabel('Mobility view',{exact:true}).selectOption('inflow');
@@ -533,7 +532,7 @@ test('national multi-series chart shows an in-chart legend, connects weekly poin
   await page.getByLabel('Optional public source preset').selectOption('drc');
   await expect(page.getByRole('region',{name:'Outbreak response'})).toContainText('National cumulative confirmed cases');
   await page.getByRole('button',{name:'Situation',exact:true}).click();
-  const chart=page.getByRole('img',{name:'National cumulative indicators trend'});
+  const chart=page.getByRole('img',{name:'National indicators trend'});
   await expect(chart).toBeVisible();
   // In-chart legend names each series inside the SVG (survives export).
   await expect(chart.getByText('Confirmed cases')).toBeVisible();
