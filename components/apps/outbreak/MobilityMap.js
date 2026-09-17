@@ -3,7 +3,7 @@ import styles from './outbreak.module.css';
 
 // Share layer choices across movement views and the saved briefing snapshot.
 export default function MobilityMap({overlays={},...mapProps}) {
-  const {mines=[],events=[],showMines=false,showSecurity=false,onMines,onSecurity,securityPeriod=''}=overlays;
+  const {mines=[],events=[],showMines=false,showSecurity=false,onMines,onSecurity,securityPeriod='',documentSignals=[]}=overlays;
   const visibleMines=showMines?mines:[],visibleEvents=showSecurity?events:[];
   const caption=[visibleMines.length?'IPIS: historical sites; visit dates vary.':'',visibleEvents.length?`ACLED: ${securityPeriod}.`:''].filter(Boolean).join(' ');
   return <>
@@ -12,6 +12,6 @@ export default function MobilityMap({overlays={},...mapProps}) {
       <label><input type="checkbox" checked={showSecurity&&events.length>0} disabled={!events.length||!onSecurity} onChange={e=>onSecurity(e.target.checked)}/>ACLED security events{!events.length?' — no events in the selected window':''}</label>
       <small>Layer choices apply to all movement maps and the briefing. Load IPIS data or check the ACLED window in Data & uploads.</small>
     </div>
-    <OutbreakMap {...mapProps} mines={visibleMines} events={visibleEvents} overlayCaption={caption}/>
+    <OutbreakMap {...mapProps} documentSignals={documentSignals} mines={visibleMines} events={visibleEvents} overlayCaption={caption}/>
   </>;
 }

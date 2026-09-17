@@ -44,7 +44,7 @@ software supports the pilot; operational usefulness still requires this user rev
 
 ### Updating data
 
-Data & uploads includes a dedicated IPIS Excel/CSV import. Map mine ID, visit date
+Data & uploads → Maps & context includes a dedicated IPIS Excel/CSV import. Map mine ID, visit date
 and WGS84 latitude/longitude; name and province are optional. Preview the eligible
 sites, unmatched boundaries and added/changed/removed counts, then replace the
 active mining source. The workbook worksheet and mappings are stored with the
@@ -83,13 +83,101 @@ response-status thresholds remain the existing defaults.
    individual SVG maps/charts, or print the briefing to PDF.
 
 The example SDB CSV is synthetic and must be replaced before operational use.
-Only aggregate indicators are supported; this is not a patient/incident line-list
+Numeric uploads support aggregate indicators; this is not a patient/incident line-list
 processor. Numeric imports require one observation per location/date. Duplicate
 rows, invalid numbers and dates are rejected. Blank/ND/NA values remain missing.
 Daily, cumulative and snapshot values are never silently interchanged. Uploaded
 sources are separate series, so overlapping totals are not combined. JSON evidence
 exports are audit artifacts, not an import/restore format; reopen saved snapshots
 through the selector in the same browser/workspace.
+
+### Data workspace navigation
+
+Data & uploads opens on **Reports**. Use **Numeric data** for aggregate indicators
+and GeoJSON fields, **Connected sources** for public feeds and coverage, and
+**Maps & context** for mining, mobility, security and hazard inputs. Source rows
+and reference catalogues expand on demand. Coverage actions open the relevant
+upload view.
+
+Pending uploads remain available when switching data views or outbreak sections.
+Opening a saved snapshot or starting a new outbreak resets pending intake. Only
+confirmed reports are saved in snapshots.
+
+Report review keeps required metadata together, marks missing fields and focuses
+the first invalid field on confirmation. AI assistance is optional. Extracted
+source text and findings are expandable; findings support search, missing-date /
+location filters and five-item pages. Unknown report dates are explicitly flagged
+as excluded from briefing summaries. Imported reports can be expanded and their
+metadata edited with **Edit report details**. Report dates never substitute for
+finding observation dates.
+
+### Narrative RCCE reports
+
+Choose **Data & uploads → Reports → Upload RCCE feedback and reports** for PDF, Word `.docx`,
+PowerPoint `.pptx`, Excel `.xlsx` / `.xls`, and UTF-8 `.txt` files (maximum 20 MB
+and 200,000 extracted characters). Extraction runs in the browser using existing
+dependencies. It reads Word body paragraphs/tables, presentation slides in deck
+order, and all Excel worksheets including headers. PDF text includes file page
+numbers (up to 80 pages; scanned pages require transcription). Excel uses stored formula
+results. Images, charts, speaker notes and embedded files are not extracted;
+older `.doc` / `.ppt` files must first be saved in the modern format.
+
+Select multiple weekly reports together (up to 20 pending reports, 20 MB each).
+Each file has its own review form; switching reports or adding more files preserves
+entered details. Failed files do not discard successful ones, and identical files
+already imported or pending review are skipped. Confirm or cancel each report
+separately. Only confirmed reports are saved in snapshots. Weekly reports remain
+separate; overlapping or cumulative figures are not added together.
+
+Review the extracted text, enter a title, reporting organization, location/scope
+and reporting date, then write a summary and confirm. Reports remain separate
+from numeric indicators and do not imply coverage rates or response status.
+Summaries within the reporting cut-off appear in Response & decisions and the
+briefing, including Markdown and HTML/PDF exports. Save a snapshot to retain
+reports, extracted text, filenames and SHA-256 provenance. Evidence JSON retains
+all reports, including those after the cut-off. Older snapshots open with no
+RCCE reports; New outbreak clears them. Reading a file is local. Clicking **Analyze
+report with AI** sends its extracted text to the configured OpenAI service.
+
+### AI findings and visualization
+
+Document analysis infers findings from content rather than filenames, fixed report
+layouts, predefined places or a fixed rumor taxonomy. It proposes editable theme
+tags, finding type (rumor, question, concern, request, activity, vaccination, cases
+or other), original-language source passages, geographic scope, observation
+periods, explicit measures/units, population and activity purpose. Long text is
+processed in overlapping parts; repeated passages are deduplicated within a report.
+Failed parts retain completed findings. Publication dates are separate from
+observation dates, and unknown values remain unresolved. Quotes must match the
+supplied text. This checks provenance, not factual accuracy or representativeness.
+
+The visible AI disclaimer accompanies analysis, maps and exported findings. Edit
+findings and explicitly match supported locations to the loaded boundaries; no
+fuzzy joins, inferred coordinates or province-to-zone propagation are performed.
+Findings without observation dates stay in the source register. Use the reporting
+cut-off, optional start date, finding type and content-derived theme filters to
+explore dated findings. A community marker represents source findings, not the
+number or proportion of people who hold a belief. Missing reports do not imply
+absence of concerns. Findings are never automatically converted into clinical
+case datasets, vaccination coverage percentages or response-status scores.
+
+Situation includes a document evidence map: reported case shading (when a case
+source is loaded), community theme circles and vaccination-report squares at
+representative area centres. Clicking an area shows its findings and Flowminder
+connections. Existing mining and security overlays are available. Each explicit
+numeric document measure can be selected separately by report, population, unit
+and purpose; conflicting same-area/date values appear missing. Reports, weekly
+periods, vaccine doses/people and clinical-trial/preparedness activities are not
+pooled. Incoming/outgoing movement keeps its own period and units. The same
+finding overlays appear on existing geographic and mobility maps. Findings,
+source quotes, map assignments and filters persist in snapshots and evidence JSON;
+dated findings also appear in Markdown and HTML/PDF briefing exports.
+
+`OPENAI_API_KEY` enables the extraction endpoint; `OUTBREAK_DOCUMENT_MODEL` can
+select a model supporting Chat Completions structured outputs (default matches
+the existing briefing endpoint: `gpt-4o-mini`). Without AI configuration, manual
+report imports remain available. The intake does not perform OCR of scans or
+screenshots and does not treat model output as verified epidemiological evidence.
 
 ## Evidence and AI
 

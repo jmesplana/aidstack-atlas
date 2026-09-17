@@ -74,6 +74,7 @@ export default function Upload({ onImport, datasets=[] }) {
   return <section>
     <h3>Upload operational data</h3>
     <p>Import aggregate case reports, SDB/EDS, RCCE, logistics or other numeric indicators. Choose an existing dataset to replace its complete series, or add a separate indicator. Records stay in this browser unless you export them.</p>
+    <p>For narrative community feedback in PDF, Word, PowerPoint, Excel or text files, choose Reports in the data task menu.</p>
     <p>Use one row per location and reporting date. Dates must be YYYY-MM-DD, numbers must use dot decimals without thousands separators. Blank / ND values remain missing. Do not upload individual patient or burial records.</p>
     <label>Import mode<select value={replacementId} onChange={e=>selectTarget(e.target.value)}><option value="">Add separate indicator</option>{datasets.map(d=><option key={d.id} value={d.id}>Replace: {d.label} — {d.file||d.source||d.id}</option>)}</select></label>
     {target&&<p>Replaces the complete series for {target.label}; rows absent from the new file will be removed from the current analysis. Saved snapshots stay unchanged. Public refresh will preserve this uploaded replacement.</p>}

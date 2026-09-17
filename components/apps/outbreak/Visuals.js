@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {zoomView,placeLabels} from '../../../lib/outbreak/mapInteraction';
 import { zoneName, formatValue, epiWeek } from '../../../lib/outbreak/data';
 import styles from './outbreak.module.css';
+import {themeColor} from '../../../lib/outbreak/documentInsights';
 
 export function download(name, content, type='text/plain') {
   const url=URL.createObjectURL(new Blob([content],{type}));
@@ -30,7 +31,7 @@ function exportSVG(ref,name) {
   copy.setAttribute('xmlns','http://www.w3.org/2000/svg');
   download(name,new XMLSerializer().serializeToString(copy),'image/svg+xml');
 }
-export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, mines=[], events=[], hazards=[], sites=[], selected, onSelect, label, asOf, source, focusNames=[], routes=[], routeDirection='outflow', overlayCaption='' }) {
+export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, mines=[], events=[], hazards=[], sites=[], selected, onSelect, label, asOf, source, focusNames=[], routes=[], routeDirection='outflow', routeUnit, documentSignals=[], overlayCaption='' }) {
   const routeColor=routeDirection==='inflow'?'#c96a37':'#176f89';
   const ref=useRef(null),mapRef=useRef(null),drag=useRef(null),pointers=useRef(new Map()),liveView=useRef(null);
   const arrowId=useId().replace(/:/g, "");
@@ -64,7 +65,7 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
   },[shapes,focusNames.join('|')]);
   useEffect(()=>setViewport(null),[geometry,label]);
   const view=viewport||automatic,zoom=900/view[2];
-  const mapHeight=overlayCaption?615:590;
+  const mapHeight=(overlayCaption?615:590)+(documentSignals.length?22:0);
   liveView.current=view;
   function screenPoint(e){const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(ref.current.getScreenCTM().inverse());return [p.x,p.y-66];}
   function zoomBy(factor){setViewport(zoomView(liveView.current,factor));}
@@ -112,6 +113,8 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
   const allowed=labels==='none'?new Set():labels==='all'?new Set(shapes.features.map(f=>f.name)):priority;
   const visibleLabels=placeLabels(shapes.features,view,selected,allowed,renderScale);
   const point=(p)=>p.longitude!==''&&p.latitude!==''&&p.longitude!=null&&p.latitude!=null&&Number.isFinite(Number(p.longitude))&&Number.isFinite(Number(p.latitude))&&p.longitude>=shapes.west&&p.longitude<=shapes.east&&p.latitude>=shapes.south&&p.latitude<=shapes.north;
+  const signalGroups=[...documentSignals.reduce((groups,f)=>{const key=JSON.stringify([f.mapLocation,f.kind,f.themes[0]||'']);const group=groups.get(key)||[];group.push(f);groups.set(key,group);return groups;},new Map()).values()];
+  const signalOffsets=new Map();
   return <div>
     <div data-print-hide="true" style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',margin:'12px 0'}}>
       <button type="button" aria-label={`Zoom in ${label} map`} onClick={()=>zoomBy(.65)}>＋</button>
@@ -136,12 +139,19 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
           const a=shapes.features.find(f=>f.name===r.origin)?.center,b=shapes.features.find(f=>f.name===r.destination)?.center;
           if(!a||!b||r.value===null||r.value<=0)return null;
           const dx=b[0]-a[0],dy=b[1]-a[1],cx=(a[0]+b[0])/2-dy*.22,cy=(a[1]+b[1])/2+dx*.22;
-          return <path key={i} data-mobility-route={`${r.origin} → ${r.destination}`} d={`M${a.join(',')} Q${cx},${cy} ${b.join(',')}`} fill="none" stroke={routeColor} strokeWidth={2/zoom} opacity=".8" markerEnd={`url(#${arrowId})`}><title>{r.origin} → {r.destination}: {formatValue(r.value)} {unit}. Schematic connection, not a travelled route.</title></path>;
+          return <path key={i} data-mobility-route={`${r.origin} → ${r.destination}`} d={`M${a.join(',')} Q${cx},${cy} ${b.join(',')}`} fill="none" stroke={routeColor} strokeWidth={2/zoom} opacity=".8" markerEnd={`url(#${arrowId})`}><title>{r.origin} → {r.destination}: {formatValue(r.value)} {routeUnit||unit}. Schematic connection, not a travelled route.</title></path>;
         })}
         {mines.filter(point).map(m=>{const [cx,cy]=shapes.project([Number(m.longitude),Number(m.latitude)]);return <circle data-ipis-site={m.id} key={m.id} cx={cx} cy={cy} r={2.3/zoom} fill="#148998" stroke="white" strokeWidth={.4/zoom}><title>{m.name} — IPIS visit {m.date}; historical observation</title></circle>;})}
         {events.filter(point).map(e=>{const [cx,cy]=shapes.project([Number(e.longitude),Number(e.latitude)]);return <path data-acled-event={e.id} key={e.id} d={`M${cx},${cy-4/zoom}l${4/zoom},${4/zoom}l${-4/zoom},${4/zoom}l${-4/zoom},${-4/zoom}Z`} fill="#71317f" stroke="white" strokeWidth={.5/zoom}><title>ACLED: {e.date}, {e.type}; {e.fatalities??'unknown'} reported fatalities</title></path>;})}
         {hazards.filter(point).map(h=>{const [cx,cy]=shapes.project([h.longitude,h.latitude]);return <path key={h.id} d={`M${cx},${cy-5/zoom}l${5/zoom},${9/zoom}h${-10/zoom}Z`} fill="#d29100" stroke="white" strokeWidth={.6/zoom}><title>GDACS: {h.title}; published {h.date}. Alert centre, not affected footprint.</title></path>;})}
         {sites.filter(point).map((p,i)=>{const [x,y]=shapes.project([Number(p.longitude),Number(p.latitude)]);return <rect key={p.id||i} x={x-2/zoom} y={y-2/zoom} width={4/zoom} height={4/zoom} fill="#264b81"><title>{p.name||'Uploaded site'} — location only; capacity not verified</title></rect>;})}
+        {signalGroups.map(group=>{
+          const f=group[0],shape=shapes.features.find(s=>s.name===f.mapLocation);if(!shape)return null;
+          const offset=signalOffsets.get(f.mapLocation)||0;signalOffsets.set(f.mapLocation,offset+1);
+          const cx=shape.center[0]+((offset%4)*13-20)/zoom,cy=shape.center[1]+(Math.floor(offset/4)*13+14)/zoom,color=themeColor(f.themes[0]||f.kind);
+          const title=`${f.mapLocation} · ${f.kind} · ${f.themes.join(', ')} · ${group.length} source findings (not prevalence). ${group.map(item=>`${item.summary} (${item.endDate}; ${item.file}, ${item.reference})`).join(' ')}`;
+          return f.kind==='vaccination'?<rect key={f.id} data-document-finding={f.id} data-admin={f.mapLocation} x={cx-5/zoom} y={cy-5/zoom} width={10/zoom} height={10/zoom} fill="white" stroke={color} strokeWidth={2/zoom}><title>{title}</title></rect>:<circle key={f.id} data-document-finding={f.id} data-admin={f.mapLocation} cx={cx} cy={cy} r={5/zoom} fill={color} stroke="white" strokeWidth={1/zoom}><title>{title}</title></circle>;
+        })}
         {visibleLabels.map(f=><g key={f.name}><line x1={f.center[0]} y1={f.center[1]} x2={f.labelX} y2={f.labelY} stroke="#718598" strokeWidth={.6/zoom} pointerEvents="none"/><text data-admin={f.name} x={f.labelX} y={f.labelY} fontFamily="sans-serif" fontSize={12/zoom/renderScale} fontWeight="600" fill="#153b55" stroke="white" strokeWidth={3/zoom/renderScale} paintOrder="stroke" textAnchor="middle">{f.name}</text></g>)}
       </svg>
       <rect x="22" y="520" width="12" height="12" fill="#e3e8ed"/><text x="40" y="531" fontFamily="sans-serif" fontSize="12">No data</text>
@@ -149,6 +159,7 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
       <rect x="191" y="520" width="12" height="12" fill="hsl(12 76% 42%)"/><text x="209" y="531" fontFamily="sans-serif" fontSize="12">Darker: larger values · max absolute value {known.length?formatValue(max):'not available'}</text>
       <text x="22" y="552" fontFamily="sans-serif" fontSize="11" fill="#536c81">{hazards.length?'Gold triangles: GDACS centres. ':''}{mines.length?'Teal dots: documented mines. ':''}{events.length?'Purple diamonds: ACLED events. ':''}{sites.length?'Blue squares: uploaded sites. ':''}Blue areas: negative changes, where present.</text>
       <text x="22" y="574" fontFamily="sans-serif" fontSize="10" fill="#536c81">Source: {String(source||'Uploaded administrative boundaries').slice(0,130)}</text>
+      {documentSignals.length>0&&<text x="22" y={mapHeight-10} fontFamily="sans-serif" fontSize="11" fill="#536c81">AI-extracted findings may be incomplete or incorrect. Verify source. Circles: themes; squares: vaccination reports.</text>}
       {overlayCaption&&<text x="22" y="596" fontFamily="sans-serif" fontSize="11" fill="#536c81">{overlayCaption}</text>}
     </svg>
     <p style={{fontSize:12,color:"#536c81"}}>Labels are spaced to avoid overlap. Zoom in to reveal more; select an area to keep its label visible.</p>
