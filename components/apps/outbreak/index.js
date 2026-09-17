@@ -12,20 +12,22 @@ import MineUpload from './MineUpload';
 import {minesAtCutoff,mergePublicDatasets} from '../../../lib/outbreak/imports';
 import GeoImport from './GeoImport';
 import Overview from './Overview';
-import BriefSummary from './BriefSummary';
+import Sitrep from './Sitrep';
+import SitrepWorkspace from './SitrepWorkspace';
+import useOutbreakDraft, { DRAFT_ID } from './useOutbreakDraft';
 import DataAvailability from './DataAvailability';
 import {recommendations,proposalKey,proposalSelected} from '../../../lib/outbreak/overview';
 import {hazardContext} from '../../../lib/outbreak/context';
 import Routes, { RouteUpload } from './Routes';
 import { IntegratedCharts, MobilityPanel } from './Integrated';
 import { embeddedEpidemiology, detectGeoIndicators, detectMobility, describeMobility, spatialIndex, miningOverlap, securityRecords, securityOverlap, epidemiology, integratedEvidence, shiftDate } from '../../../lib/outbreak/insights';
-import { OutbreakMap, TrendChart, download, briefingHTML, printBriefing } from './Visuals';
+import { OutbreakMap, TrendChart, download } from './Visuals';
 import ResponseStatus from './ResponseStatus';
-import BriefWorkflow, { BriefChanges, EvidenceReadiness } from './BriefWorkflow';
-import { comparisonRecord, evidenceReadiness, actionFollowUp } from '../../../lib/outbreak/briefing';
+import { BriefChanges, EvidenceReadiness } from './BriefWorkflow';
+import { comparisonRecord, actionFollowUp } from '../../../lib/outbreak/briefing';
 import KeyMessage from './KeyMessage';
 import { keyMessage } from '../../../lib/outbreak/keyMessage';
-import { sinceLast, responseStatus } from '../../../lib/outbreak/response';
+import { sinceLast } from '../../../lib/outbreak/response';
 import styles from './outbreak.module.css';
 
 const today=()=>new Date().toISOString().slice(0,10);
@@ -35,13 +37,16 @@ const sourceLabel=d=>d?.url||d?.source||'Unknown';
 export default function Outbreak({ storage, districts=[], facilities=[], acledData=[], disasters=[], onOpenWorkspace, leaveGuard }) {
   const briefElement=useRef(null),explorerElement=useRef(null),refreshGeneration=useRef(0),autoConnection=useRef('');
   const [includeEvidenceDates,setIncludeEvidenceDates]=useState(false);
+  const [reportOptions,setReportOptions]=useState({notes:{},mobilityAreas:[]});
+  const appElement=useRef(null), draftSaved=useRef(false);
+  function goTab(value){setTab(value);requestAnimationFrame(()=>appElement.current?.scrollTo({top:0}));}
   const [includeAppendix,setIncludeAppendix]=useState(false),[restoredDisasters,setRestoredDisasters]=useState(null),[showHazards,setShowHazards]=useState(true);
   const [explorerOpen,setExplorerOpen]=useState(false),[refreshing,setRefreshing]=useState(false),[refreshStatus,setRefreshStatus]=useState(''),[lastChecked,setLastChecked]=useState('');
   const [name,setName]=useState(INITIAL_NAME),[preset,setPreset]=useState('custom'),[bottomLine,setBottomLine]=useState('');
   const [rcceDocuments,setRcceDocuments]=useState([]);
   const [dataView,setDataView]=useState('reports');
   const [intakeVersion,setIntakeVersion]=useState(0);
-  function openData(view='reports'){setDataView(view);setTab('Data & uploads');requestAnimationFrame(()=>document.getElementById('outbreak-data-'+view)?.scrollIntoView({block:'start',behavior:'smooth'}));}
+  function openData(view='reports'){setDataView(view);goTab('Data');}
   const [documentFilter,setDocumentFilter]=useState({kind:'',theme:'',from:'',measure:''});
   const [datasets,setDatasets]=useState([]),[selectedId,setSelectedId]=useState(''),[location,setLocation]=useState('');
   const [asOf,setAsOf]=useState(today()),[tab,setTab]=useState('Situation'),[busy,setBusy]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState('');
@@ -61,7 +66,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   const [movementDirection,setMovementDirection]=useState('outflow'),[movementField,setMovementField]=useState('');
   const [securityFrom,setSecurityFrom]=useState(''),[securityTo,setSecurityTo]=useState(''),[restoredSecurity,setRestoredSecurity]=useState(null);
   const [showSecurity,setShowSecurity]=useState(true),[showSites,setShowSites]=useState(false),[mapMode,setMapMode]=useState('indicator');
-  useEffect(()=>{let live=true;storage.listPlans().then(v=>{if(live)setSaved(v);}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[storage]);
+  useEffect(()=>{let live=true;storage.listPlans().then(v=>{if(live)setSaved(v.filter(s=>s.id!==DRAFT_ID));}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[storage]);
   const compareGeneration=useRef(0);
   const [compareLoading,setCompareLoading]=useState(false);
   async function selectComparison(id) {
@@ -73,9 +78,9 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
     finally{if(generation===compareGeneration.current)setCompareLoading(false);}
   }
   useEffect(()=>{
-    const guard=()=>!dirty||window.confirm('Leave outbreak response without saving the current snapshot?');
+    const guard=()=>!dirty||draftSaved.current||window.confirm('Leave outbreak response without saving the current snapshot?');
     if(leaveGuard)leaveGuard.current=guard;
-    const before=e=>{if(dirty){e.preventDefault();e.returnValue='';}};
+    const before=e=>{if(dirty&&!draftSaved.current){e.preventDefault();e.returnValue='';}};
     window.addEventListener('beforeunload',before);
     return()=>{window.removeEventListener('beforeunload',before);if(leaveGuard?.current===guard)leaveGuard.current=null;};
   },[dirty,leaveGuard]);
@@ -103,7 +108,6 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   const unmatched=selected?.level===boundaryLevel&&geography.data?rows.filter(r=>!names.has(r.location)):[];
   const comparisons=useMemo(()=>selected?.kind==='daily'?dailyComparison(selected.records,asOf):[],[selected,asOf]);
   const epi=useMemo(()=>epidemiology(availableDatasets,geography.data,asOf,epiSource,boundaryLevel),[availableDatasets,geography,asOf,epiSource,boundaryLevel]);
-  const briefDataset=epi?.dataset||selected,briefRows=epi?.zones||rows;
   const index=useMemo(()=>spatialIndex(geography.data),[geography]);
   const disasterInput=restoredDisasters??(useWorkspaceContext?disasters:[]);
   const hazards=useMemo(()=>hazardContext(disasterInput,index,asOf),[disasterInput,index,asOf]);
@@ -150,7 +154,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
     try{const response=await fetch('/api/outbreak-data?kind=relocations');const data=await response.json();if(!response.ok||!Array.isArray(data.routes))throw new Error(data.error||'Invalid mobility response');change();setRouteData(data);}catch(e){setRouteError(e.message);}finally{setRouteLoading(false);}
   }
   async function refreshConnected(connection=preset) {
-    if(connection!=='drc'){setRefreshStatus('No live source connected. Choose a source in Data & uploads. Uploaded and main-app records cannot be refreshed without a source connection.');return;}
+    if(connection!=='drc'){setRefreshStatus('No live source connected. Choose a source in Data. Uploaded and main-app records cannot be refreshed without a source connection.');return;}
     const generation=++refreshGeneration.current;
     setRefreshing(true);setRefreshStatus('Checking connected sources…');
     const uploadedMobility=routeData&&(routeData.origin==='upload'||routeData.origin!=='public'&&!routeData.source?.startsWith('https://raw.githubusercontent.com/INRB-UMIE/'));
@@ -191,7 +195,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
     autoConnection.current='drc';setPreset('drc');refreshConnected('drc');
   },[registeredEpi,connectionKey]);
   function connectSource(value){
-    refreshGeneration.current++;setRefreshing(false);autoConnection.current='manual';change();setPreset(value);
+    refreshGeneration.current++;setRefreshing(false);autoConnection.current='manual';change();setPreset(value);if(value==='drc'&&name===INITIAL_NAME)setName('DRC Ebola (BVD) outbreak');
     try{localStorage.setItem(connectionKey,value);}catch{}
     if(value==='drc')refreshConnected(value);else setRefreshStatus('Using uploaded and main-app data. No live source connected.');
   }
@@ -208,46 +212,30 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
       setFactIds(data.ids);setDirty(true);setReviewed(false);setNotice('AI selected existing evidence sentences. No AI-written claims were added.');
     }catch(e){setError(e.message);}finally{setBusy('');}
   }
-  function snapshot() {return {schemaVersion:2,rcceDocuments,documentFilter,includeEvidenceDates,comparison:comparisonRecord(compareSnapshot),disasters:disasterInput,includeAppendix,bottomLine,briefDirection,routeData,routeDirection,routeLimit,name,preset,asOf,datasets:availableDatasets,selectedId:selected?.id||selectedId,location:selectedLocation,boundaryField,boundaryLevel,boundarySource,geometry:geography.data,mines,showMines,actions,factIds,reviewed,flowCatalogue,useWorkspaceContext,provinceField,epiSource,movementDirection,movementField,securityFrom,securityTo,showSecurity,showSites,mapMode,securityEvents:securityInput.map(e=>({event_id:e.event_id_cnty||e.event_id||e.id,event_date:e.event_date,latitude:e.latitude,longitude:e.longitude,fatalities:e.fatalities,actor1:e.actor1,event_type:e.event_type,location:e.location,country:e.country}))};}
+  function snapshot() {return {schemaVersion:2,reportOptions,rcceDocuments,documentFilter,includeEvidenceDates,comparison:comparisonRecord(compareSnapshot),disasters:disasterInput,includeAppendix,bottomLine,briefDirection,routeData,routeDirection,routeLimit,name,preset,asOf,datasets:availableDatasets,selectedId:selected?.id||selectedId,location:selectedLocation,boundaryField,boundaryLevel,boundarySource,geometry:geography.data,mines,showMines,actions,factIds,reviewed,flowCatalogue,useWorkspaceContext,provinceField,epiSource,movementDirection,movementField,securityFrom,securityTo,showSecurity,showSites,mapMode,securityEvents:securityInput.map(e=>({event_id:e.event_id_cnty||e.event_id||e.id,event_date:e.event_date,latitude:e.latitude,longitude:e.longitude,fatalities:e.fatalities,actor1:e.actor1,event_type:e.event_type,location:e.location,country:e.country}))};}
   async function save() {
     setBusy('Saving snapshot');setError('');
-    try{const value=await storage.savePlan({id:crypto.randomUUID(),metadata:{name:`${name} — ${asOf} — ${new Date().toISOString()}`},...snapshot()},0);setRecord(value);setDirty(false);setSaved(await storage.listPlans());setNotice('Snapshot saved in this browser workspace.');}catch(e){setError(e.message);}finally{setBusy('');}
+    try{const value=await storage.savePlan({id:crypto.randomUUID(),metadata:{name:`${name} — ${asOf} — ${new Date().toISOString()}`},...snapshot()},0);setRecord(value);setDirty(false);setSaved((await storage.listPlans()).filter(s=>s.id!==DRAFT_ID));setNotice('Snapshot saved in this browser workspace.');await draft.flush(snapshot());}catch(e){setError(e.message);}finally{setBusy('');}
   }
   async function restore(id) {
     if(!id||dirty&&!window.confirm('Replace unsaved work with this snapshot?'))return;
     refreshGeneration.current++;autoConnection.current='snapshot';setRefreshing(false);setRefreshStatus('Saved snapshot — showing the recorded data. Refresh data to update it.');setLastChecked('');
     setBusy('Opening snapshot');setError('');
     try{const s=await storage.loadPlan(id);if(![1,2].includes(s?.schemaVersion))throw new Error('Unsupported snapshot version');
-      compareGeneration.current++;setCompareLoading(false);setCompareSnapshot(s.comparison||null);setCompareId(s.comparison?.id||'');
-      setIntakeVersion(v=>v+1);setIncludeEvidenceDates(s.includeEvidenceDates??false);setRcceDocuments(s.rcceDocuments||[]);setDocumentFilter(s.documentFilter||{kind:'',theme:'',from:'',measure:''});
-      setRestoredDisasters(s.disasters||[]);setIncludeAppendix(s.includeAppendix||false);setBottomLine(s.bottomLine||'');setBriefDirection(s.briefDirection||'inflow');setRouteDirection(s.routeDirection||'outflow');setRouteLimit(s.routeLimit||'10');setRouteData(s.routeData||null);setName(s.name);setPreset(s.preset);setAsOf(s.asOf);setDatasets(s.datasets);setSelectedId(s.selectedId);setLocation(s.location);setBoundaryField(s.boundaryField);setBoundaryLevel(s.boundaryLevel);setBoundarySource(s.boundarySource);setRestoredGeometry(s.geometry);setMines(s.mines);setShowMines(s.showMines);setActions(s.actions);setFactIds(s.factIds);setReviewed(s.schemaVersion===2&&s.reviewed);setFlowCatalogue(s.flowCatalogue||null);setUseWorkspaceContext(s.useWorkspaceContext??true);setProvinceField(s.provinceField||'province');setEpiSource(s.epiSource||'');setMovementDirection(s.movementDirection||'outflow');setMovementField(s.movementField||'');setSecurityFrom(s.securityFrom||'');setSecurityTo(s.securityTo||'');setRestoredSecurity(s.securityEvents||[]);setShowSecurity(s.showSecurity??true);setShowSites(s.showSites??false);setMapMode(s.mapMode||'indicator');setRecord(s);setDirty(false);setNotice('Saved snapshot opened. Sources were not refreshed.');
+      applySnapshot(s);
     }catch(e){setError(e.message);}finally{setBusy('');}
+  }
+  function applySnapshot(s) {
+      compareGeneration.current++;setCompareLoading(false);setCompareSnapshot(s.comparison||null);setCompareId(s.comparison?.id||'');
+      setReportOptions(s.reportOptions||{notes:{},mobilityAreas:[]});setIntakeVersion(v=>v+1);setIncludeEvidenceDates(s.includeEvidenceDates??false);setRcceDocuments(s.rcceDocuments||[]);setDocumentFilter(s.documentFilter||{kind:'',theme:'',from:'',measure:''});
+      setRestoredDisasters(s.disasters||[]);setIncludeAppendix(s.includeAppendix||false);setBottomLine(s.bottomLine||'');setBriefDirection(s.briefDirection||'inflow');setRouteDirection(s.routeDirection||'outflow');setRouteLimit(s.routeLimit||'10');setRouteData(s.routeData||null);setName(s.name);setPreset(s.preset);setAsOf(s.asOf);setDatasets(s.datasets);setSelectedId(s.selectedId);setLocation(s.location);setBoundaryField(s.boundaryField);setBoundaryLevel(s.boundaryLevel);setBoundarySource(s.boundarySource);setRestoredGeometry(s.geometry);setMines(s.mines);setShowMines(s.showMines);setActions(s.actions);setFactIds(s.factIds);setReviewed(s.schemaVersion===2&&s.reviewed);setFlowCatalogue(s.flowCatalogue||null);setUseWorkspaceContext(s.useWorkspaceContext??true);setProvinceField(s.provinceField||'province');setEpiSource(s.epiSource||'');setMovementDirection(s.movementDirection||'outflow');setMovementField(s.movementField||'');setSecurityFrom(s.securityFrom||'');setSecurityTo(s.securityTo||'');setRestoredSecurity(s.securityEvents||[]);setShowSecurity(s.showSecurity??true);setShowSites(s.showSites??false);setMapMode(s.mapMode||'indicator');setRecord(s);setDirty(false);setNotice('Saved snapshot opened. Sources were not refreshed.');
   }
   function newOutbreak() {
     if(dirty&&!window.confirm('Start another outbreak without saving current changes?'))return;
     compareGeneration.current++;setCompareLoading(false);setCompareId('');setCompareSnapshot(null);
     refreshGeneration.current++;autoConnection.current='manual';setRefreshing(false);setRefreshStatus('No live source connected.');setLastChecked('');try{localStorage.removeItem(connectionKey);}catch{}
-    setIntakeVersion(v=>v+1);setDataView('reports');setIncludeEvidenceDates(false);setRcceDocuments([]);setDocumentFilter({kind:'',theme:'',from:'',measure:''});
+    setReportOptions({notes:{},mobilityAreas:[]});setIntakeVersion(v=>v+1);setDataView('reports');setIncludeEvidenceDates(false);setRcceDocuments([]);setDocumentFilter({kind:'',theme:'',from:'',measure:''});
     setRestoredDisasters(null);setIncludeAppendix(false);setBottomLine('');setBriefDirection('inflow');setRouteData(null);setName('New outbreak');setPreset('custom');setDatasets([]);setSelectedId('');setLocation('');setAsOf(today());setActions([]);setFactIds([]);setMines(null);setShowMines(false);setRecord(null);setRestoredGeometry(null);setRestoredSecurity(null);setUseWorkspaceContext(false);setSecurityFrom('');setSecurityTo('');setEpiSource('');setMovementField('');setMapMode('indicator');change();
-  }
-  function briefingText() {
-    const calls=[...actions.filter(a=>a.status==='Blocked').map(a=>`Unblock: ${a.action||'action'}${a.location?` (${a.location})`:''}`),...actions.filter(a=>a.status==='Proposed').map(a=>`Decision requested: ${a.action||'action'}${a.owner?` — owner ${a.owner}`:''}`)];
-    return [`# ${name}`,`Status: ${reviewed?'Reviewed by user':'DRAFT — requires coordinator review'}`,`Reporting cut-off: ${asOf}. Generated: ${new Date().toISOString()}.`,
-      '## Key message',openingMessage.text,openingMessage.origin,
-      ...(since?.warning?['## Comparison unavailable',since.warning]:[]),
-      ...(since&&since.lines.length?[`## Since last brief${since.priorAsOf?` (${since.priorName||'snapshot'}, ${since.priorAsOf})`:''}`,...since.lines.map(l=>`- ${l.label}: ${l.value}${typeof l.delta==='number'?` (${l.delta>=0?'+':''}${formatValue(l.delta)})`:''}${l.since?` — ${l.since}`:''}`)]:[]),
-      '## Summary',...nationalEvidence(availableDatasets,asOf).map(f=>`${f.label}: ${formatValue(f.value)} (${f.date})`),...(epi?integrated.filter(f=>['integrated:hotspots','integrated:growth'].includes(f.id)):highlights).map(f=>`- ${f.text} [${evidenceSource(f)}]`),
-      ...(eligibleRcce.length?['## Community feedback / RCCE reports',eligibleRcce.some(d=>d.analysis)?AI_DOCUMENT_DISCLAIMER:'Imported qualitative summaries.',...eligibleRcce.map(d=>`${d.title} — ${d.location} (${d.date})\n\n${d.summary}\n\nSource: ${d.source} | File: ${d.file} | SHA-256 ${d.sha256}`)]:[]),
-      ...(datedDocumentFindings.length?['## AI-extracted document findings',AI_DOCUMENT_DISCLAIMER,...datedDocumentFindings.map(f=>`${f.kind} | ${f.themes.join(', ')} | ${f.location||'Location unspecified'} | ${f.startDate||'?'}–${f.endDate}: ${f.summary}${f.value!==null?` | ${f.metricLabel}: ${f.value} ${f.unit}; ${f.population}; ${f.purpose}`:''} | Source: ${f.source}; ${f.file}, ${f.reference}`)]:[]),
-      '## Response status',...responseStatus(availableDatasets,actions,asOf).pillars.map(p=>`- ${p.label}: ${p.loaded?`${p.level.toUpperCase()} — ${p.note}`:'No dated indicators loaded.'}`),
-      ...(calls.length?['## Calls to action / decisions requested',...calls.map(c=>`- ${c}`)]:[]),
-      '## Suggested actions',...recommendations(epi,security,mining,routeData,asOf).slice(0,3).map(s=>`- ${s.title}: ${s.action} Basis: ${s.why}`),
-      ...(includeAppendix?['## Evidence appendix',...facts.map(f=>`- ${f.text} [${evidenceSource(f)}]`)]:[]),
-      '## Response plan — reviewed by coordinator',...(actions.length?actions.map(a=>`- ${a.location||'Location unspecified'}: ${a.action||'Action unspecified'} | Owner: ${a.owner||'Unassigned'} | Due: ${a.due||'Unspecified'} | Resources: ${a.resources||'Unspecified'} | Status: ${a.status}${a.basis?` | Evidence at selection (${a.basis.asOf}): ${a.basis.why} | Sources: ${a.basis.sources.join('; ')}`:''}`):['No actions entered.']),
-      '## Data limits','National figures remain separate from sums of reported area-level values. Reporting dates may differ. Cumulative changes may include revisions. Missing data is not zero. Geographic proximity and mining sites do not establish transmission. No spread forecast is produced.',
-      '## Sources',...availableDatasets.map(d=>`- ${d.label}: ${sourceLabel(d)} | ${d.status} | retrieved ${d.fetchedAt||'not available'} | SHA-256 ${d.sha256||'not available'}${d.error?` | ${d.error}`:''} | ${d.issues?.length||0} source validation issues`),
-      `- Boundaries: ${boundarySource}; join field ${effectiveBoundaryField}; level ${boundaryLevel}.`, ...(security?[`- ACLED: ${securityStart}–${securityEnd}; ${security.issues.length} validation issues; source records preserved in the evidence snapshot.`]:[]),...(mines?[`- IPIS: ${sourceLabel(mines)}; retrieved ${mines.fetchedAt}; SHA-256 ${mines.sha256}`]:[]),
-      ...(includeEvidenceDates?['## Evidence dates and gaps',...evidenceReadiness(availableDatasets,asOf).map(s=>`- ${s.label}: ${s.start?`${s.start}–${s.end}`:'No observations within cut-off'} | ${s.available} reported; ${s.missing} missing; ${s.older} older than cut-off; ${s.issues} validation issues | ${s.source}${s.warning?` | ${s.warning}`:''}`)]:[])].join('\n\n');
   }
   const updateAction=(i,key,value)=>{change();setActions(actions.map((a,n)=>i===n?{...a,[key]:value}:a));};
   function selectProposal(suggestion) {
@@ -256,28 +244,37 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
     const sources=[...new Set([epi?.dataset&&sourceLabel(epi.dataset),security&&`Uploaded ACLED, ${security.start}–${security.end}`,mining&&mines&&sourceLabel(mines),routeData&&sourceLabel(routeData)].filter(Boolean))];
     setActions(old=>proposalSelected(old,suggestion)?old:[...old,{id:crypto.randomUUID(),proposalKey:proposalKey(suggestion),location:suggestion.areas.join(', '),owner:'',resources:'',due:'',status:'Proposed',action:`${suggestion.title}. ${suggestion.why} ${suggestion.action}`,basis:{asOf,why:suggestion.why,sources}}]);
   }
-  return <section className={styles.app} aria-label="Outbreak response"><fieldset disabled={!!busy||compareLoading} className={styles.fieldset}>
-    <header className={styles.header}><div><span className={styles.eyebrow}>AIDSTACK ATLAS / OPERATIONAL INTELLIGENCE</span><h2>Outbreak Response</h2><p>Snapshot, trends and response planning.</p></div><div className={styles.toolbar}><button onClick={()=>refreshConnected()} disabled={refreshing||!!busy}>{refreshing?'Refreshing data…':'Refresh data'}</button><button onClick={newOutbreak} disabled={!!busy}>New outbreak</button><button onClick={save} disabled={!!busy||refreshing||!name.trim()}>Save snapshot{dirty?' *':''}</button></div></header>
-    {tab==='Situation'&&<KeyMessage message={openingMessage} asOf={asOf} reviewed={reviewed} onBriefing={()=>setTab('Briefing')} editor={<><label>Coordinator key message<textarea value={bottomLine} maxLength={800} placeholder="Leave blank to use the summary from loaded data." onChange={e=>{change();setBottomLine(e.target.value);}}/></label><p>Appears on opening and in the briefing. Review your wording after changing the reporting cut-off or refreshing data.</p>{bottomLine.trim()&&<button type="button" onClick={()=>{change();setBottomLine('');}}>Use data summary</button>}</>}/>}
-    <div className={`${styles.controls} ${styles.noPrint}`}>
-      <label>Outbreak / operational scope<input value={name} maxLength={180} onChange={e=>{change();setName(e.target.value);}}/></label>
+  const draft=useOutbreakDraft(storage,snapshot(),dirty&&!busy&&!refreshing&&!compareLoading);
+  draftSaved.current=draft.saved;
+  function resumeDraft(){
+    refreshGeneration.current++;autoConnection.current='snapshot';setRefreshing(false);setLastChecked('');
+    applySnapshot(draft.candidate);setRecord(null);setDirty(true);draft.useCurrent();
+    setRefreshStatus('Recovered draft — showing its recorded data. Refresh data to update it.');
+    setNotice('Working draft recovered.');
+  }
+  const updateReportOptions=value=>{change();setReportOptions(value);};
+  return <section ref={appElement} className={styles.app} aria-label="Outbreak response"><fieldset disabled={!!busy||compareLoading} className={styles.fieldset}>
+    <div className={styles.appNavigation}>
+      <header className={styles.header}><div><span className={styles.eyebrow}>OUTBREAK RESPONSE</span><h2>{name===INITIAL_NAME?'Situation workspace':name}</h2></div><div className={styles.toolbar}><span className={styles.saveStatus} role="status">{dirty?(draft.status||'Unsaved changes'):record?'Saved report version':'Local workspace'}</span><button onClick={save} disabled={!!busy||refreshing||!name.trim()}>Save snapshot{dirty?' *':''}</button><button className={styles.primaryAction} onClick={()=>goTab('Briefing')}>Prepare Sitrep</button></div></header>
+      <nav className={styles.tabs} aria-label="Outbreak sections">{[['Situation','Situation'],['Data','Data'],['Actions','Actions'],['Briefing','Sitrep']].map(([id,label])=><button key={id} aria-pressed={tab===id} onClick={()=>goTab(id)}>{label}</button>)}</nav>
+    </div>
+    <div className={styles.scopeBar}>
       <label>Reporting cut-off<input type="date" value={asOf} onChange={e=>{if(validDate(e.target.value)){change();setAsOf(e.target.value);}}}/></label>
-      <label>Saved snapshots<select value="" onChange={e=>restore(e.target.value)} disabled={!!busy}><option value="">Open saved snapshot</option>{saved.map(s=><option key={s.id} value={s.id}>{s.name||s.metadata?.name}</option>)}</select></label>
-      <label>Compare with previous brief<select value={compareId} onChange={e=>selectComparison(e.target.value)}><option value="">No comparison selected</option>{saved.map(s=><option key={s.id} value={s.id}>{s.name||s.metadata?.name}</option>)}</select></label>
-      {record&&<button onClick={()=>selectComparison(record.id)}>Use open snapshot as baseline</button>}
+      <button onClick={()=>refreshConnected()} disabled={refreshing||!!busy}>{refreshing?'Refreshing data…':'Refresh data'}</button>
+      <details className={styles.reportSettings}><summary>Report settings &amp; saved versions</summary><div className={styles.controls}>
+        <label>Outbreak / operational scope<input value={name} maxLength={180} onChange={e=>{change();setName(e.target.value);}}/></label>
+        <label>Saved snapshots<select value="" onChange={e=>restore(e.target.value)} disabled={!!busy}><option value="">Open saved snapshot</option>{saved.map(s=><option key={s.id} value={s.id}>{s.name||s.metadata?.name}</option>)}</select></label>
+        <label>Compare with previous brief<select value={compareId} onChange={e=>selectComparison(e.target.value)}><option value="">No comparison selected</option>{saved.map(s=><option key={s.id} value={s.id}>{s.name||s.metadata?.name}</option>)}</select></label>
+        {record&&<button onClick={()=>selectComparison(record.id)}>Use open snapshot as baseline</button>}
+        <button onClick={newOutbreak}>New outbreak</button>
+      </div></details>
     </div>
-    {tab!=='Data & uploads'&&<BriefWorkflow datasets={availableDatasets} actions={actions} asOf={asOf} reviewed={reviewed} onTab={t=>t==='Data & uploads'?openData('sources'):setTab(t)}/>}
-    {compareLoading&&<p role="status">Loading comparison snapshot…</p>}
-    <div className={styles.freshness}>
-      <div className={styles.freshnessDates}><strong>Latest observations</strong><span>Area cases: {epi?.date||'not available'}</span><span>Mobility: {routeData?.end||selectedMobility?.date||'not available'}</span><span>Security: {latestSecurityDate||'not available'}</span></div>
-      <details><summary>{refreshing?'Updating connected data…':refreshStatus.startsWith('Some sources')?'Source refresh needs attention':lastChecked?'Sources checked '+new Date(lastChecked).toLocaleString():'Source refresh details'}</summary><p role="status">{refreshStatus||'Connect public sources in Data & uploads.'}</p><small>Observation dates can be older than the refresh time. Main-app uploads and security records retain their original dates.</small></details>
-    </div>
-    {asOf<today()&&<p className={styles.scope}>Historical view: observations after {asOf} are excluded. <button onClick={()=>{change();setAsOf(today());}}>Show latest reporting cut-off</button></p>}
+    {draft.candidate&&<div className={styles.notice} role="status">A working draft is available: {draft.candidate.name} · {draft.candidate.asOf}. <button onClick={resumeDraft}>Resume draft</button> <button onClick={()=>{draft.useCurrent();change();}}>Keep current work</button></div>}
     {error&&<p className={styles.error} role="alert">{error}</p>}{notice&&<p className={styles.notice} role="status">{notice}</p>}{busy&&<p role="status">{busy}…</p>}
-    <nav className={`${styles.tabs} ${styles.noPrint}`} aria-label="Outbreak sections">{['Situation','Data & uploads','Response & decisions','Briefing'].map(t=><button key={t} aria-pressed={tab===t} onClick={()=>setTab(t)}>{t}</button>)}</nav>
+    {tab==='Situation'&&<KeyMessage compact message={openingMessage} asOf={asOf} reviewed={reviewed} onBriefing={()=>goTab('Briefing')} editor={<><label>Coordinator key message<textarea value={bottomLine} maxLength={800} placeholder="Leave blank to use the summary from loaded data." onChange={e=>{change();setBottomLine(e.target.value);}}/></label><p>Review your wording after changing the reporting cut-off or refreshing data.</p>{bottomLine.trim()&&<button type="button" onClick={()=>{change();setBottomLine('');}}>Use data summary</button>}</>}/>}
     {tab==='Situation'&&<>
-      <BriefChanges since={since}/>
-      <Overview datasets={availableDatasets} epi={epi} security={security} mining={mining} asOf={asOf} routeData={routeData} actions={actions} selectedArea={selectedLocation} onSelect={n=>{chooseArea(n);requestAnimationFrame(()=>explorerElement.current?.scrollIntoView({behavior:'smooth',block:'start'}));}} onDecision={selectProposal}/>
+      {since&&<BriefChanges since={since}/>}
+      <Overview onData={()=>openData('indicators')} datasets={availableDatasets} epi={epi} security={security} mining={mining} asOf={asOf} routeData={routeData} actions={actions} selectedArea={selectedLocation} onSelect={n=>{chooseArea(n);requestAnimationFrame(()=>explorerElement.current?.scrollIntoView({behavior:'smooth',block:'start'}));}} onDecision={selectProposal}/>
       <DocumentEvidence all={allDocumentFindings} findings={filteredDocumentFindings} mapped={mappedFindings} filter={documentFilter} onFilter={value=>{change();setDocumentFilter(value);}} geometry={geography.data} boundaryLevel={boundaryLevel} asOf={asOf} cases={epi?.dataset||availableDatasets.find(d=>d.purpose==='cases')} selected={selectedLocation} onSelect={chooseArea} routeData={routeData} routeDirection={routeDirection} onDirection={value=>{change();setRouteDirection(value);}} overlays={movementOverlays}/>
       <Routes overlays={movementOverlays} showFocus={false} direction={routeDirection} onDirection={d=>{change();setRouteDirection(d);}} limit={routeLimit} onLimit={v=>{change();setRouteLimit(v);}} data={routeData} onLoad={fetchRoutes} loading={routeLoading} error={routeError} epi={epi} security={security} geometry={geography.data} boundaryLevel={boundaryLevel} asOf={asOf} selected={selectedLocation} onSelect={chooseArea}/>
       <EvidenceReadiness datasets={availableDatasets} asOf={asOf}/>
@@ -286,7 +283,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
       <details ref={explorerElement} open={explorerOpen||!epi} onToggle={e=>{if(epi)setExplorerOpen(e.currentTarget.open);}} className={styles.panel}><summary>Explore an area{location?` — ${location}`:''}</summary>
       <p>Choose an area to inspect its trend, movement connections and map.</p>
       <div className={styles.controls}><label>Explore an indicator<select value={selected?.id||''} onChange={e=>{change();setSelectedId(e.target.value);setLocation('');}}><option value="">Choose dataset</option>{availableDatasets.filter(d=>d.status==='ready').map(d=><option key={d.id} value={d.id}>{d.label} · {d.level} · {d.origin==='upload'?d.file:d.origin==='boundary'?'GeoJSON':'Source preset'}</option>)}</select></label><label>Explore a location<select value={selectedLocation} onChange={e=>{change();setLocation(e.target.value);}}>{location&&!rows.some(r=>r.location===location)&&<option value={location}>{location} — no observations</option>}{rows.map(r=><option key={r.location}>{r.location}</option>)}</select></label></div>
-      {selected&&<><p>{selected.issues?.length?`${selected.issues.length} source validation issues; affected numeric cells are missing. See Data & uploads. `:''}{selected.kind} · {selected.unit} · <a href={selected.url||undefined} target="_blank" rel="noreferrer">{sourceLabel(selected)}</a></p><TrendChart records={selected.records} location={selectedLocation} label={selected.label} unit={selected.unit} kind={selected.kind} asOf={asOf} source={sourceLabel(selected)}/></>}
+      {selected&&<><p>{selected.issues?.length?`${selected.issues.length} source validation issues; affected numeric cells are missing. See Data. `:''}{selected.kind} · {selected.unit} · <a href={selected.url||undefined} target="_blank" rel="noreferrer">{sourceLabel(selected)}</a></p><TrendChart records={selected.records} location={selectedLocation} label={selected.label} unit={selected.unit} kind={selected.kind} asOf={asOf} source={sourceLabel(selected)}/></>}
       <div className={styles.panel}><h3>Geographic evidence</h3>
         <details><summary>Map settings</summary><div className={styles.controls}><label>Main-app boundary name field<select value={boundaryField} onChange={e=>{change();setRestoredGeometry(null);setBoundarySource('Main app uploaded boundaries');setBoundaryField(e.target.value);}}><option value="auto">Auto-detected: {effectiveBoundaryField}</option><option value="@name">Main-app area name</option><option value="nom">nom</option>{boundaryFields.filter(k=>k!=='nom').map(k=><option key={k}>{k}</option>)}</select></label><label>Grouping / province field<select aria-label="Grouping / province field" value={provinceField} onChange={e=>{change();setProvinceField(e.target.value);setRestoredGeometry(null);}}><option value="auto">Auto-detected: {effectiveProvinceField||'none'}</option><option value="">No grouping</option><option value="province">province</option>{boundaryFields.filter(k=>k!=='province').map(k=><option key={k}>{k}</option>)}</select></label><label>Boundary geographic level<select value={boundaryLevel} onChange={e=>{change();setBoundaryLevel(e.target.value);}}>{LEVELS.map(l=><option key={l}>{l}</option>)}</select></label></div></details>
         {restoredGeometry&&<p>Using the boundary snapshot saved with this briefing. <button onClick={()=>{change();setRestoredGeometry(null);setBoundarySource('Main app uploaded boundaries');}}>Use current main-app boundaries</button></p>}
@@ -304,7 +301,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
       <MobilityPanel overlays={movementOverlays} layers={mobilityLayers} selected={selectedMobility} direction={direction} onDirection={d=>{change();setMovementDirection(d);setMovementField('');}} onLayer={id=>{change();setMovementField(id);}} geometry={geography.data} boundaryLevel={boundaryLevel} asOf={asOf} onSelect={chooseArea}/>
       </details></details>
     </>}
-    <div hidden={tab!=='Data & uploads'}>
+    <div hidden={tab!=='Data'}>
       <DataWorkspace key={intakeVersion} active={dataView} onSelect={setDataView} reportCount={rcceDocuments.length} sourceCount={availableDatasets.length}
         reports={<>
       <div id="outbreak-uploads" className={styles.panel}><RcceUpload asOf={asOf} geometry={geography.data} boundaryLevel={boundaryLevel} documents={rcceDocuments} onImport={d=>{change();setRcceDocuments(old=>[...old,d]);setNotice('RCCE report imported. Its summary appears in the briefing when its date is within the reporting cut-off. Save a snapshot to retain it.');}}/>
@@ -331,9 +328,9 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
         </>}
       />
     </div>
-    {tab==='Response & decisions'&&<>
+    {tab==='Actions'&&<>
       <RcceReports documents={eligibleRcce}/>
-      <div className={styles.panel}><h3>Response presence and capacity</h3><p>Import dated presence, capacity and delivery indicators in Data & uploads. Response categories and locations come from those datasets; no province or service footprint is pre-populated.</p></div>
+      <div className={styles.panel}><h3>Response presence and capacity</h3><p>Import dated presence, capacity and delivery indicators in Data. Response categories and locations come from those datasets; no province or service footprint is pre-populated.</p></div>
       <div className={styles.panel}><h3>Response plan</h3><p>Coordinator-entered proposals, separate from reported evidence. Include the evidence or operational reason in each action.</p>
         <p>{actionFollowUp(actions,asOf).overdue} actions overdue at the reporting cut-off. Assign owners and dates before approving actions.</p>
         {actions.filter(a=>a.basis).map(a=><details key={a.id}><summary>Evidence at selection — {a.location}</summary><p>{a.basis.why}</p><p>Cut-off {a.basis.asOf}. Sources: {a.basis.sources.join('; ')}. This evidence is preserved when the action is edited; recheck it after refreshing data.</p></details>)}
@@ -341,37 +338,14 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
         <button onClick={()=>{change();setActions([...actions,{id:crypto.randomUUID(),location:'',owner:'',resources:'',due:'',status:'Proposed',action:''}]);}}>Add decision / action</button>
       </div>
     </>}
-    {tab==='Briefing'&&<div className={styles.brief} ref={briefElement}>
-      <div className={`${styles.toolbar} ${styles.noPrint}`}><button disabled={!!busy||!facts.length||facts.length>40} onClick={organize}>Use AI to select leadership messages</button><button onClick={()=>download('outbreak-briefing.md',briefingText(),'text/markdown')}>Export briefing Markdown</button><button onClick={()=>download('outbreak-evidence.json',JSON.stringify(snapshot(),null,2),'application/json')}>Export evidence JSON</button><button onClick={()=>download('outbreak-briefing.html',briefingHTML(briefElement.current,styles.noPrint),'text/html')}>Export briefing HTML with visuals</button><button onClick={()=>printBriefing(briefingHTML(briefElement.current,styles.noPrint))}>Print / save PDF</button></div>
-      <p className={styles.noPrint}>AI receives only the evidence sentences below, including any selected uploaded indicator. It selects up to three sentences; it cannot add prose or numbers. Review emphasis and source suitability before sharing.</p>
-      <h2>{name}</h2><p><strong>{reviewed?'Reviewed by user':'DRAFT — requires coordinator review'}</strong> · Reporting cut-off {asOf}</p>
-      <label className={styles.noPrint}>Bottom line for decision-makers (your judgement — not AI-generated)<textarea value={bottomLine} maxLength={800} placeholder="One or two sentences: the trajectory and what you need from leadership." onChange={e=>{change();setBottomLine(e.target.value);}}/></label>
-      <KeyMessage message={openingMessage} asOf={asOf} reviewed={reviewed}/>
-      {routeData&&<><h3>Movement connections</h3><div className={`${styles.controls} ${styles.noPrint}`}><label>Mobility view<select value={briefDirection} onChange={e=>{change();setBriefDirection(e.target.value);}}><option value="inflow">Inflow — origins arriving in the focus area (receiving readiness)</option><option value="outflow">Outflow — destinations from the focus area</option></select></label></div><Routes overlays={movementOverlays} showFocus={false} direction={briefDirection} data={routeData} epi={epi} security={security} geometry={geography.data} boundaryLevel={boundaryLevel} asOf={asOf} selected={selectedLocation} onSelect={chooseArea} onDirection={d=>{change();setBriefDirection(d);}} briefing/></>}
-      <BriefChanges since={since}/>
-      <RcceReports documents={eligibleRcce}/>
-      {datedDocumentFindings.length>0&&<details data-source-register="true"><summary>AI-extracted document findings</summary><p>{AI_DOCUMENT_DISCLAIMER}</p><FindingCards findings={datedDocumentFindings}/></details>}
-      <BriefSummary actions={actions} epi={epi} datasets={availableDatasets} security={security} mining={mining} routeData={routeData} hazards={hazards} asOf={asOf} highlights={highlights} sourceFor={evidenceSource}/>
-      <ResponseStatus datasets={availableDatasets} actions={actions} asOf={asOf} briefing/>
-      {(() => {const calls=[...actions.filter(a=>a.status==='Blocked').map(a=>`Unblock: ${a.action||'action'}${a.location?` (${a.location})`:''}`),...actions.filter(a=>a.status==='Proposed').map(a=>`Decision requested: ${a.action||'action'}${a.owner?` — owner ${a.owner}`:''}`)];return calls.length?<div className={styles.panel}><h3>Calls to action / decisions requested</h3><ol className={styles.callsList}>{calls.map((c,i)=><li key={i}>{c}</li>)}</ol></div>:null;})()}
-      <h3>Response plan</h3>{!actions.length?<p>No actions entered.</p>:<table><thead><tr><th>Location / action</th><th>Owner / due</th><th>Resources / status</th></tr></thead><tbody>{actions.map(a=><tr key={a.id}><td>{a.location||'Unspecified'}<p>{a.action||'Unspecified'}</p></td><td>{a.owner||'Unassigned'}<p>{a.due||'No deadline'}</p></td><td>{a.resources||'Unspecified'}<p>{a.status}</p></td></tr>)}</tbody></table>}
-      {actions.filter(a=>a.basis).map(a=><p key={a.id}><strong>Action evidence — {a.location}:</strong> {a.basis.why}<small>Selected at cut-off {a.basis.asOf} · {a.basis.sources.join('; ')}</small></p>)}
-      <h3>Geographic overview</h3>
-      {briefDataset?<OutbreakMap geometry={geography.data} rows={briefRows} level={briefDataset.level} kind={briefDataset.kind} unit={briefDataset.unit} boundaryLevel={boundaryLevel} mines={activeMines} events={security?.records||[]} hazards={hazards.events} selected={selectedLocation} onSelect={chooseArea} label={briefDataset.label} asOf={asOf} source={sourceLabel(briefDataset)} focusNames={epi?.burden.slice(0,8).map(z=>z.location)||[]}/>:!routeData?<p>Load area-level data and boundaries to show a map.</p>:null}
-      <label className={styles.noPrint}><input type="checkbox" checked={includeAppendix} onChange={e=>{setIncludeAppendix(e.target.checked);change();}}/>Include detailed evidence and extra maps in this briefing and exports</label>
-      {includeAppendix&&<section aria-label="Evidence appendix"><h3>Evidence appendix</h3>
-      {[['Epidemiological situation',f=>f.sourceId!=='acled'&&f.sourceId!=='ipis'&&f.sourceId!=='flowminder'],['Population mobility',f=>f.sourceId==='flowminder'],['Mining and operational geography',f=>f.sourceId==='ipis'],['Security and access considerations',f=>f.sourceId==='acled']].map(([title,predicate])=><section key={title}><h3>{title}</h3>{facts.filter(predicate).length?facts.filter(predicate).map(f=><p key={f.id}>{f.text}<small>Source: {evidenceSource(f)}</small></p>):<p>No validated evidence available for this section in the loaded scope.</p>}</section>)}
-      <Routes overlays={movementOverlays} showFocus={false} direction={routeDirection} onDirection={d=>{change();setRouteDirection(d);}} limit={routeLimit} onLimit={v=>{change();setRouteLimit(v);}} data={routeData} onLoad={fetchRoutes} loading={routeLoading} error={routeError} epi={epi} security={security} geometry={geography.data} boundaryLevel={boundaryLevel} asOf={asOf} selected={selectedLocation} onSelect={chooseArea} briefing/>
-      <IntegratedCharts epi={epi} mining={mining} security={security} geometry={geography.data} boundaryLevel={boundaryLevel} asOf={asOf} briefing/>
-      <MobilityPanel overlays={movementOverlays} layers={mobilityLayers} selected={selectedMobility} direction={direction} geometry={geography.data} boundaryLevel={boundaryLevel} asOf={asOf} briefing/>
-      {selected&&<><TrendChart records={selected.records} location={selectedLocation} label={selected.label} unit={selected.unit} kind={selected.kind} asOf={asOf} source={sourceLabel(selected)}/><OutbreakMap geometry={geography.data} rows={rows} level={selected.level} kind={selected.kind} unit={selected.unit} boundaryLevel={boundaryLevel} mines={activeMines} selected={selectedLocation} onSelect={()=>{}} label={selected.label} asOf={asOf} source={sourceLabel(selected)}/></>}
-      </section>}
-
-      {includeAppendix&&<><h3>Evidence limits</h3><p>National figures remain separate from sums of reported area-level values. Reporting dates can differ. Cumulative changes may include revisions; missing data is not zero. Mining sites and movement connections do not establish transmission. No spread forecast or inferred response capacity is produced.</p></>}
-      <details data-source-register="true"><summary>Sources and data quality</summary>{security&&<p>ACLED: main-app uploaded records · window {securityStart}–{securityEnd} · {security.issues.length} validation issues · reported fatality estimates are not independently verified.</p>}{availableDatasets.map(d=><p key={d.id}>{d.label}: {d.url?<a href={d.url}>Source</a>:d.source} · {d.status} · retrieved {d.fetchedAt||'unavailable'}{d.error?` · ${d.error}`:''} · {d.issues?.length||0} source validation issues</p>)}<p>Boundaries: {boundarySource} · join field {effectiveBoundaryField} · {boundaryLevel}{geography.error?` · unavailable: ${geography.error}`:''}. {epi?epi.unmatched:unmatched.length} unmatched indicator locations.</p>{mines&&<p>IPIS: {sourceLabel(mines)} · retrieved {mines.fetchedAt}. Visit dates are retained per point.</p>}</details>
-      <label className={styles.noPrint}><input type="checkbox" checked={includeEvidenceDates} onChange={e=>{change();setIncludeEvidenceDates(e.target.checked);}}/>Include evidence dates and gaps in the exported report</label>
-      <details className={includeEvidenceDates?styles.panel:`${styles.panel} ${styles.noPrint}`} data-source-register={includeEvidenceDates||undefined}><summary>Evidence dates and gaps</summary><EvidenceReadiness datasets={availableDatasets} asOf={asOf}/></details>
-      <label className={styles.noPrint}><input type="checkbox" checked={reviewed} onChange={e=>{setReviewed(e.target.checked);setDirty(true);}}/>I have reviewed this snapshot and its evidence for sharing.</label>
-    </div>}
+    {tab==='Briefing'&&<SitrepWorkspace movementOverlays={movementOverlays} reportRef={briefElement} name={name} asOf={asOf} datasets={availableDatasets} actions={actions} reviewed={reviewed} onReviewed={value=>{setReviewed(value);setDirty(true);}} onTab={value=>value==='Data'?openData('sources'):goTab(value)} options={reportOptions} onOptions={updateReportOptions} bottomLine={bottomLine} onBottomLine={value=>{change();setBottomLine(value);}} includeAppendix={includeAppendix} onAppendix={value=>{change();setIncludeAppendix(value);}} includeEvidenceDates={includeEvidenceDates} onEvidenceDates={value=>{change();setIncludeEvidenceDates(value);}} routeData={routeData} selectedLocation={selectedLocation} briefDirection={briefDirection} onDirection={value=>{change();setBriefDirection(value);}} snapshot={snapshot} organize={organize} canOrganize={!busy&&facts.length>0&&facts.length<=40}>
+      <Sitrep mobilityLayers={mobilityLayers} selectedMobility={selectedMobility} movementDirection={direction} ref={briefElement} name={name} asOf={asOf} reviewed={reviewed} options={reportOptions} openingMessage={openingMessage} datasets={availableDatasets} epi={epi} geometry={geography.data} boundaryLevel={boundaryLevel} boundarySource={boundarySource} selected={selected} selectedLocation={selectedLocation} mining={mining} mines={mines} eligibleMines={eligibleMines} security={security} routeData={routeData} briefDirection={briefDirection} movementOverlays={movementOverlays} actions={actions} since={since} reports={eligibleRcce} findings={datedDocumentFindings} hazards={hazards} includeAppendix={includeAppendix} includeEvidenceDates={includeEvidenceDates} facts={facts} highlights={highlights} evidenceSource={evidenceSource}/>
+    </SitrepWorkspace>}
+    <details className={styles.freshness}>
+      <summary>{refreshing?'Updating connected data…':refreshStatus.startsWith('Some sources')?'Source refresh needs attention':'Source dates & refresh details'}</summary>
+      <div className={styles.freshnessDates}><strong>Latest observations</strong><span>Area cases: {epi?.date||'not available'}</span><span>Mobility: {routeData?.end||selectedMobility?.date||'not available'}</span><span>Security: {latestSecurityDate||'not available'}</span></div>
+      <p role="status">{refreshStatus||'Connect public sources in Data.'}</p><small>{lastChecked?'Sources checked '+new Date(lastChecked).toLocaleString()+'. ':''}Observation dates can be older than the refresh time.</small>
+      {asOf<today()&&<p>Historical view: observations after {asOf} are excluded. <button onClick={()=>{change();setAsOf(today());}}>Show latest reporting cut-off</button></p>}
+    </details>
   </fieldset></section>;
 }

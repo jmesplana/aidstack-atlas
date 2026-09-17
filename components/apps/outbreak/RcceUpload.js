@@ -53,7 +53,7 @@ export default function RcceUpload({onImport,documents=[],geometry,boundaryLevel
       validateRcceDocument(draft);
       onImport({...draft,...Object.fromEntries(['title','source','location','summary'].map(k=>[k,draft[k].trim()])),category:'rcce',origin:'upload',fetchedAt:new Date().toISOString()});
       removeDraft();
-      setConfirmation({success:true,message:`“${draft.title.trim()}” imported. ${!draft.date?'Add a report date to include its summary in the briefing.':draft.date>asOf?'The report is after the current cut-off, so its summary is excluded from this briefing.':'Its summary is ready in Response & decisions and Briefing.'} Save a snapshot to retain it.`});
+      setConfirmation({success:true,message:`“${draft.title.trim()}” imported. ${!draft.date?'Add a report date to include its summary in the briefing.':draft.date>asOf?'The report is after the current cut-off, so its summary is excluded from this briefing.':'Its summary is ready in Actions and Briefing.'} Save a snapshot to retain it.`});
     }catch(e){setConfirmation({success:false,message:e.message});}
   }
   const missing=draft?Object.keys(rcceDocumentErrors(draft)).filter(key=>key!=='text').length:0;

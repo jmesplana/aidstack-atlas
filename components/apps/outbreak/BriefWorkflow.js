@@ -13,16 +13,15 @@ export function BriefChanges({ since }) {
 export function EvidenceReadiness({ datasets, asOf }) {
   const sources = evidenceReadiness(datasets, asOf);
   return <section className={styles.panel} aria-label="Briefing evidence readiness"><h3>Evidence dates and gaps</h3><p>Observations older than the cut-off are flagged for review; an older date does not by itself mean a source is overdue. Missing observations are never zero.</p>
-    {!sources.length ? <p>No indicator datasets loaded. Upload data or connect the DRC preset in Data & uploads.</p> : <div className={styles.tableWrap}><table><thead><tr><th>Indicator / source</th><th>Observation dates</th><th>Review needed</th></tr></thead><tbody>{sources.map(source => <tr key={source.id}><td>{source.label}<small>{source.source}</small></td><td>{source.start ? `${source.start} – ${source.end}` : 'No observations within cut-off'}</td><td>{source.available} reported; {source.missing} missing; {source.older} older than cut-off; {source.issues} validation issues{source.warning && <p>{source.warning}</p>}</td></tr>)}</tbody></table></div>}
+    {!sources.length ? <p>No indicator datasets loaded. Upload data or connect the DRC preset in Data.</p> : <div className={styles.tableWrap}><table><thead><tr><th>Indicator / source</th><th>Observation dates</th><th>Review needed</th></tr></thead><tbody>{sources.map(source => <tr key={source.id}><td>{source.label}<small>{source.source}</small></td><td>{source.start ? `${source.start} – ${source.end}` : 'No observations within cut-off'}</td><td>{source.available} reported; {source.missing} missing; {source.older} older than cut-off; {source.issues} validation issues{source.warning && <p>{source.warning}</p>}</td></tr>)}</tbody></table></div>}
   </section>;
 }
 
 export default function BriefWorkflow({ datasets, actions, asOf, reviewed, onTab }) {
   const follow = actionFollowUp(actions, asOf);
-  return <section className={`${styles.panel} ${styles.noPrint}`} aria-label="Prepare daily response brief"><h3>Prepare daily response brief</h3><p>Confirm the scope and reporting cut-off above, then work through the evidence, decisions and briefing. Each saved snapshot keeps the earlier brief intact.</p><div className={styles.toolbar}>
-    <button onClick={() => onTab('Data & uploads')}>1. Check data and dates</button>
-    <button onClick={() => onTab('Situation')}>2. Review changes and priorities</button>
-    <button onClick={() => onTab('Response & decisions')}>3. Assign response actions</button>
-    <button onClick={() => onTab('Briefing')}>4. Review and export brief</button>
-  </div><p>{datasets.length} indicator sources · {actions.length} actions · {follow.unassigned} unassigned · {follow.undated} without deadlines · {follow.overdue} overdue at cut-off · {follow.blocked} blocked · {reviewed ? 'Reviewed' : 'Draft'}</p></section>;
+  return <section className={`${styles.briefChecklist} ${styles.noPrint}`} aria-label="Sitrep preparation checklist">
+    <button onClick={() => onTab('Data')}><strong>1. Check data</strong><small>{datasets.length} indicator sources</small></button>
+    <button onClick={() => onTab('Actions')}><strong>2. Review actions</strong><small>{actions.length} actions · {follow.unassigned} unassigned · {follow.undated} without deadlines{follow.overdue?` · ${follow.overdue} overdue`:''}{follow.blocked?` · ${follow.blocked} blocked`:''}</small></button>
+    <span><strong>3. Review and export</strong><small>{reviewed?'Reviewed':'Read the preview and confirm your review below'}</small></span>
+  </section>;
 }

@@ -5,27 +5,69 @@ optional maps, and reviewed leadership briefings. Install/open from Workspace ap
 No administrative layer is required. Boundaries uploaded in the main app are
 available for explicit field/level matching; unmatched locations remain visible.
 
+## Sitrep and navigation
+
+The persistent navigation is **Situation · Data · Actions · Sitrep**. Situation
+opens with a compact key message and headline figures; supporting priorities,
+source status and report settings expand on demand. The reporting cut-off remains
+visible. **Save snapshot** creates a dated report version. Confirmed work also
+saves automatically to a separate browser draft; **Resume draft** restores it on
+reopening. Drafts use the same module/workspace scope and revision-conflict checks
+as report versions. Pending uploads are not saved until confirmed, and unsaved
+changes still trigger the leave guard. Draft storage is local to this browser.
+
+**Sitrep → Edit report** opens publication details, coordinator wording and notes
+for each section. The default A4 report follows
+`docs/2026_W37_DRC_Ebola_BVD_Sitrep_11_09_2026.pdf`:
+
+1. Epidemiological situation and weekly trend.
+2. Population mobility (choose direction and up to three focus-area maps).
+3. Mining and operational geography.
+4. Security and access.
+5. Operational implications and immediate actions, including response and RCCE.
+
+A key-message panel and geographic priorities lead the report; source notes close
+it. Missing sections explicitly state unavailable evidence. The preview and
+standalone HTML/PDF share a dedicated print stylesheet with red section headings,
+blue table headers, repeated page headers and page numbers in supporting browsers.
+**Print / save PDF** is the primary export; Markdown, HTML and evidence JSON are
+under **Other formats**. Markdown follows the same report content and order.
+Source details and the optional evidence appendix are retained in report versions.
+
+Seven-day charts and tables use periods anchored to the reporting cut-off.
+Cumulative sources require exact endpoint observations and are labelled changes
+in reported totals; negative changes are revisions. Daily sources require every
+observation within each period. Missing dates are never carried forward. Province
+groupings use stable matched-area membership and are labelled partial area sums;
+missing constituent observations suppress the comparison. Separate national
+sources are never combined or silently chosen for the weekly chart.
+
+Numeric uploads offer **Update cases** and **Update response indicators**.
+Recognizable, unambiguous headers are suggested; users review geographic level,
+measure type, units, mapping and preview before confirmation. Existing mappings
+remain editable and ambiguous headers require an explicit choice.
+
 ## Workflow
 
 ### Daily response brief
 
 Movement connections are visible in Situation without opening the area explorer,
-and immediately follow the key message in Briefing. Use Inflow map / Outflow map
-to switch direction; the briefing also provides a focus-area selector. The selected
+and appear in section 2 of the Sitrep. Use Inflow map / Outflow map in Situation;
+use Edit report → Population mobility to choose direction and focus areas in the Sitrep. The selected
 direction is retained in visual exports. Evidence dates and gaps appear collapsed
-at the bottom of Briefing. Check “Include evidence dates and gaps in the exported
+at the bottom of Sitrep. Check “Include evidence dates and gaps in the exported
 report” to append them to Markdown and HTML/PDF; this option is saved with snapshots.
 Evidence JSON always retains the underlying data for audit purposes.
 
-Use the four-step briefing guide to check inputs, review changes and priorities,
-assign actions, and review/export the brief. Choose the operational scope and
+Use the compact Sitrep checklist to check data, review actions, and review/export
+the report. Choose the operational scope and
 reporting cut-off first. Select **Compare with previous brief** explicitly, or
 use **Use open snapshot as baseline** before updating the current data. Compare
 snapshots from the same operation; a later reporting cut-off is rejected as a
 baseline. Each Save snapshot creates a separate record, preserving earlier briefs.
 The selected comparison inputs are saved with the new brief and restored with it.
 
-Situation and Briefing show the same changes and evidence-date register. Response
+Situation and Sitrep show the same changes and evidence-date register. Response
 indicator changes require the same dataset, unit, measure type, level and location;
 unmatched or missing observations do not produce a change. Action additions,
 edits and removals are included. Older observations are flagged relative to the
@@ -33,7 +75,7 @@ cut-off, not assigned an arbitrary freshness threshold. Distinct response indica
 are not summed, and capacity ratios require matching locations and dates.
 
 Selected suggestions retain their rationale, cut-off and contextual source references
-when edited. Assign an owner and due date in Response & decisions, then update the
+when edited. Assign an owner and due date in Actions, then update the
 status. The guide counts unassigned, undated, overdue and blocked actions. Review
 the briefing before sharing; changes invalidate the reviewed flag. Markdown,
 HTML/PDF and evidence JSON preserve the comparison and action evidence.
@@ -44,7 +86,7 @@ software supports the pilot; operational usefulness still requires this user rev
 
 ### Updating data
 
-Data & uploads → Maps & context includes a dedicated IPIS Excel/CSV import. Map mine ID, visit date
+Data → Maps & context includes a dedicated IPIS Excel/CSV import. Map mine ID, visit date
 and WGS84 latitude/longitude; name and province are optional. Preview the eligible
 sites, unmatched boundaries and added/changed/removed counts, then replace the
 active mining source. The workbook worksheet and mappings are stored with the
@@ -78,7 +120,7 @@ response-status thresholds remain the existing defaults.
    unit and source. Preview and confirm. Import additional indicators separately.
 4. Choose the boundary name field and matching level in Situation. No fuzzy joins,
    automatic province-to-zone propagation or cross-location sums are performed.
-5. Add coordinator actions, resources, owners and dates. Open Briefing and review.
+5. Add coordinator actions, resources, owners and dates. Open Sitrep and review.
 6. Save snapshots to this browser workspace. Export standalone HTML with visuals, Markdown, evidence JSON,
    individual SVG maps/charts, or print the briefing to PDF.
 
@@ -93,7 +135,7 @@ through the selector in the same browser/workspace.
 
 ### Data workspace navigation
 
-Data & uploads opens on **Reports**. Use **Numeric data** for aggregate indicators
+Data opens on **Reports**. Use **Numeric data** for aggregate indicators
 and GeoJSON fields, **Connected sources** for public feeds and coverage, and
 **Maps & context** for mining, mobility, security and hazard inputs. Source rows
 and reference catalogues expand on demand. Coverage actions open the relevant
@@ -113,7 +155,7 @@ finding observation dates.
 
 ### Narrative RCCE reports
 
-Choose **Data & uploads → Reports → Upload RCCE feedback and reports** for PDF, Word `.docx`,
+Choose **Data → Reports → Upload RCCE feedback and reports** for PDF, Word `.docx`,
 PowerPoint `.pptx`, Excel `.xlsx` / `.xls`, and UTF-8 `.txt` files (maximum 20 MB
 and 200,000 extracted characters). Extraction runs in the browser using existing
 dependencies. It reads Word body paragraphs/tables, presentation slides in deck
@@ -132,7 +174,7 @@ separate; overlapping or cumulative figures are not added together.
 Review the extracted text, enter a title, reporting organization, location/scope
 and reporting date, then write a summary and confirm. Reports remain separate
 from numeric indicators and do not imply coverage rates or response status.
-Summaries within the reporting cut-off appear in Response & decisions and the
+Summaries within the reporting cut-off appear in Actions and the
 briefing, including Markdown and HTML/PDF exports. Save a snapshot to retain
 reports, extracted text, filenames and SHA-256 provenance. Evidence JSON retains
 all reports, including those after the cut-off. Older snapshots open with no
@@ -181,7 +223,7 @@ screenshots and does not treat model output as verified epidemiological evidence
 
 ## Evidence and AI
 
-Briefing sentences and numbers are computed by the outbreak analysis modules. The
+Sitrep sentences and numbers are computed by the outbreak analysis modules. The
 optional /api/outbreak-briefing endpoint asks AI only to select evidence IDs; any
 unsupported ID is rejected and no model-generated prose is rendered. Selection
 sends the visible evidence sentences (possibly including uploaded aggregates) to
@@ -201,7 +243,7 @@ labelled changes in reported totals, not new infections.
 ## Integrated priorities and mobility
 
 Every district inflow/outflow map and GeoJSON mobility map includes IPIS mining-site
-and ACLED event toggles, including Briefing and its appendix. Choices are shared
+and ACLED event toggles, including Sitrep and its appendix. Choices are shared
 with the geographic map and saved in snapshots. Mine visits after the reporting
 cut-off are excluded; ACLED uses the selected security window. Unavailable layers
 are disabled with an explanation. SVG and HTML/PDF visuals retain visible points,
@@ -264,12 +306,12 @@ comparable basis neutral) so the trend is legible at a glance.
 
 Selecting a suggested action keeps the user in Situation and marks the proposal
 as selected. It creates one Proposed response-plan entry, which can be edited or
-removed later in Response & decisions. Selection persists after editing the entry
+removed later in Actions. Selection persists after editing the entry
 and saving/reopening snapshots; removing the entry makes the proposal selectable again.
 
 A response-status rollup summarises the response pillars (safe & dignified
 burial, community engagement/RCCE, logistics & supplies, response presence &
-capacity) from dated indicators you upload and categorise in Data & uploads.
+capacity) from dated indicators you upload and categorise in Data.
 Pillars carry a plain status — On track / Watch / Attention / Reported — with a
 coloured left border. Ratio indicators are only computed when both a numerator
 and denominator source are present, so requests-minus-completed is never assumed
@@ -279,7 +321,7 @@ occupancy needs "occupied"/"beds", and exceeding 100% is flagged as Attention.
 Targets (e.g. 95% follow-up) are shown alongside the value. Missing values are
 never zero and no status is asserted for a pillar without loaded indicators.
 
-The Briefing opens with an optional coordinator-written Bottom line for
+The Sitrep opens with an optional coordinator-written Bottom line for
 decision-makers (never AI-generated), a Since last brief block that diffs the
 current situation against a saved snapshot (national confirmed change, newly
 reporting areas, per-pillar coverage change), the response-status rollup, and a
@@ -328,7 +370,7 @@ downward revisions and missing comparisons distinguished from improvement.
 Highest cumulative burden and largest recent increase are separate priorities.
 Receiving-area, mining and access prompts describe reported evidence, not a
 transmission forecast; further suggestions remain in the detailed briefing.
-Coordinators can edit the message in place or in Briefing; their saved wording takes
+Coordinators can edit the message in place or in Sitrep; their saved wording takes
 precedence until cleared. The same message appears in the briefing and HTML/PDF and
 Markdown exports. Missing evidence has an explicit setup message. Coordinator text
 needs review after refreshes or scope changes; editing invalidates review status.
@@ -339,11 +381,9 @@ text widths, avoid collisions and stay legible at different display sizes; dense
 labels appear progressively as the user zooms. The selected area has priority.
 Maps fit within the screen height and retain SVG export.
 
-The default briefing contains a short situation summary, up to three suggested
-actions, explicit context gaps, one geographic overview, the response plan and a
-folded source register. Detailed evidence and extra charts/maps require opting
-into the appendix; HTML/PDF exports follow that choice. Source links remain in
-exports. No missing source is represented as a complete negative assessment.
+The default Sitrep contains the five integrated sections described above. Extra
+indicator charts and detailed evidence remain optional in the appendix; source
+links and unavailable-evidence statements remain in every report.
 
 Data coverage lists ACLED, GDACS, mining, facilities, mobility and operational
 categories with load/upload actions. Existing uploads can be assigned a category

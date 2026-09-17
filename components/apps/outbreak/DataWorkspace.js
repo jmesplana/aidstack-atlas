@@ -12,7 +12,7 @@ export default function DataWorkspace({active,onSelect,reports,indicators,source
   const contents={reports,indicators,sources,context};
   return <section aria-label="Data workspace" className={styles.dataWorkspace}>
     <header className={styles.workspaceHeading}>
-      <div><span className={styles.eyebrow}>BUILD YOUR EVIDENCE</span><h3>What would you like to add?</h3><p>Choose a data type. Review it here, then use Situation and Briefing to see the results.</p></div>
+      <div><span className={styles.eyebrow}>BUILD YOUR EVIDENCE</span><h3>What would you like to add?</h3><p>Choose a data type. Review it here, then use Situation and Sitrep to see the results.</p></div>
       <span className={styles.countBadge}>{reportCount} reports · {sourceCount} indicator sources</span>
     </header>
     <nav className={styles.dataChoices} aria-label="Data tasks">

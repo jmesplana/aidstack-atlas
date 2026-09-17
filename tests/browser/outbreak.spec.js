@@ -17,11 +17,11 @@ test('daily briefing retains separate snapshots, action evidence and the chosen 
   await expect(page.getByLabel('Saved snapshots').locator('option')).toHaveCount(2);
   await page.getByRole('button',{name:'Use open snapshot as baseline'}).click();
   await expect(page.getByRole('region',{name:'Changes since comparison brief'})).toContainText('Since last brief');
-  await page.getByRole('button',{name:'3. Assign response actions'}).click();
+  await page.getByRole('button',{name:'Actions',exact:true}).click();
   await page.getByLabel('Owner',{exact:true}).fill('Response coordinator');
   await page.getByLabel('Due date',{exact:true}).fill('2026-09-09');
   await page.getByRole('combobox',{name:'Status',exact:true}).selectOption('Approved');
-  await page.getByRole('button',{name:'4. Review and export brief'}).click();
+  await openSitrep(page);
   await expect(page.getByRole('region',{name:'Changes since comparison brief'})).toContainText('Proposed → Approved');
   await expect(page.getByRole('region',{name:'Briefing evidence readiness'})).not.toBeVisible();
   for(const button of ['Export briefing Markdown','Export briefing HTML with visuals']){
@@ -33,7 +33,7 @@ test('daily briefing retains separate snapshots, action evidence and the chosen 
   await page.getByLabel('I have reviewed this snapshot and its evidence for sharing.').check();
   await page.getByRole('button',{name:/Save snapshot/}).click();
   await expect(page.getByLabel('Saved snapshots').locator('option')).toHaveCount(3);
-  await page.getByLabel('Saved snapshots').selectOption({index:1});
+  await openSettings(page);await page.getByLabel('Saved snapshots').selectOption({index:1});
   await expect(page.getByText('Reviewed by user',{exact:true})).toBeVisible();
   await expect(page.getByLabel('Include evidence dates and gaps in the exported report')).toBeChecked();
   await expect(page.getByRole('region',{name:'Changes since comparison brief'})).toContainText('Proposed → Approved');
@@ -42,8 +42,8 @@ test('daily briefing retains separate snapshots, action evidence and the chosen 
     const download=await pending,file=testInfo.outputPath(`daily-brief.${extension}`);await download.saveAs(file);
     const text=readFileSync(file,'utf8');expect(text).toContain('Response coordinator');expect(text).toContain('Proposed → Approved');expect(text).toContain('2026-09-09');expect(text).toContain('Evidence dates and gaps');
   }
-  await page.getByLabel('Saved snapshots').selectOption({index:2});
-  await page.getByRole('button',{name:'Response & decisions',exact:true}).click();
+  await openSettings(page);await page.getByLabel('Saved snapshots').selectOption({index:2});
+  await page.getByRole('button',{name:'Actions',exact:true}).click();
   await expect(page.getByLabel('Owner',{exact:true})).toHaveValue('');
   await expect(page.getByRole('combobox',{name:'Status',exact:true})).toHaveValue('Proposed');
 });
@@ -58,17 +58,18 @@ test('key message leads with weekly trend, then province focus, and retains that
     return route.fulfill({json:kind==='indicators'?{datasets}:kind==='mines'?{data:[],url:'https://example.test/mines'}:kind==='relocations'?{routes:[],start:'2026-08-01',end:'2026-08-31',unit:'people',source:'Fixture'}:{products:[]}});
   });
   await page.getByLabel('Reporting cut-off',{exact:true}).fill(cutOff);
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   await dataTask(page,'Connected sources');
   await page.getByLabel('Optional public source preset').selectOption('drc');
   await expect(page.getByRole('button',{name:'Refresh data',exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'Situation',exact:true}).click();
   const key=page.getByRole('region',{name:'Key message',exact:true});
+  await key.getByText('Priority areas and suggested actions',{exact:true}).click();
   await expect(key.locator(':scope > p').nth(0)).toContainText('decreased: 14 versus 28 cases');
-  await expect(key.locator(':scope > p').nth(1)).toContainText('Province B — A (+8)');
-  await expect(key.locator(':scope > p').nth(2)).toContainText('review case investigations');
-  const wording=(await key.locator(':scope > p').allTextContents()).join('\n\n');
-  await page.getByRole('button',{name:'Briefing',exact:true}).click();
+  await expect(key.locator('p').nth(1)).toContainText('Province B — A (+8)');
+  await expect(key.locator('p').nth(2)).toContainText('review case investigations');
+  const wording=(await key.locator('p').allTextContents()).slice(0,3).join('\n\n');
+  await openSitrep(page);
   await expect(key.locator(':scope > p').nth(0)).toContainText('decreased: 14 versus 28 cases');
   for(const [button,format] of [['Export briefing Markdown','md'],['Export briefing HTML with visuals','html']]) {
     const downloadPromise=page.waitForEvent('download');
@@ -96,7 +97,7 @@ test('uploaded mining history and case replacements survive refresh and saved sn
   });
   await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-08');
   await expect(page.getByRole('region',{name:'Overall snapshot'})).toContainText('3');
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   const workbook=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook,XLSX.utils.json_to_sheet([{note:'Choose Visits'}]),'Notes');
   XLSX.utils.book_append_sheet(workbook,XLSX.utils.json_to_sheet([{code:'uploaded-mine',visited:46267,lat:1.3,lon:29.3,label:'Older visit'},{code:'uploaded-mine',visited:46276,lat:1.7,lon:29.7,label:'Later visit'}]),'Visits');
@@ -132,14 +133,14 @@ test('uploaded mining history and case replacements survive refresh and saved sn
   await expect(map.locator('[data-ipis-site="uploaded-mine"]')).toHaveCount(1);
   await page.getByRole('button',{name:/Save snapshot/}).click();
   await expect(page.getByText('Snapshot saved in this browser workspace.')).toBeVisible();
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   await dataTask(page,'Maps & context');
   await mining.getByLabel('IPIS workbook or CSV').setInputFiles({name:'replacement-mines.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:XLSX.write(workbook,{type:'buffer',bookType:'xlsx'})});
   await expect(mining.getByRole('combobox',{name:'Mining worksheet',exact:true})).toHaveValue('Visits');
   await expect(mining.getByRole('combobox',{name:'Mine ID',exact:true})).toHaveValue('code');
   await mining.getByRole('button',{name:/Use uploaded mining data/}).click();
   page.once('dialog',d=>d.accept());
-  await page.getByLabel('Saved snapshots').selectOption({index:1});
+  await openSettings(page);await page.getByLabel('Saved snapshots').selectOption({index:1});
   await expect(mining).toContainText('Active source: new-mines.xlsx');
   await page.getByRole('button',{name:'Situation',exact:true}).click();
   await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-08');
@@ -183,30 +184,31 @@ test('mobility maps share IPIS and ACLED toggles through directions, briefing, e
   const cohortMap=page.getByRole('img',{name:/^Inflow —.* map$/});
   await expect(cohortMap.locator('[data-ipis-site]')).toHaveCount(1);
   await expect(cohortMap.locator('[data-acled-event]')).toHaveCount(1);
-  await page.getByRole('button',{name:'Briefing',exact:true}).click();
+  await openSitrep(page);
   await expect(inflow.locator('[data-ipis-site]')).toHaveCount(1);
-  await page.getByRole('button',{name:'Outflow map',exact:true}).click();
+  await page.getByLabel('Mobility view',{exact:true}).selectOption('outflow');
   await expect(page.getByRole('img',{name:'Outflow from A map',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Inflow map',exact:true}).click();
+  await page.getByLabel('Mobility view',{exact:true}).selectOption('inflow');
   await expect(inflow.locator('[data-acled-event]')).toHaveCount(1);
   await inflow.screenshot({path:testInfo.outputPath('mobility-overlays.png')});
   await page.getByRole('checkbox',{name:'Include detailed evidence and extra maps in this briefing and exports'}).check();
   const appendix=page.getByRole('region',{name:'Evidence appendix'});
   await expect(appendix.getByRole('img',{name:/^Inflow —.* map$/}).locator('[data-ipis-site]')).toHaveCount(1);
-  await appendix.getByRole('checkbox',{name:'IPIS mining sites',exact:true}).first().uncheck();
-  await expect(page.locator('[data-ipis-site]')).toHaveCount(0);
+  await page.getByRole('complementary',{name:'Report editor'}).getByRole('checkbox',{name:'IPIS mining sites',exact:true}).uncheck();
+  await expect(inflow.locator('[data-ipis-site]')).toHaveCount(0);
   const exportEvent=page.waitForEvent('download');
   await page.getByRole('button',{name:'Export briefing HTML with visuals'}).click();
   const html=readFileSync(await (await exportEvent).path(),'utf8');
   expect(html).toContain('data-acled-event="event-1"');
   expect(html).toContain('ACLED: 2026-08-05–2026-09-01');
-  expect(html).not.toContain('data-ipis-site');
+  // Mining remains a core report section even when mobility overlays are off.
+  expect(html).toContain('Mining and operational geography');
   expect(html).not.toContain('Overlays for');
   await page.getByRole('button',{name:/Save snapshot/}).click();
   await page.getByRole('button',{name:'Situation',exact:true}).click();
   await page.getByRole('group',{name:'Overlays for Inflow to A',exact:true}).getByRole('checkbox',{name:'IPIS mining sites',exact:true}).check();
   page.once('dialog',dialog=>dialog.accept());
-  await page.getByLabel('Saved snapshots').selectOption({index:1});
+  await openSettings(page);await page.getByLabel('Saved snapshots').selectOption({index:1});
   await expect(page.getByRole('group',{name:'Overlays for Inflow to A',exact:true}).getByRole('checkbox',{name:'IPIS mining sites',exact:true})).not.toBeChecked();
 });
 async function openOutbreak(page, boundaries=[], sourceHandler=null, acledData=[]) {
@@ -229,16 +231,31 @@ async function openOutbreak(page, boundaries=[], sourceHandler=null, acledData=[
   },{districts:boundaries,acledData});
   await page.goto('/app');
   await page.getByRole('button',{name:'Workspace apps',exact:true}).click();
+  await expect(page.getByRole('dialog').getByText(`${boundaries.length} admin areas`,{exact:true})).toBeVisible();
   const card=page.locator('article').filter({has:page.getByRole('heading',{name:'Outbreak Response',exact:true})});
   await card.getByRole('button',{name:'Install app',exact:true}).click();
   await card.getByRole('button',{name:'Open',exact:true}).click();
   await expect(page.getByRole('region',{name:'Outbreak response'})).toBeVisible();
+  await openSettings(page);
+}
+async function openSettings(page) {
+  const summary=page.getByText('Report settings & saved versions',{exact:true});
+  if(!await summary.locator('..').evaluate(e=>e.open))await summary.click();
+}
+async function openSitrep(page) {
+  await page.getByRole('navigation',{name:'Outbreak sections'}).getByRole('button',{name:'Sitrep',exact:true}).click();
+  if(!await page.getByRole('complementary',{name:'Report editor'}).isVisible())await page.getByRole('button',{name:'Edit report',exact:true}).click();
+  for(const detail of await page.getByRole('complementary',{name:'Report editor'}).locator('details').all()) {
+    if(!await detail.evaluate(e=>e.open))await detail.locator(':scope > summary').click();
+  }
+  const formats=page.getByText('Other formats',{exact:true});
+  if(!await formats.locator('..').evaluate(e=>e.open))await formats.click();
 }
 async function dataTask(page,name) {
   await page.getByRole('navigation',{name:'Data tasks'}).getByRole('button',{name:new RegExp('^'+name)}).click();
 }
 async function upload(page,text) {
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   await dataTask(page,'Numeric data');
   await page.getByLabel('Dataset file').setInputFiles({name:'sdb.csv',mimeType:'text/csv',buffer:Buffer.from(text)});
   await page.getByRole('combobox',{name:'Location column',exact:true}).selectOption('zone');
@@ -263,11 +280,11 @@ test('upload, map, chart, evidence validation, decisions and snapshot reopen',as
   const svgDownload=page.waitForEvent('download');
   await page.getByRole('button',{name:'Export map SVG'}).click();
   expect((await svgDownload).suggestedFilename()).toBe('outbreak-map.svg');
-  await page.getByRole('button',{name:'Response & decisions',exact:true}).click();
+  await page.getByRole('button',{name:'Actions',exact:true}).click();
   await page.getByRole('button',{name:'Add decision / action'}).click();
   await page.getByLabel('Owner',{exact:true}).fill('Coordinator');
   await page.getByLabel('Action, rationale and decision requested').fill('Verify team availability with zone focal point.');
-  await page.getByRole('button',{name:'Briefing',exact:true}).click();
+  await openSitrep(page);
   // New leadership-facing sections: response status rollup and coordinator calls to action.
   await expect(page.getByRole('region',{name:'Response status'}).first()).toBeVisible();
   await expect(page.getByRole('heading',{name:'Calls to action / decisions requested'})).toBeVisible();
@@ -303,8 +320,8 @@ test('upload, map, chart, evidence validation, decisions and snapshot reopen',as
   await page.getByRole('button',{name:'Close apps',exact:true}).click();
   await page.getByRole('button',{name:'Workspace apps',exact:true}).click();
   await page.locator('article').filter({has:page.getByRole('heading',{name:'Outbreak Response',exact:true})}).getByRole('button',{name:'Open',exact:true}).click();
-  await page.getByLabel('Saved snapshots').selectOption({index:1});
-  await page.getByRole('button',{name:'Briefing',exact:true}).click();
+  await openSettings(page);await page.getByLabel('Saved snapshots').selectOption({index:1});
+  await openSitrep(page);
   await expect(page.getByText('Reviewed by user',{exact:true})).toBeVisible();
   await expect(page.getByText('Verify team availability with zone focal point.',{exact:true})).toBeVisible();
   expect(errors).toEqual([]);
@@ -312,7 +329,7 @@ test('upload, map, chart, evidence validation, decisions and snapshot reopen',as
 
 test('Excel dates, multiple worksheets and JSON aggregates import without date or precision loss',async({page})=>{
   await openOutbreak(page);
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   const workbook=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet([['ignore'],['other data']]),'Other');
   XLSX.utils.book_append_sheet(workbook,XLSX.utils.aoa_to_sheet([['zone','date','completed'],['A',46267,0.0001]]),'Observations');
@@ -329,7 +346,7 @@ test('Excel dates, multiple worksheets and JSON aggregates import without date o
   await page.getByRole('button',{name:'Situation',exact:true}).click();
   await expect(page.getByRole('cell',{name:'2026-09-02',exact:true})).toBeVisible();
   await expect(page.getByRole('cell',{name:'0.0001',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   await dataTask(page,'Numeric data');
   await page.getByLabel('Dataset file').setInputFiles({name:'aggregate.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify([{zone:'B',date:'2026-09-02',completed:3}]))});
   await page.getByRole('combobox',{name:'Location column',exact:true}).selectOption('zone');
@@ -361,13 +378,14 @@ test('no-boundary global analysis rejects malformed uploads and fits mobile',asy
   page.once('dialog',d=>d.dismiss());
   await page.getByRole('button',{name:'Close apps',exact:true}).click();
   await expect(page.getByRole('region',{name:'Outbreak response'})).toBeVisible();
+  await openSettings(page);
 });
 
 test('district selection shows directional arcs and missing routes stay missing',async({page},testInfo)=>{
   const second={id:'B',name:'B',properties:{nom:'B'},geometry:{type:'Polygon',coordinates:[[[30,1],[31,1],[31,2],[30,2],[30,1]]]}};
   await openOutbreak(page,[...areas,second]);
   await page.getByLabel('Reporting cut-off').fill('2026-09-02');
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   await dataTask(page,'Maps & context');
   await page.getByLabel('Mobility CSV',{exact:true}).setInputFiles({name:'routes.csv',mimeType:'text/csv',buffer:Buffer.from('origin,destination,value\nA,B,25\nB,A,12\n')});
   await page.getByLabel('Mobility period start').fill('2026-04-01');
@@ -417,7 +435,7 @@ test('district selection shows directional arcs and missing routes stay missing'
   await page.setViewportSize({width:1440,height:1400});
   await page.getByRole('img',{name:'Inflow to A map'}).screenshot({path:testInfo.outputPath('district-mobility.png')});
   await page.getByRole('button',{name:'Save snapshot *',exact:true}).click();
-  await page.getByRole('button',{name:'Briefing',exact:true}).click();
+  await openSitrep(page);
   await expect(page.getByRole('img',{name:'Inflow to A map'})).toBeVisible();
 
 });
@@ -439,12 +457,12 @@ test('connected source refreshes on opening, summary precedes detail, failed ref
   await page.setViewportSize({width:1440,height:1200});
   await page.getByRole('region',{name:'Overall snapshot'}).screenshot({path:testInfo.outputPath('overall-snapshot.png')});
   const headings=await page.getByRole('region',{name:'Outbreak response'}).locator('h3:visible').allTextContents();
-  expect(headings.slice(0,7)).toEqual(['Key message','Prepare daily response brief','Since last brief','Overall snapshot','Trends','Areas to review','Suggested actions']);
+  expect(headings.slice(0,5)).toEqual(['Key message','Overall snapshot','Trends','Areas to review','Suggested actions']);
   const message=page.getByRole('region',{name:'Key message',exact:true});
   await expect(message).toContainText('A (+10)');
   const messageBox=await message.boundingBox();
   const cutoffBox=await page.getByLabel('Reporting cut-off',{exact:true}).boundingBox();
-  expect(messageBox.y).toBeLessThan(cutoffBox.y);
+  expect(messageBox.y).toBeGreaterThan(cutoffBox.y);
   await message.screenshot({path:testInfo.outputPath('opening-key-message.png')});
   await page.setViewportSize({width:390,height:844});
   await expect(message).toBeVisible();
@@ -453,7 +471,7 @@ test('connected source refreshes on opening, summary precedes detail, failed ref
   await page.setViewportSize({width:1440,height:1200});
   await message.getByText('Edit key message',{exact:true}).click();
   await page.getByLabel('Coordinator key message',{exact:true}).fill('Confirm receiving-area readiness with the field team.');
-  await message.getByRole('button',{name:'Open briefing',exact:true}).click();
+  await openSitrep(page);
   await expect(page.getByRole('region',{name:'Key message',exact:true})).toContainText('Confirm receiving-area readiness with the field team.');
   const keyMessageDownload=page.waitForEvent('download');
   await page.getByRole('button',{name:'Export briefing Markdown',exact:true}).click();
@@ -463,19 +481,19 @@ test('connected source refreshes on opening, summary precedes detail, failed ref
   await page.getByRole('region',{name:'Suggested actions'}).getByRole('button',{name:'Add to response plan'}).first().click();
   await expect(page.getByRole('button',{name:'Situation',exact:true})).toHaveAttribute('aria-pressed','true');
   await expect(page.getByRole('button',{name:'✓ Selected for response plan',exact:true})).toBeDisabled();
-  await page.getByRole('button',{name:'Response & decisions',exact:true}).click();
+  await page.getByRole('button',{name:'Actions',exact:true}).click();
   await expect(page.getByLabel('Action, rationale and decision requested')).toHaveValue(/A: \+10/);
   await page.getByLabel('Action, rationale and decision requested').fill('Discuss staffing with the district team.');
   await page.getByRole('button',{name:'Situation',exact:true}).click();
   await expect(page.getByRole('button',{name:'✓ Selected for response plan',exact:true})).toBeDisabled();
-  await page.getByRole('button',{name:'Response & decisions',exact:true}).click();
+  await page.getByRole('button',{name:'Actions',exact:true}).click();
   await expect(page.getByLabel('Action, rationale and decision requested')).toHaveCount(1);
   await page.getByRole('button',{name:'Remove action',exact:true}).click();
   await page.getByRole('button',{name:'Situation',exact:true}).click();
   await expect(page.getByRole('region',{name:'Suggested actions'}).getByRole('button',{name:'Add to response plan'}).first()).toBeEnabled();
   fail=true;
   await page.getByRole('button',{name:'Refresh data',exact:true}).click();
-  await page.locator('summary').filter({hasText:/Sources checked|Source refresh details|Source refresh needs attention/}).click();
+  await page.locator('summary').filter({hasText:/Source dates & refresh details|Source refresh needs attention/}).click();
   await expect(page.getByText(/Some sources could not refresh/)).toBeVisible();
   await expect(page.getByRole('region',{name:'Overall snapshot'})).toContainText('20');
   await expect(page.getByRole('region',{name:'Overall snapshot'})).toContainText('2026-09-10');
@@ -484,13 +502,13 @@ test('connected source refreshes on opening, summary precedes detail, failed ref
 
 test('data coverage points to missing sources without claiming they were analysed',async({page})=>{
   await openOutbreak(page,areas);
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   await dataTask(page,'Connected sources');
   const coverage=page.getByRole('region',{name:'Data coverage'});
   for(const title of ['ACLED / security','GDACS disaster alerts','Mining sites','Safe and dignified burial','Community engagement / RCCE','Logistics and supplies'])await expect(coverage.getByText(title,{exact:true})).toBeVisible();
   await expect(coverage.getByRole('button',{name:'Open main app'}).first()).toBeVisible();
   await coverage.getByRole('button',{name:'Add data'}).last().click();
-  await expect(page.getByRole('heading',{name:'Upload operational data'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Update numeric data'})).toBeVisible();
 });
 
 test('national multi-series chart shows an in-chart legend, connects weekly points and switches to epi weeks',async({page})=>{
@@ -510,7 +528,7 @@ test('national multi-series chart shows an in-chart legend, connects weekly poin
     if(url.includes('kind=mines'))return route.fulfill({json:{data:[],url:'https://example.test/mines'}});
     return route.fulfill({json:{products:[]}});
   });
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   await dataTask(page,'Connected sources');
   await page.getByLabel('Optional public source preset').selectOption('drc');
   await expect(page.getByRole('region',{name:'Outbreak response'})).toContainText('National cumulative confirmed cases');
@@ -541,7 +559,7 @@ test('RCCE Office text is reviewed, saved and exported with reporting cut-off',a
   for(const [i,text] of [[1,'Second slide'],[2,'First slide']])ppt.file(`ppt/slides/slide${i}.xml`,`<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:p><a:r><a:t>${text}</a:t></a:r></a:p></p:sld>`);
   await openOutbreak(page,areas);
   await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-16');
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   const input=page.getByLabel('RCCE document file');
   // A small real PDF checks the browser worker, text extraction and page labels.
   const stream='BT /F1 12 Tf 40 200 Td (Community feedback needs follow-up.) Tj ET';
@@ -572,7 +590,7 @@ test('RCCE Office text is reviewed, saved and exported with reporting cut-off',a
   await dataTask(page,'Connected sources');
   await expect(page.getByRole('region',{name:'Data coverage'})).toContainText('1 qualitative reports within cut-off; 0 numeric indicators');
   await dataTask(page,'Reports');
-  await page.getByRole('button',{name:'Briefing',exact:true}).click();
+  await openSitrep(page);
   await expect(page.getByRole('region',{name:'RCCE qualitative reports'})).toContainText('Community requests translated materials.');
   await page.getByRole('button',{name:/Save snapshot/}).click();
   await expect(page.getByLabel('Saved snapshots').locator('option')).toHaveCount(2);
@@ -586,9 +604,9 @@ test('RCCE Office text is reviewed, saved and exported with reporting cut-off',a
   await expect(page.getByRole('region',{name:'RCCE qualitative reports'})).toHaveCount(0);
   page.on('dialog',dialog=>dialog.accept());
   await page.getByRole('button',{name:'New outbreak',exact:true}).click();
-  await page.getByLabel('Saved snapshots').selectOption({index:1});
+  await openSettings(page);await page.getByLabel('Saved snapshots').selectOption({index:1});
   await expect(page.getByRole('region',{name:'RCCE qualitative reports'})).toContainText('Listening session');
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   await page.locator('summary').filter({hasText:'Listening session'}).click();
   await page.getByRole('button',{name:'Remove RCCE report: Listening session',exact:true}).click();
   await dataTask(page,'Connected sources');
@@ -600,7 +618,7 @@ test('RCCE Office text is reviewed, saved and exported with reporting cut-off',a
 test('report workspace keeps long AI reviews manageable and preserves drafts across views',async({page},testInfo)=>{
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await openOutbreak(page,areas);
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   const upload=page.getByRole('region',{name:'RCCE document upload'});
   await expect(upload.getByRole('heading',{name:'Upload RCCE feedback and reports'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'Sources and freshness'})).not.toBeVisible();
@@ -619,7 +637,7 @@ test('report workspace keeps long AI reviews manageable and preserves drafts acr
   await expect(page.getByRole('region',{name:'Data coverage'})).toBeVisible();
   await dataTask(page,'Reports');
   await page.getByRole('button',{name:'Situation',exact:true}).click();
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   await expect(upload.getByLabel('RCCE summary for briefing')).toHaveValue('Reviewed summary preserved while navigating.');
   await upload.getByLabel('RCCE report title').evaluate(el=>el.scrollIntoView({block:'center'}));
   await page.screenshot({path:testInfo.outputPath('report-review-desktop.png'),fullPage:true});
@@ -645,7 +663,7 @@ test('report workspace keeps long AI reviews manageable and preserves drafts acr
   const editor=page.getByRole('region',{name:'Edit details for community-feedback.txt'});
   await editor.getByLabel('Report date').fill('2026-09-15');
   await editor.getByRole('button',{name:'Save report details',exact:true}).click();
-  await page.getByRole('button',{name:'Briefing',exact:true}).click();
+  await openSitrep(page);
   await expect(page.getByRole('region',{name:'RCCE qualitative reports'})).toContainText('Reviewed summary preserved while navigating.');
   expect(errors).toEqual([]);
 });
@@ -653,7 +671,7 @@ test('report workspace keeps long AI reviews manageable and preserves drafts acr
 test('RCCE confirmation marks missing fields and focuses the first field needing attention',async({page})=>{
   await openOutbreak(page);
   await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-16');
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   const section=page.getByRole('region',{name:'RCCE document upload'});
   await section.getByLabel('RCCE document file').setInputFiles({name:'feedback.txt',mimeType:'text/plain',buffer:Buffer.from('Community requests translated materials.')});
   const date=section.getByLabel('RCCE reporting date');
@@ -685,14 +703,14 @@ test('RCCE confirmation marks missing fields and focuses the first field needing
   await expect(section.getByRole('status')).toBeInViewport();
   await expect(section.getByRole('status')).toBeFocused();
   await expect(section.getByRole('button',{name:'Confirm RCCE report',exact:true})).toHaveCount(0);
-  await page.getByRole('button',{name:'Briefing',exact:true}).click();
+  await openSitrep(page);
   await expect(page.getByRole('region',{name:'RCCE qualitative reports'})).toContainText('Translation requested.');
 });
 
 test('RCCE weekly batches preserve review edits, isolate failures and retain separate dated reports',async({page},testInfo)=>{
   await openOutbreak(page);
   await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-06');
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   const section=page.getByRole('region',{name:'RCCE document upload'});
   const input=section.getByLabel('RCCE document file');
   const week17={name:'week17.txt',mimeType:'text/plain',buffer:Buffer.from('Week 17: Community requested translated materials.')};
@@ -733,7 +751,7 @@ test('RCCE weekly batches preserve review edits, isolate failures and retain sep
   await expect(selector).toHaveCount(0);
   await page.getByRole('button',{name:/Save snapshot/}).click();
   await expect(page.getByLabel('Saved snapshots').locator('option')).toHaveCount(2);
-  await page.getByRole('button',{name:'Briefing',exact:true}).click();
+  await openSitrep(page);
   const reports=page.getByRole('region',{name:'RCCE qualitative reports'});
   await expect(reports).toContainText('WHO week 17');
   await expect(reports).not.toContainText('WHO week 18');
@@ -747,7 +765,7 @@ test('RCCE weekly batches preserve review edits, isolate failures and retain sep
   await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-13');
   await expect(reports).toContainText('WHO week 18');
   page.on('dialog',dialog=>dialog.accept());
-  await page.getByLabel('Saved snapshots').selectOption({index:1});
+  await openSettings(page);await page.getByLabel('Saved snapshots').selectOption({index:1});
   await expect(reports).not.toContainText('WHO week 18');
   await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-13');
   await expect(reports).toContainText('WHO week 18');
@@ -772,7 +790,7 @@ test('AI document findings use editable themes and source-linked maps with separ
     ]}});
   });
   await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-08');
-  await page.getByRole('button',{name:'Data & uploads',exact:true}).click();
+  await page.getByRole('button',{name:'Data',exact:true}).click();
   await dataTask(page,'Connected sources');
   await page.getByLabel('Optional public source preset').selectOption('drc');
   await expect(page.getByRole('button',{name:'Refresh data',exact:true})).toBeEnabled();
@@ -811,13 +829,13 @@ test('AI document findings use editable themes and source-linked maps with separ
   await expect(map.getByRole('region',{name:'Selected area findings'})).toContainText('Pre-deployment preparedness');
   await page.getByRole('button',{name:/Save snapshot/}).click();
   await expect(page.getByLabel('Saved snapshots').locator('option')).toHaveCount(2);
-  await page.getByRole('button',{name:'Briefing',exact:true}).click();
+  await openSitrep(page);
   const pending=page.waitForEvent('download');await page.getByRole('button',{name:'Export evidence JSON',exact:true}).click();
   const file=testInfo.outputPath('ai-document-findings.json');await (await pending).saveAs(file);
   const saved=JSON.parse(readFileSync(file,'utf8'));
   expect(saved.rcceDocuments[0].findings).toHaveLength(3);expect(saved.rcceDocuments[0].findings[1].value).toBe(12);expect(saved.rcceDocuments[0].findings[0].reference).toBe('Page 1');
   expect(saved.datasets).toHaveLength(1);expect(saved.datasets[0].records[0].value).toBe(10);
-  await page.getByLabel('Saved snapshots').selectOption({index:1});
+  await openSettings(page);await page.getByLabel('Saved snapshots').selectOption({index:1});
   await page.getByRole('button',{name:'Situation',exact:true}).click();
   await expect(map.locator('[data-document-finding]')).toHaveCount(2);
   await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-06');

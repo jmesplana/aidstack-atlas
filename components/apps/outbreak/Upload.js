@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import Papa from 'papaparse';
 import { LEVELS, KINDS, normalizeRows } from '../../../lib/outbreak/data';
 import {replacementSummary,importedMetricId} from '../../../lib/outbreak/imports';
+import { suggestIndicatorColumns } from '../../../lib/outbreak/importSuggestions';
+import styles from './outbreak.module.css';
 
 export default function Upload({ onImport, datasets=[] }) {
   const [replacementId,setReplacementId]=useState('');
@@ -50,7 +52,7 @@ export default function Upload({ onImport, datasets=[] }) {
         data=parsed.data;
       } else throw new Error('Choose CSV, XLSX, XLS or JSON.');
       if(!data.length||data.length>50000) throw new Error('Upload between 1 and 50,000 rows.');
-      setRows(data);setFile(next.name);setMapping(m=>({...m,...Object.fromEntries(['location','date','metric'].map(key=>[key,Object.hasOwn(data[0],m[key])?m[key]:''])),source:next.name}));
+      setRows(data);setFile(next.name);setMapping(m=>({...(!target?suggestIndicatorColumns(Object.keys(data[0]),m):{...m,...Object.fromEntries(['location','date','metric'].map(key=>[key,Object.hasOwn(data[0],m[key])?m[key]:'']))}),source:next.name}));
     } catch(e) {setError(e.message);} finally {setBusy(false);}
   }
   async function chooseSheet(name) {
@@ -72,10 +74,13 @@ export default function Upload({ onImport, datasets=[] }) {
   }
   const input=(key,label)=> <label>{label}<input value={mapping[key]} maxLength={200} onChange={e=>setMapping({...mapping,[key]:e.target.value})}/></label>;
   return <section>
-    <h3>Upload operational data</h3>
-    <p>Import aggregate case reports, SDB/EDS, RCCE, logistics or other numeric indicators. Choose an existing dataset to replace its complete series, or add a separate indicator. Records stay in this browser unless you export them.</p>
-    <p>For narrative community feedback in PDF, Word, PowerPoint, Excel or text files, choose Reports in the data task menu.</p>
-    <p>Use one row per location and reporting date. Dates must be YYYY-MM-DD, numbers must use dot decimals without thousands separators. Blank / ND values remain missing. Do not upload individual patient or burial records.</p>
+    <h3>Update numeric data</h3>
+    {!target&&<div className={styles.toolbar} role="group" aria-label="Indicator task">
+      <button type="button" aria-pressed={mapping.purpose==='cases'} onClick={()=>setMapping(m=>suggestIndicatorColumns(columns,{...m,purpose:'cases',label:'Confirmed cases',unit:'people',metric:''}))}>Update cases</button>
+      <button type="button" aria-pressed={mapping.purpose==='operational'} onClick={()=>setMapping(m=>({...m,purpose:'operational',label:'',unit:'',metric:''}))}>Update response indicators</button>
+    </div>}
+    <p>Choose your file, check the suggested columns, then confirm the preview. Each row should describe one location and reporting date.</p>
+    <details><summary>File format guidance</summary><p>Use aggregate CSV, Excel or JSON records. Dates must be YYYY-MM-DD, numbers must use dot decimals without thousands separators. Blank / ND values remain missing. Do not upload individual patient or burial records. Narrative community feedback belongs in Reports.</p></details>
     <label>Import mode<select value={replacementId} onChange={e=>selectTarget(e.target.value)}><option value="">Add separate indicator</option>{datasets.map(d=><option key={d.id} value={d.id}>Replace: {d.label} — {d.file||d.source||d.id}</option>)}</select></label>
     {target&&<p>Replaces the complete series for {target.label}; rows absent from the new file will be removed from the current analysis. Saved snapshots stay unchanged. Public refresh will preserve this uploaded replacement.</p>}
     <label>Dataset file <input type="file" accept=".csv,.xlsx,.xls,.json" onChange={read} disabled={busy}/></label>
@@ -93,7 +98,7 @@ export default function Upload({ onImport, datasets=[] }) {
       <div style={{overflowX:'auto',maxHeight:220}}><table><caption>File preview — first five rows</caption><thead><tr>{columns.slice(0,12).map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{rows.slice(0,5).map((r,i)=><tr key={i}>{columns.slice(0,12).map(c=><td key={c}>{String(r[c]??'').slice(0,100)}</td>)}</tr>)}</tbody></table></div>
       {validation?<p role="status">{validation}</p>:<p>{preview.length} validated observations; {preview.filter(r=>r.value===null).length} missing values. No data has been imported yet.</p>}
       {!validation&&target&&(()=>{const values=records=>records.map(({location,date,value})=>({location,date,value}));const diff=replacementSummary(values(target.records||[]),values(preview),r=>JSON.stringify([r.location,r.date]));return <p>{diff.added} observations added, {diff.changed} changed, {diff.removed} removed. New period: {preview.map(r=>r.date).sort()[0]}–{preview.map(r=>r.date).sort().at(-1)}.</p>;})()}
-      <button type="button" disabled={!!validation||!mapping.source.trim()} onClick={commit}>Confirm mapped import</button>
+      <div className={styles.confirmBar}><span>{validation?'Complete the mapping to continue.':`${preview.length} observations ready for review`}</span><button className={styles.primaryAction} type="button" disabled={!!validation||!mapping.source.trim()} onClick={commit}>Confirm mapped import</button></div>
     </>}
   </section>;
 }
