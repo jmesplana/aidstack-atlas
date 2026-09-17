@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import bbox from '@turf/bbox';
 import { useToast } from './Toast';
 import { DecisionBadge, RiskBar, getDecisionLabel } from './DecisionSupport';
 import {
@@ -56,7 +57,7 @@ function getDistrictMissingEvidence(district = {}) {
 const PredictionDashboard = ({
   facilities,
   disasters,
-  districts,
+  districts = [],
   selectedDistricts = [],
   acledData = [],
   selectedDistrict = null, // If provided, shows district-specific forecast
@@ -66,6 +67,7 @@ const PredictionDashboard = ({
 }) => {
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const [predictions, setPredictions] = useState(null);
   const [activeTab, setActiveTab] = useState('districts');
   const [locationInfo, setLocationInfo] = useState(null);
@@ -209,22 +211,29 @@ const PredictionDashboard = ({
     };
   };
 
-  // Calculate center point from selected district, facilities, OR disasters
+  // Use the same admin scope for the regional weather and district outlook.
   const getCenterPoint = () => {
-    // Priority 0: Use selected district if in district-specific mode
-    if (selectedDistrict) {
-      // Calculate centroid from district bounds
-      const bounds = selectedDistrict.bounds;
-      if (bounds) {
-        return {
-          latitude: (bounds.minLat + bounds.maxLat) / 2,
-          longitude: (bounds.minLng + bounds.maxLng) / 2,
-          source: 'district',
-          districtName: selectedDistrict.name,
-          districtId: selectedDistrict.id,
-          bounds,
-        };
+    const districtBounds = analysisDistricts.flatMap((district) => {
+      let bounds = district.bounds
+        ? [district.bounds.minLng, district.bounds.minLat, district.bounds.maxLng, district.bounds.maxLat]
+        : null;
+      if (!bounds?.every(Number.isFinite) && district.geometry) {
+        try {
+          bounds = bbox(district.geometry);
+        } catch (_) {
+          return [];
+        }
       }
+      return bounds?.every(Number.isFinite) ? [bounds] : [];
+    });
+
+    if (districtBounds.length > 0) {
+      return {
+        latitude: (Math.min(...districtBounds.map(b => b[1])) + Math.max(...districtBounds.map(b => b[3]))) / 2,
+        longitude: (Math.min(...districtBounds.map(b => b[0])) + Math.max(...districtBounds.map(b => b[2]))) / 2,
+        source: 'district',
+        count: districtBounds.length,
+      };
     }
 
     // Priority 1: Use facilities if available
@@ -260,14 +269,19 @@ const PredictionDashboard = ({
   };
 
   const loadPredictions = async () => {
-    const center = getCenterPoint();
-    if (!center) {
-      addToast('No location data available. Please upload sites or ensure disasters are loaded.', 'error');
+    setLoadError(null);
+    if (analysisDistricts.length === 0) {
+      const message = 'Upload or select one or more admin areas to generate the district outlook.';
+      setLoadError(message);
+      addToast(message, 'warning');
       return;
     }
 
-    if (!analysisDistricts || analysisDistricts.length === 0) {
-      addToast('Upload or select one or more districts to generate the district outlook.', 'warning');
+    const center = getCenterPoint();
+    if (!center) {
+      const message = 'No usable location found in the selected admin areas. Reload boundaries with valid geometry or coordinates.';
+      setLoadError(message);
+      addToast(message, 'error');
       return;
     }
 
@@ -310,10 +324,13 @@ const PredictionDashboard = ({
         }
       }
       // Priority 1: Check if we have districts from shapefile
-      else if (districts && districts.length > 0) {
+      else if (analysisDistricts.length > 0) {
         // Extract unique countries and regions from districts
-        const districtCountries = [...new Set(districts.map(d => d.country).filter(Boolean))];
-        const districtRegions = [...new Set(districts.map(d => d.region).filter(Boolean))];
+        locationName = analysisDistricts.length === 1
+          ? analysisDistricts[0].name || 'Selected admin area'
+          : `${analysisDistricts.length} admin areas`;
+        const districtCountries = [...new Set(analysisDistricts.map(d => d.country).filter(Boolean))];
+        const districtRegions = [...new Set(analysisDistricts.map(d => d.region).filter(Boolean))];
 
         if (districtCountries.length > 0) {
           countryNames = districtCountries;
@@ -406,17 +423,16 @@ const PredictionDashboard = ({
 
     } catch (error) {
       console.error('Failed to load predictions:', error);
-      addToast('Failed to load predictions. Please try again.', 'error');
+      const message = `Failed to load predictions: ${error.message || 'Please try again.'}`;
+      setLoadError(message);
+      addToast(message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const center = getCenterPoint();
-    if (center) {
-      loadPredictions();
-    }
+    loadPredictions();
   }, []);
 
   const getRiskColor = (level) => {
@@ -662,9 +678,9 @@ const PredictionDashboard = ({
               </svg>
               <p style={{ color: 'var(--aidstack-slate-medium)', fontSize: '16px', fontFamily: "'Inter', sans-serif" }}>Building district hazard scores and collecting auditable evidence...</p>
             </div>
-          ) : !predictions ? (
+          ) : loadError || !predictions ? (
             <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-              <p style={{ color: 'var(--aidstack-slate-medium)', fontFamily: "'Inter', sans-serif" }}>No data available for predictions</p>
+              <p role={loadError ? 'alert' : undefined} style={{ color: 'var(--aidstack-slate-medium)', fontFamily: "'Inter', sans-serif" }}>{loadError || 'Select admin areas to generate a forecast.'}</p>
             </div>
           ) : (
             <>
