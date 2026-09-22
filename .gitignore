@@ -97,6 +97,14 @@ temp/.codex
 !README.md
 !**/README.md
 
+# Licensing and governance documents must be public and tracked.
+!CLA.md
+!CONTRIBUTING.md
+!SECURITY.md
+!CODE_OF_CONDUCT.md
+!CHANGELOG.md
+!.github/**/*.md
+
 # Video implementation documentation (Claude-generated, not needed for runtime)
 LINKEDIN_VIDEO_GUIDE.md
 VIDEO_IMPLEMENTATION_SUMMARY.md

@@ -1,0 +1,62 @@
+Aidstack Atlas — Geospatial Operational Intelligence
+Copyright (C) 2025-2026 John Mark Esplana
+
+This product is licensed under the GNU Affero General Public License v3.0 or
+later. See the LICENSE file for the full licence text.
+
+  This program is free software: you can redistribute it and/or modify it
+  under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or (at your
+  option) any later version.
+
+  This program is distributed in the hope that it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License
+  for more details.
+
+Network use is distribution. If you run a modified version of this program on
+a server and let users interact with it over a network, AGPL section 13
+requires you to offer those users access to the complete corresponding source
+of your modified version.
+
+Source code: https://github.com/jmesplana/aidstack-atlas
+Commercial licensing and enquiries: johnm.esplana@gmail.com
+
+--------------------------------------------------------------------------------
+THIRD-PARTY DATA SOURCES
+
+Aidstack Atlas displays and analyses data from external providers. That data is
+NOT covered by this program's licence and remains subject to the terms of its
+respective provider. Operators are responsible for complying with those terms.
+
+  GDACS (Global Disaster Alert and Coordination System)
+    European Commission / UN OCHA — https://www.gdacs.org
+
+  WHO Disease Outbreak News
+    World Health Organization — https://www.who.int/emergencies/disease-outbreak-news
+
+  ACLED (Armed Conflict Location & Event Data Project)
+    Requires a separate ACLED licence for most uses — https://acleddata.com
+
+  WorldPop
+    University of Southampton, CC BY 4.0 — https://www.worldpop.org
+
+  OpenStreetMap
+    (c) OpenStreetMap contributors, ODbL — https://www.openstreetmap.org/copyright
+
+  Google Earth Engine datasets
+    Subject to Earth Engine terms and per-dataset licences, including:
+      VIIRS Nighttime Lights (NOAA/NASA)
+      Sentinel-1 and Sentinel-2 (Copernicus / ESA)
+      JRC Global Surface Water
+      Malaria Atlas Project accessibility surfaces (University of Oxford)
+
+  OpenTopoMap base tiles
+    CC-BY-SA 3.0 — https://opentopomap.org
+
+--------------------------------------------------------------------------------
+THIRD-PARTY SOFTWARE
+
+This program depends on open-source packages listed in package.json, each under
+its own licence. Run `npm ls` or inspect node_modules for the full dependency
+tree and the licence of each package.

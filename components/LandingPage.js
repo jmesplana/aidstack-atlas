@@ -1,3 +1,15 @@
+/*
+ * Aidstack Atlas — Geospatial Operational Intelligence
+ * Copyright (C) 2025-2026 John Mark Esplana
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ *
+ * This program is free software: you can redistribute it and/or modify it
+ * under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version. See the LICENSE file for the full text.
+ */
+
 import Link from 'next/link';
 import { useState } from 'react';
 import { Activity, ArrowRight, ArrowUpRight, FileText, Layers, MapPin, Check } from 'lucide-react';
@@ -146,6 +158,6 @@ export default function LandingPage() {
 
       <section className={styles.finalCta}><div className={styles.container}><p className={styles.eyebrow}>A clearer view starts here</p><h2>Your locations already exist.<br />The context around them<br /><em>keeps changing.</em></h2><p>Bring your sites and operational data into one workspace and understand the conditions developing around them.</p><div className={styles.actions}><Explore /><a className={styles.heroLink} href={github}>View on GitHub <ArrowUpRight size={16} aria-hidden="true" /></a></div></div></section>
     </main>
-    <footer className={styles.footer}><div className={styles.container}><Link href="/landing" className={styles.brand}><Activity size={24} aria-hidden="true" />Aidstack <strong>Atlas</strong></Link><p>Geospatial operational intelligence</p><a href={github}>GitHub <ArrowUpRight size={12} aria-hidden="true" /></a></div></footer>
+    <footer className={styles.footer}><div className={styles.container}><Link href="/landing" className={styles.brand}><Activity size={24} aria-hidden="true" />Aidstack <strong>Atlas</strong></Link><p>Geospatial operational intelligence</p><div className={styles.footerLinks}><span>AGPL-3.0 &middot; &copy; 2025-2026 John Mark Esplana</span><a href={`${github}/blob/main/LICENSE`}>License</a><a href={github}>Source <ArrowUpRight size={12} aria-hidden="true" /></a></div></div></footer>
   </div>;
 }
