@@ -419,7 +419,7 @@ conditions and are **not** covered by this project's licence.
 
 If your organization needs to build on Atlas without AGPL obligations — for
 example to embed it in a proprietary product — a commercial licence is
-available. Email **johnm.esplana@gmail.com**.
+available. 
 
 ---
 
