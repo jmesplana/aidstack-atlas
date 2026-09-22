@@ -148,7 +148,9 @@
 .footer .container { display: flex; align-items: center; gap: 30px; }
 .footer .brand { color: #dce7d9; font-size: 17px; }
 .footer p { font-size: 10px; margin: 0; }
-.footer a:last-child { margin-left: auto; color: #b7cbbd; font-size: 11px; display: flex; align-items: center; gap: 5px; }
+.footer .footerLinks { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+.footer .footerLinks span { font-size: 10px; color: #6f8a85; }
+.footer .footerLinks a { color: #b7cbbd; font-size: 11px; display: flex; align-items: center; gap: 5px; }
 .skip { position: absolute; left: 15px; top: -100px; padding: 10px; color: #153740; background: #fff; z-index: 100; }
 .skip:focus { top: 10px; }
 @media (max-width: 1100px) {
