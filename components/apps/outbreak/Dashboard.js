@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import DecisionView from './DecisionView';
 import { provinceCoverage, provinceHorizon, areaActivity } from '../../../lib/outbreak/areaHistory';
 import { shiftDate } from '../../../lib/outbreak/insights';
 import { formatValue } from '../../../lib/outbreak/data';
@@ -8,7 +10,11 @@ import KeyMessage from './KeyMessage';
 import styles from './outbreak.module.css';
 
 const number = value => Number.isFinite(value) ? formatValue(value) : 'Unknown';
-export default function Dashboard({ epi, geometry, boundaryLevel, message, asOf, location, onSelect, onAnalysis, onData, reviewed, province, setProvince }) {
+export default function Dashboard({ epi, geometry, boundaryLevel, message, asOf, location, onSelect, onAnalysis, onData, reviewed, province, setProvince, title, freshness }) {
+  const [presenting,setPresenting]=useState(false);
+  const screenRef=useRef(null);
+  function present(){flushSync(()=>setPresenting(true));screenRef.current?.requestFullscreen?.().catch(()=>{});}
+  function closePresentation(){if(document.fullscreenElement===screenRef.current)document.exitFullscreen?.().catch(()=>{});setPresenting(false);}
   const [allZones,setAllZones]=useState(false),[alertDays,setAlertDays]=useState(7);
   const coverage=useMemo(()=>provinceCoverage(epi,geometry,boundaryLevel),[epi,geometry,boundaryLevel]);
   const alerts=useMemo(()=>epi?.dataset.level==='health_zone'?areaActivity(epi.dataset,epi.date,shiftDate(epi.date,-alertDays)).firstReports:[],[epi,alertDays]);
@@ -31,7 +37,8 @@ export default function Dashboard({ epi, geometry, boundaryLevel, message, asOf,
     `Observation: ${selected?.date||'No report at cut-off'}`
   ]:null;
   return <div className={styles.dashboard}>
-    <div className={styles.workspaceHeading}><div><span className={styles.eyebrow}>OUTBREAK MONITOR</span><h3>Situation dashboard</h3><p>Case reporting date: {epi?.date||'Unavailable'} · Cut-off: {asOf}</p></div><button className={styles.primaryAction} onClick={onAnalysis}>Deep analysis → Sitrep</button></div>
+    {presenting&&<DecisionView screenRef={screenRef} title={title} freshness={freshness} epi={epi} geometry={geometry} boundaryLevel={boundaryLevel} message={message} coverage={coverage} horizon={filteredHorizon} alerts={alerts} alertDays={alertDays} asOf={asOf} location={location} province={activeProvince} focus={focus} callout={callout} onSelect={chooseZone} onProvince={p=>{setProvince(p);onSelect('');}} onClear={()=>{setProvince('');onSelect('');}} onClose={closePresentation} onAnalysis={()=>{closePresentation();onAnalysis();}}/>}
+    <div className={styles.workspaceHeading}><div><span className={styles.eyebrow}>OUTBREAK MONITOR</span><h3>Situation dashboard</h3><p>Case reporting date: {epi?.date||'Unavailable'} · Cut-off: {asOf}</p></div><div className={styles.toolbar}><button className={styles.primaryAction} onClick={present}>Full-screen dashboard</button><button onClick={onAnalysis}>Deep analysis → Sitrep</button></div></div>
     <KeyMessage compact message={message} asOf={asOf} reviewed={reviewed} onBriefing={onAnalysis}/>
     {!epi&&<div className={styles.panel}><p>Connect the DRC feeds or import cumulative health-zone case data to populate the dashboard.</p><button onClick={onData}>Connect or import data</button></div>}
     {epi&&<>

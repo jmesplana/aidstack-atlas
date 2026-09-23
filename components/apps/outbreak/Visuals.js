@@ -31,7 +31,7 @@ function exportSVG(ref,name) {
   copy.setAttribute('xmlns','http://www.w3.org/2000/svg');
   download(name,new XMLSerializer().serializeToString(copy),'image/svg+xml');
 }
-export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, mines=[], events=[], hazards=[], sites=[], selected, onSelect, label, asOf, source, focusNames=[], routes=[], routeDirection='outflow', routeUnit, documentSignals=[], overlayCaption='', highlightNames=[], groupLabels=false, callout=null }) {
+export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, mines=[], events=[], hazards=[], sites=[], selected, onSelect, label, asOf, source, focusNames=[], routes=[], routeDirection='outflow', routeUnit, documentSignals=[], overlayCaption='', highlightNames=[], groupLabels=false, callout=null, presentation=false }) {
   const routeColor=routeDirection==='inflow'?'#c96a37':'#176f89';
   const ref=useRef(null),mapRef=useRef(null),drag=useRef(null),pointers=useRef(new Map()),liveView=useRef(null);
   const arrowId=useId().replace(/:/g, "");
@@ -128,19 +128,19 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
   const anchor=callout&&shapes.features.find(f=>f.name===selected)?.center;
   const anchorScreen=anchor?[(anchor[0]-view[0])*900/view[2],66+(anchor[1]-view[1])*440/view[3]]:null;
   const signalOffsets=new Map();
-  return <div>
-    <div data-print-hide="true" style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',margin:'12px 0'}}>
+  return <div className={presentation?styles.presentationMap:undefined}>
+    {!presentation&&<div data-print-hide="true" style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',margin:'12px 0'}}>
       <button type="button" aria-label={`Zoom in ${label} map`} onClick={()=>zoomBy(.65)}>＋</button>
       <button type="button" aria-label={`Zoom out ${label} map`} onClick={()=>zoomBy(1.5)}>−</button>
       <button type="button" onClick={()=>setViewport(null)}>Focus relevant areas</button>
       <button type="button" onClick={()=>setViewport([0,0,900,440])}>All boundaries</button>
       <label>Admin labels<select aria-label={`Admin labels for ${label}`} value={labels} onChange={e=>setLabels(e.target.value)}><option value="priority">Leading areas</option><option value="all">All areas (avoid overlap)</option><option value="none">Hide labels</option></select></label>
       <span style={{fontSize:12,color:'#597086'}}>Drag to pan · scroll or pinch to zoom · arrows to pan when focused</span>
-    </div>
+    </div>}
     <svg ref={ref} viewBox={`0 0 900 ${mapHeight}`} role="img" aria-label={`${label} map`} style={{width:'100%',maxHeight:'65vh',userSelect:'none',background:'#f8fafc',border:'1px solid #dce5ed',borderRadius:8}}>
       <title>{label} — reporting cut-off {asOf}</title><rect width="900" height={mapHeight} fill="#fff"/>
       <text x="22" y="28" fontSize="19" fontWeight="bold" fontFamily="sans-serif" fill="#18334b">{label.slice(0,78)}</text>
-      <text x="22" y="50" fontSize="12" fontFamily="sans-serif" fill="#536c81">{boundaryLevel} · {kind} · {unit} · cut-off {asOf}; observation dates may differ</text>
+      <text x="22" y="50" fontSize="12" fontFamily="sans-serif" fill="#536c81">{presentation?'Cumulative confirmed cases · amber outlines: first positive reports':`${boundaryLevel} · ${kind} · ${unit} · cut-off ${asOf}; observation dates may differ`}</text>
       <svg ref={mapRef} role="group" tabIndex="0" aria-label={`Pan and zoom ${label}`} x="0" y="66" width="900" height="440" viewBox={view.join(' ')} data-map-viewport="true" style={{touchAction:'none',cursor:'grab'}}
         onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}
         onDoubleClick={e=>{e.preventDefault();setViewport(zoomView(view,.65,screenPoint(e)));}}
@@ -178,13 +178,13 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
       <rect x="122" y="520" width="12" height="12" fill="white" stroke="#9aaaba"/><text x="140" y="531" fontFamily="sans-serif" fontSize="12">Zero</text>
       <rect x="191" y="520" width="12" height="12" fill="hsl(12 76% 42%)"/><text x="209" y="531" fontFamily="sans-serif" fontSize="12">Darker: larger values · max absolute value {known.length?formatValue(max):'not available'}</text>
       <text x="22" y="552" fontFamily="sans-serif" fontSize="11" fill="#536c81">{hazards.length?'Gold triangles: GDACS centres. ':''}{mines.length?'Teal dots: documented mines. ':''}{events.length?'Purple diamonds: ACLED events. ':''}{sites.length?'Blue squares: uploaded sites. ':''}Blue areas: negative changes, where present.</text>
-      <text x="22" y="574" fontFamily="sans-serif" fontSize="10" fill="#536c81">Source: {String(source||'Uploaded administrative boundaries').slice(0,130)}</text>
+      {!presentation&&<text x="22" y="574" fontFamily="sans-serif" fontSize="10" fill="#536c81">Source: {String(source||'Uploaded administrative boundaries').slice(0,130)}</text>}
       {documentSignals.length>0&&<text x="22" y={mapHeight-10} fontFamily="sans-serif" fontSize="11" fill="#536c81">AI-extracted findings may be incomplete or incorrect. Verify source. Circles: themes; squares: vaccination reports.</text>}
       {overlayCaption&&<text x="22" y="596" fontFamily="sans-serif" fontSize="11" fill="#536c81">{overlayCaption}</text>}
     </svg>
-    <p data-print-hide="true" style={{fontSize:12,color:"#536c81"}}>Labels are spaced to avoid overlap. Zoom in to reveal more; select an area to keep its label visible.</p>
+    {!presentation&&<p data-print-hide="true" style={{fontSize:12,color:"#536c81"}}>Labels are spaced to avoid overlap. Zoom in to reveal more; select an area to keep its label visible.</p>}
     {level!==boundaryLevel&&<p>Map values hidden: dataset level ({level||'none'}) differs from boundary level ({boundaryLevel}).</p>}
-    <button type="button" onClick={()=>exportSVG(ref,'outbreak-map.svg')}>Export map SVG</button>
+    {!presentation&&<button type="button" onClick={()=>exportSVG(ref,'outbreak-map.svg')}>Export map SVG</button>}
   </div>;
 }
 export function HorizontalBars({title,subtitle,rows,unit='people',color='#176f89',source,onSelect,valueLabel}) {

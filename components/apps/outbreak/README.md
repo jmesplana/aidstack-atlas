@@ -413,3 +413,12 @@ Overlapping requests are skipped. Failed checks retain dated observations and
 show an error. Selection and map position survive indicator refreshes. Uploaded
 replacements remain protected. Manual full refresh additionally checks connected
 mobility and mining sources. This is an open-browser timer, not a background job.
+
+Full-screen dashboard opens a decision briefing outside the workspace shell.
+It requests browser fullscreen and falls back to a viewport-filling presentation
+when fullscreen is unavailable. The view retains key messages, first-report
+alerts, headline numbers, map callouts, province coverage and compact horizon
+strips. It hides setup, editing, export and map configuration controls. Automatic
+refresh continues under the same live/historical rules. Escape or Exit returns to
+the workspace; Deep analysis exits presentation and opens the sitrep. The background
+workspace is inert while presenting, and keyboard focus stays in the decision view.

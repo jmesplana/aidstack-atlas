@@ -93,3 +93,43 @@ test('timed refresh preserves selection and viewport, retains data on failure an
   expect(checks).toBe(before);
 
 });
+
+for(const fallback of [false,true])test(`decision view fills the screen, stays live and exits cleanly${fallback?' without browser fullscreen':''}`,async({page},testInfo)=>{
+  await page.setViewportSize({width:1920,height:1080});
+  let checks=0;
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await openOutbreak(page,boundaries,route=>{
+    const kind=new URL(route.request().url()).searchParams.get('kind');
+    if(kind==='indicators'){checks++;return route.fulfill({json:{datasets:[dataset(checks===1?4:8)]}});}
+    return route.fulfill({json:kind==='mines'?{data:[]}:kind==='relocations'?{routes:[]}:{products:[]}});
+  });
+  await expect(page.getByRole('button',{name:'Refresh data',exact:true})).toBeEnabled();
+  await page.getByLabel('Auto-refresh',{exact:true}).selectOption('5');
+  if(fallback)await page.evaluate(()=>{Element.prototype.requestFullscreen=()=>Promise.reject(new Error('Fullscreen unavailable'));});
+  await page.getByRole('button',{name:'Full-screen dashboard',exact:true}).click();
+  const board=page.getByRole('dialog',{name:'Decision dashboard',exact:true});
+  await expect(board).toBeVisible();
+  await expect(page.getByRole('navigation',{name:'Outbreak sections'})).toHaveCount(0);
+  await expect(board.getByRole('combobox')).toHaveCount(0);
+  await expect(board.getByRole('button',{name:'Export map SVG'})).toHaveCount(0);
+  expect(await page.evaluate(()=>document.getElementById('__next').inert)).toBe(true);
+  if(!fallback)expect(await board.evaluate(el=>!!document.fullscreenElement&&el.contains(document.fullscreenElement))).toBe(true);
+  const dimensions=await board.evaluate(el=>({x:el.getBoundingClientRect().x,y:el.getBoundingClientRect().y,width:el.clientWidth,height:el.clientHeight,viewportWidth:innerWidth,viewportHeight:innerHeight,scrollHeight:el.scrollHeight}));
+  expect(dimensions.x).toBe(0);expect(dimensions.y).toBe(0);expect(dimensions.width).toBe(dimensions.viewportWidth);expect(dimensions.height).toBe(dimensions.viewportHeight);
+  expect(dimensions.scrollHeight).toBeLessThanOrEqual(dimensions.height+1);
+  await board.getByRole('button',{name:'A',exact:true}).click();
+  await expect(board.getByLabel('Health-zone map callout')).toBeVisible();
+  await page.clock.fastForward(300001);
+  await expect(board.getByLabel('Health-zone map callout')).toContainText('Cumulative cases: 8');
+  await expect(board.getByRole('region',{name:'Decision health-zone trends'})).toContainText('Province One / A');
+  await page.screenshot({path:testInfo.outputPath(fallback?'decision-fallback.png':'decision-fullscreen.png')});
+  await page.keyboard.press('Escape');
+  await expect(board).toHaveCount(0);
+  expect(await page.evaluate(()=>document.getElementById('__next').inert)).toBe(false);
+  await expect(page.getByRole('button',{name:'Full-screen dashboard',exact:true})).toBeFocused();
+  await page.getByRole('button',{name:'Full-screen dashboard',exact:true}).click();
+  await board.getByRole('button',{name:'Deep analysis',exact:true}).click();
+  await expect(board).toHaveCount(0);
+  await expect(page.getByRole('navigation',{name:'Outbreak sections'}).getByRole('button',{name:'Sitrep',exact:true})).toHaveAttribute('aria-pressed','true');
+  expect(errors).toEqual([]);
+});

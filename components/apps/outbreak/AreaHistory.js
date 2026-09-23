@@ -34,7 +34,7 @@ export function AreaHistoryTable({ activity, date }) {
 const positive = ['#b6dce2','#54a6b5','#146078'];
 const negative = ['#dfcbe8','#b282c6','#77428f'];
 
-export function ProvinceHorizon({ model }) {
+export function ProvinceHorizon({ model, compact=false }) {
   const [detail,setDetail] = useState('Hover over or focus a week to inspect the reported change and its actual dates.');
   if (!model?.groups.length) return <p className="report-unavailable">Province horizon charts require matched health zones with dated case history.</p>;
   const {weeks,band} = model;
@@ -43,9 +43,9 @@ export function ProvinceHorizon({ model }) {
   })));
   const left = 190, plotWidth = 750, rowHeight = 27, cell = plotWidth / weeks.length;
   return <section className="report-horizon" aria-label="Health-zone horizon charts">
-    <h3>Reported case changes by health zone and epidemiological week</h3>
+    {!compact&&<><h3>Reported case changes by health zone and epidemiological week</h3>
     <p>Health zones grouped by province · ISO weeks (Monday–Sunday) · {weeks[0].label}–{weeks.at(-1).label}{model.truncated ? ' · last 26 weeks' : ''}</p>
-    <small>Horizon strips fold changes into three colour bands on one shared scale: each band represents {number(band)} cases. Darker bands show larger changes. Teal = increase; purple = downward revision; a baseline = zero; grey × = unavailable. {model.includeAll ? 'All matched health zones with observations in the loaded history are shown.' : 'Only health zones with positive cumulative cases on the latest reporting date are shown.'}</small>
+    <small>Horizon strips fold changes into three colour bands on one shared scale: each band represents {number(band)} cases. Darker bands show larger changes. Teal = increase; purple = downward revision; a baseline = zero; grey × = unavailable. {model.includeAll ? 'All matched health zones with observations in the loaded history are shown.' : 'Only health zones with positive cumulative cases on the latest reporting date are shown.'}</small></>}
     <div className="report-horizon-legend" aria-label="Horizon colour scale">{[positive,negative].map((colors,sign) => <span key={sign}>{sign ? 'Revisions: ' : 'Increases: '}{colors.map((color,i) => <span key={color} style={{borderBottom:`6px solid ${color}`,marginRight:8}}>{number(i*band)}–{number((i+1)*band)}</span>)}</span>)}</div>
     {panels.map(panel => <figure key={`${panel.province}:${panel.part}`}>
       <h4>{panel.province}{panel.part ? ' (continued)' : ''}</h4>
@@ -73,6 +73,6 @@ export function ProvinceHorizon({ model }) {
       </svg></div>
     </figure>)}
     <p className="report-horizon-detail" aria-live="polite">{detail}</p>
-    <small>Each column uses the last source report in that ISO week and the last report in the preceding week. Full-week comparisons require endpoints 6–8 days apart. * marks a partial week, which can cover fewer days and is not directly comparable with full weeks. Missing endpoints remain unavailable; no values are interpolated. Changes may include backlogs and revisions and are not onset-based incidence. {model.excluded} locations with reported cases lack a province match.</small>
+    {!compact&&<small>Each column uses the last source report in that ISO week and the last report in the preceding week. Full-week comparisons require endpoints 6–8 days apart. * marks a partial week, which can cover fewer days and is not directly comparable with full weeks. Missing endpoints remain unavailable; no values are interpolated. Changes may include backlogs and revisions and are not onset-based incidence. {model.excluded} locations with reported cases lack a province match.</small>}
   </section>;
 }
