@@ -371,6 +371,65 @@ District B Warehouse,2.345,33.678,30000,60,12,warehouse,MoH
 
 ---
 
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before
+opening a pull request — it covers the development setup and the architectural
+constraints that are easy to violate accidentally (no TypeScript, Leaflet cannot
+be server-rendered, heavy processing stays client-side, and the app bridge is a
+security boundary).
+
+All contributors must agree to the
+[Contributor License Agreement](CLA.md) before their work can be merged. You
+keep ownership of your contribution; you grant the project owner a licence to
+it, including the right to relicense.
+
+---
+
+## License
+
+Aidstack Atlas is licensed under the
+**[GNU Affero General Public License v3.0 or later](LICENSE)**.
+
+Copyright (C) 2025-2026 John Mark Esplana.
+
+**What this means in practice:**
+
+| You may | You must |
+| --- | --- |
+| Use Atlas for any purpose, including commercially | Keep it licensed under AGPL-3.0-or-later |
+| Self-host it for your organization | Preserve copyright and licence notices |
+| Study, modify, and extend the source | State the changes you made |
+| Redistribute it, modified or not | Publish your modifications' source |
+
+The key clause is **AGPL section 13: network use is distribution.** If you run a
+modified version of Atlas as a hosted service, you must offer your users the
+complete corresponding source of your modified version. You cannot fork Atlas,
+improve it privately, and operate it as a closed SaaS.
+
+This is deliberate. Atlas is built for humanitarian and public-health response,
+and improvements to that tooling should flow back to the community that depends
+on it.
+
+See [NOTICE](NOTICE) for third-party data-source terms — GDACS, WHO, ACLED,
+WorldPop, OpenStreetMap, and Earth Engine datasets each carry their own
+conditions and are **not** covered by this project's licence.
+
+### Commercial licensing
+
+If your organization needs to build on Atlas without AGPL obligations — for
+example to embed it in a proprietary product — a commercial licence is
+available. 
+
+---
+
+## Security
+
+Please do not report security vulnerabilities through public issues. See
+[SECURITY.md](SECURITY.md) for the disclosure process.
+
+---
+
 ## Support
 
 For issues or feature requests:

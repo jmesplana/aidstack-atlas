@@ -2,6 +2,17 @@
   "name": "disaster-facilities-ai",
   "version": "0.1.0",
   "private": true,
+  "description": "Geospatial operational intelligence platform for humanitarian, public health, and field operations.",
+  "license": "AGPL-3.0-or-later",
+  "author": "John Mark Esplana <johnm.esplana@gmail.com>",
+  "homepage": "https://disasters.aidstack.ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jmesplana/aidstack-atlas.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jmesplana/aidstack-atlas/issues"
+  },
   "engines": {
     "node": "22.x"
   },
