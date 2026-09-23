@@ -186,5 +186,5 @@ Corporate Contributor License Agreement before submitting Contributions.
 
 ---
 
-*Aidstack Atlas — Copyright (C) 2025-2026 John Mark Esplana.
+*Aidstack Atlas — Copyright (C) 2025-2026 AidStack LLC.
 Licensed under the GNU Affero General Public License v3.0 or later.*
