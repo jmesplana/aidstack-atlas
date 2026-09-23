@@ -3,7 +3,7 @@
 **Version 1.0**
 
 Thank you for your interest in contributing to Aidstack Atlas ("the Project"),
-owned and maintained by **John Mark Esplana** ("the Owner").
+owned and maintained by **AidStack LLC** ("the Owner").
 
 This Contributor License Agreement ("Agreement") documents the rights granted by
 contributors to the Owner. It protects both you and the Owner: it makes clear
@@ -181,7 +181,7 @@ the record clearer, but the statement above is what constitutes agreement.
 
 If you are contributing on behalf of an employer or other legal entity, or your
 employment contract assigns your work product to your employer, have an
-authorized representative contact **johnm.esplana@gmail.com** to execute a
+authorized representative contact **john@aidstack.ai** to execute a
 Corporate Contributor License Agreement before submitting Contributions.
 
 ---
