@@ -4,6 +4,27 @@ import {keyMessage} from '../lib/outbreak/keyMessage.js';
 import {caseTrend} from '../lib/outbreak/caseTrend.js';
 
 const asOf='2026-09-11';
+test('irregular national reports explain the missing weekly endpoint while retaining the observed increase',()=>{
+  const dataset={id:'national',purpose:'cases',status:'ready',kind:'cumulative',level:'national',records:[
+    {location:'DRC',date:'2026-09-07',value:6757},
+    {location:'DRC',date:'2026-09-19',value:7672},
+    {location:'DRC',date:'2026-09-21',value:7773}
+  ]};
+  const text=caseTrend({datasets:[dataset],asOf:'2026-09-23'});
+  assert.match(text,/increased by 101 since 2026-09-19/);
+  assert.match(text,/Recent comparison unavailable.*six, seven or eight days/);
+  assert.match(text,/does not establish whether weekly new cases are rising or falling/);
+  const complete=caseTrend({datasets:[{...dataset,records:[...dataset.records,{location:'DRC',date:'2026-09-14',value:7300}]}],asOf:'2026-09-23'});
+  assert.doesNotMatch(complete,/total is missing/);
+  assert.match(complete,/backlogs and revisions/);
+  for (const [date,value,days,delta] of [['2026-09-15',7404,6,369],['2026-09-13',7258,8,515]]) {
+    const nearby=caseTrend({datasets:[{...dataset,records:[...dataset.records,{location:'DRC',date,value}]}],asOf:'2026-09-23'});
+    assert.ok(nearby.includes(`Over ${days} days (${date}–2026-09-21)`));
+    assert.ok(nearby.includes(`increased by ${delta}`));
+    assert.match(nearby,/nearby report date/);
+  }
+
+});
 const epi={date:'2026-09-08',baseline:'2026-09-01',growth:[{location:'Origin',delta:8}],burden:[{location:'Origin',value:20}],affected:[{location:'Origin'}]};
 const mobility={start:'2026-04-01',end:'2026-04-30',unit:'estimated relocations',routes:[{origin:'Origin',destination:'Receiver',value:100}]};
 

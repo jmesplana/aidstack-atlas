@@ -15,10 +15,23 @@ test('automatic rankings and grouping use arbitrary place names and provider dat
   assert.equal(epi.growth[0].percent,200);
   assert.equal(epidemiology([dataset],geometry,'2026-09-09',null,'province').provinces.length,0);
 });
-test('paired comparisons require exact dates and never infer a missing baseline as zero',()=>{
+test('paired comparisons use one shared date and never infer a missing baseline as zero',()=>{
   const copy={...dataset,records:dataset.records.filter(r=>!(r.location==='Area Y'&&r.date==='2026-09-01'))};
   const epi=epidemiology([copy],geometry,'2026-09-08');
   assert.equal(epi.growth.length,1);assert.equal(epi.provinces[0].delta,null);
+});
+test('area rankings use six or eight days when seven is unavailable and disclose duration',()=>{
+  const current=[{location:'Area X',date:'2026-09-21',value:105},{location:'Area Y',date:'2026-09-21',value:30}];
+  const six=[{location:'Area X',date:'2026-09-15',value:100}];
+  const eight=[{location:'Area X',date:'2026-09-13',value:90},{location:'Area Y',date:'2026-09-13',value:10}];
+  const get=records=>epidemiology([{...dataset,records}],geometry,'2026-09-21');
+  const near=get([...current,...six,...eight]);
+  assert.equal(near.comparisonDays,6);assert.equal(near.baseline,'2026-09-15');
+  assert.equal(near.growth.length,1);assert.equal(near.growth[0].delta,5);
+  const older=get([...current,...eight]);
+  assert.equal(older.comparisonDays,8);assert.equal(older.growth.length,2);
+  const exact=get([...current,...six,...eight,{location:'Area X',date:'2026-09-14',value:102}]);
+  assert.equal(exact.comparisonDays,7);assert.equal(exact.growth[0].delta,3);
 });
 test('Flowminder inflow, outflow and other cohorts remain distinct, including dates and zero',()=>{
   const geo={type:'FeatureCollection',features:[polygon('Area X',0,{flowminder:{inflow_20260901:{inflow_20260901:0},outflow_20260901:{outflow_20260901:.2},subscriber_days:{subscriber_days:.3},outflow_20260920:{outflow_20260920:.8}}})]};

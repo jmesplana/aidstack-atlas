@@ -1,7 +1,9 @@
 import { forwardRef, useMemo } from 'react';
 import { epiWeek, formatValue, nationalEvidence, latestPerLocation } from '../../../lib/outbreak/data';
-import { sitrepEpidemiology, sitrepContext, SITREP_SECTIONS } from '../../../lib/outbreak/sitrep';
+import { sitrepEpidemiology, sitrepContext, risingReports, SITREP_SECTIONS } from '../../../lib/outbreak/sitrep';
 import { caseTrend } from '../../../lib/outbreak/caseTrend';
+import { provinceCoverage, provinceHorizon, activityMessages } from '../../../lib/outbreak/areaHistory';
+import { ProvinceCoverage, ProvinceHorizon, AreaHistoryTable } from './AreaHistory';
 import { SITREP_CSS } from '../../../lib/outbreak/sitrepPrint';
 import { recommendations, proposalSelected } from '../../../lib/outbreak/overview';
 import { responseStatus } from '../../../lib/outbreak/response';
@@ -23,9 +25,9 @@ function WeeklyChart({ periods, dataset, location }) {
   const values = periods.map(p => p.value).filter(Number.isFinite);
   if (!values.length) return <Unavailable>Weekly chart unavailable: the required observations are missing for these reporting periods.</Unavailable>;
   const min = Math.min(0, ...values), max = Math.max(1, ...values), y = value => 165 - (value - min) / (max - min) * 125;
-  return <figure className="report-weekly"><h3>Seven-day {dataset.kind === 'daily' ? 'reported cases' : 'changes in reported totals'} — {location}</h3>
-    <svg viewBox="0 0 640 225" role="img" aria-label={`Seven-day reported case ${dataset.kind === 'daily' ? 'totals' : 'changes'} for ${location}`}>
-      <title>Reporting periods ending on the labelled dates; missing observations are not filled.</title>
+  return <figure className="report-weekly"><h3>{dataset.kind === 'daily' ? 'Seven-day reported cases' : 'Changes in reported totals'} — {location}</h3>
+    <svg viewBox="0 0 640 225" role="img" aria-label={`Reported case ${dataset.kind === 'daily' ? 'totals' : 'changes'} for ${location}`}>
+      <title>Actual reporting intervals are labelled; missing observations are not filled.</title>
       <line x1="40" x2="628" y1={y(0)} y2={y(0)} stroke="#9babb8"/>
       {periods.map((period,i) => { const x = 48 + i * 73; return <g key={period.end}>
         {period.value === null ? <text x={x+25} y="100" textAnchor="middle" fontSize="10" fill="#52616d">No data</text> : <>
@@ -33,9 +35,10 @@ function WeeklyChart({ periods, dataset, location }) {
           <text x={x+24} y={period.value < 0 ? y(period.value)+13 : y(period.value)-6} textAnchor="middle" fontSize="11" fill="#202932">{number(period.value)}</text>
         </>}
         <text x={x+24} y="202" textAnchor="middle" fontSize="10" fill="#52616d">{period.end.slice(5)}</text>
+        <text x={x+24} y="218" textAnchor="middle" fontSize="9" fill="#52616d">{period.start.slice(5)} · {period.days}d</text>
       </g>; })}
     </svg>
-    <figcaption>Seven-day periods ending on each date; {dataset.kind === 'daily' ? 'all seven daily reports are required.' : 'exact cumulative observations seven days apart are required. Negative bars are downward revisions, not negative incidence.'} Anchored to the latest case reporting date, not calendar epidemiological weeks.</figcaption>
+    <figcaption>Periods ending on each date; {dataset.kind === 'daily' ? 'all seven daily reports are required.' : 'cumulative comparisons prefer seven days, then six, then eight. Each bar shows its actual start date and duration; unequal durations are not directly comparable. Negative bars are downward revisions, not negative incidence.'} Anchored to the latest case reporting date, not calendar epidemiological weeks.</figcaption>
     <Source value={sourceOf(dataset)} label={dataset.label}/>
   </figure>;
 }
@@ -45,12 +48,13 @@ const Sitrep = forwardRef(function Sitrep({ name, asOf, reviewed, options, openi
   security, routeData, briefDirection, movementOverlays, actions, since, reports, findings, hazards,
   includeAppendix, includeEvidenceDates, facts, highlights, evidenceSource, mobilityLayers, selectedMobility, movementDirection }, ref) {
   const weekly = useMemo(() => sitrepEpidemiology(datasets, epi, geometry, boundaryLevel, asOf), [datasets,epi,geometry,boundaryLevel,asOf]);
+  const coverage = useMemo(() => provinceCoverage(epi,geometry,boundaryLevel), [epi,geometry,boundaryLevel]);
+  const horizon = useMemo(() => provinceHorizon(epi,coverage), [epi,coverage]);
   const national = nationalEvidence(datasets,asOf);
   const nationalSeries = NATIONAL_SERIES.filter(def => datasets.some(d => d.status === 'ready' && d.level === 'national' && def.match.test(d.metricId || d.id || ''))).length;
   const context = useMemo(() => sitrepContext(epi,mining,security,routeData,boundaryLevel,asOf,actions,hazards.events), [epi,mining,security,routeData,boundaryLevel,asOf,actions,hazards]);
   const suggestions = recommendations(epi,security?{...security,byZone:new Map(context.securityRows)}:null,mining?{...mining,byZone:new Map(context.miningRows)}:null,routeData,asOf).filter(s => !proposalSelected(actions,s));
   const burden = epi?.burden.filter(z=>z.value>0).slice(0,3) || [];
-  const growth = epi?.growth.filter(z=>z.delta>0).slice(0,3) || [];
   const { securityRows, miningRows } = context;
   const caseAt = location => epi?.dataset.level === boundaryLevel ? epi?.zones.find(z=>z.location===location)?.value : null;
   const mapDataset = epi?.dataset || selected;
@@ -74,9 +78,10 @@ const Sitrep = forwardRef(function Sitrep({ name, asOf, reviewed, options, openi
     </header>
     <section className="report-summary" aria-label="Key message"><h2>Situation assessment</h2>
       {assessment.split(/\n\s*\n/).map((text,i)=><p key={i}>{text}</p>)}
+      {openingMessage.origin !== 'Coordinator message' && activityMessages(epi?.activity).map(text=><p key={text}>{text}</p>)}
       <ul className="report-priorities">
         <li><strong>Burden:</strong> {burden.length ? burden.map(z=>`${z.location}${z.province?` (${z.province})`:''}: ${number(z.value)}`).join('; ') + ` cumulative cases (${epi.date}). Confirm current workload before allocating capacity.` : 'Area-level case evidence unavailable.'}</li>
-        <li><strong>Rising reports:</strong> {growth.length ? growth.map(z=>`${z.location}: +${number(z.delta)}`).join('; ') + ` (${epi.baseline}–${epi.date}). Review case investigations and surveillance workload.` : 'No positive increase established from comparable area reports.'}</li>
+        <li><strong>Rising reports:</strong> {risingReports(epi)}</li>
         <li><strong>Access:</strong> {securityRows.length ? `${securityRows.slice(0,3).map(([location])=>location).join(', ')}. Verify whether recorded insecurity affects alerts, sample transport and referrals.` : 'No access priority established from matched security and case evidence.'}</li>
       </ul>
       {openingMessage.origin==='Coordinator message' && <small>Coordinator assessment</small>}
@@ -89,14 +94,15 @@ const Sitrep = forwardRef(function Sitrep({ name, asOf, reviewed, options, openi
         {epi && <article><span>Areas reporting cases</span><strong>{epi.affected.length}</strong><small>{epi.date}</small></article>}
       </div>
       <small>National indicators are reported separately from area counts. Cumulative cases do not measure current caseload; areas reporting cumulative cases are not necessarily currently active.</small>
-      {comparisonRows.length ? <table><caption>Seven-day reports ending {weekly.previousEnd} and {weekly.end}; reporting cut-off {asOf}. Cumulative sources show changes in reported totals; daily sources show complete seven-day sums.</caption><thead><tr><th>Province / scope</th><th>To {weekly.previousEnd}</th><th>To {weekly.end}</th><th>Change between periods</th><th>Latest cumulative reported</th></tr></thead><tbody>{comparisonRows.map(r=><tr key={r.id}><td>{r.label}<small>{r.kind === 'daily' ? 'Daily reports' : 'Cumulative changes'}</small></td><td>{number(r.previous)}</td><td>{number(r.current)}</td><td>{signed(r.delta)}</td><td>{r.kind==='daily'?'Not applicable':number(r.total)}{Number.isFinite(r.total)&&<small>{r.totalDate}</small>}</td></tr>)}</tbody></table> : <Unavailable>Province and national period comparisons are unavailable for the latest case reporting date ({weekly.end}).</Unavailable>}
+      {comparisonRows.length ? <table><caption>Reporting periods through {weekly.end}; reporting cut-off {asOf}. Cumulative comparisons prefer seven days, then six, then eight; actual dates and durations are shown. Daily sources require complete seven-day sums. Changes between periods are shown only for equal durations.</caption><thead><tr><th>Province / scope</th><th>Previous period</th><th>Latest period</th><th>Change between periods</th><th>Latest cumulative reported</th></tr></thead><tbody>{comparisonRows.map(r=><tr key={r.id}><td>{r.label}<small>{r.kind === 'daily' ? 'Daily reports' : 'Cumulative changes'}</small></td><td>{number(r.previous)}<small>{r.periods[0].start}–{r.periods[0].end} · {r.periods[0].days} days</small></td><td>{number(r.current)}<small>{r.periods[1].start}–{r.periods[1].end} · {r.periods[1].days} days</small></td><td>{signed(r.delta)}</td><td>{r.kind==='daily'?'Not applicable':number(r.total)}{Number.isFinite(r.total)&&<small>{r.totalDate}</small>}</td></tr>)}</tbody></table> : <Unavailable>Province and national period comparisons are unavailable for the latest case reporting date ({weekly.end}).</Unavailable>}
       {unavailableRows.length>0 && <small>No comparable periods or cumulative total at {weekly.end}: {unavailableRows.map(r=>r.label).join('; ')}.</small>}
       {weekly.rows.some(r=>r.grouped) && <small>Province groupings are partial sums of consistently mapped reporting areas, not official province totals. A missing constituent observation makes the period unavailable.</small>}
       {weekly.rows.length>0 && <small>Sources: case series in the source register.</small>}
       {weekly.periods.length>0 && <WeeklyChart periods={weekly.periods} dataset={weekly.chartDataset} location={weekly.chartLocation}/>}
       {nationalSeries >= 2 && <figure><NationalTrendChart datasets={datasets.filter(d=>d.status==='ready'&&d.level==='national')} asOf={asOf} source="See source register for each national indicator"/></figure>}
-      {epi && <p className="report-note">{epi.growth.length}/{epi.zones.length} areas have paired observations for {epi.baseline}–{epi.date}; {epi.missing} values are missing and {epi.absent} previously reporting areas are absent on {epi.date}. Cumulative changes may include backlogs and revisions.</p>}
+      {epi && <p className="report-note">{epi.growth.length}/{epi.zones.length} areas have paired observations for {epi.baseline}–{epi.date} ({epi.comparisonDays || 7} days); {epi.missing} values are missing and {epi.absent} previously reporting areas are absent on {epi.date}. Cumulative changes may include backlogs and revisions.</p>}
       {geometry && mapDataset ? <figure><OutbreakMap geometry={geometry} rows={epi ? mapRows : latestPerLocation(selected?.records || [],asOf)} level={mapDataset.level} boundaryLevel={boundaryLevel} kind={mapDataset.kind} unit={mapDataset.unit} selected="" onSelect={noop} label={mapDataset.label} asOf={asOf} source={sourceOf(mapDataset)} focusNames={burden.map(z=>z.location)}/><figcaption>{epi?'Reported case distribution.':`Available indicator: ${mapDataset.label}; case evidence unavailable.`} Missing observations remain separate from zero.</figcaption></figure> : <Unavailable>Geographic overview unavailable: a matched dataset and boundaries are required.</Unavailable>}
+      {epi?.dataset.level === 'health_zone' && <><ProvinceCoverage coverage={coverage}/><AreaHistoryTable activity={epi.activity} date={epi.date}/><ProvinceHorizon model={horizon}/><Source value={sourceOf(epi.dataset)} label="Health-zone case series"/></>}
       {!epi && !national.length && facts.length>0 && (highlights.length?highlights:facts).slice(0,3).map(f=><p key={f.id}>{f.text}<Source value={evidenceSource(f)}/></p>)}
     </section>
 
@@ -134,7 +140,7 @@ const Sitrep = forwardRef(function Sitrep({ name, asOf, reviewed, options, openi
       {context.hazards.length>0 && <><h3>Concurrent hazards in response areas</h3><p>{context.hazards.map(h=>`${h.location}: ${h.title} (${h.date})`).join('; ')}. Alert centres fall within areas reporting cases or with recorded actions; they are not affected-area footprints. Verify operational impact.</p></>}
     </section>
 
-    <section className="report-sources"><h2>Data notes</h2><p>Missing observations are not zero. Reporting cut-offs and observation dates can differ. National series remain separate from sums of local reports. Seven-day changes in cumulative totals can include corrections and catch-up reporting; they are not onset-based incidence. No missing dates are carried forward. Historical mobility and mining observations do not establish current movement, activity or transmission. Security fatalities are reported estimates.</p></section>
+    <section className="report-sources"><h2>Data notes</h2><p>Missing observations are not zero. Reporting cut-offs and observation dates can differ. National series remain separate from sums of local reports. Changes in cumulative totals can include corrections and catch-up reporting; they are not onset-based incidence. No missing dates are carried forward. Historical mobility and mining observations do not establish current movement, activity or transmission. Security fatalities are reported estimates.</p></section>
     <section className="report-sources report-annex"><h2>Annex · source register and coverage</h2>
       {evidenceReadiness(datasets,asOf).map(d=><p key={d.id}><strong>{d.label}:</strong> series coverage {d.historyStart?`${d.historyStart}–${d.historyEnd}`:'unavailable at cut-off'} · {d.observations} non-missing observations.<br/>Latest observation per location: {d.start?`${d.start}–${d.end}`:'unavailable'} · {d.available} reported locations; {d.missing} missing values. {d.issues} validation issues{d.warning?` · ${d.warning}`:''}<Source value={d.source}/></p>)}
       <p>Boundaries: {boundarySource} · {boundaryLevel} · {epi?.unmatched || 0} unmatched case locations.</p>

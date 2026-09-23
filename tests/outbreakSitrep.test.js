@@ -1,10 +1,40 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reportingPeriods, sitrepEpidemiology, sitrepContext, sitrepFilename } from '../lib/outbreak/sitrep.js';
+import { reportingPeriods, sitrepEpidemiology, sitrepContext, sitrepFilename, risingReports } from '../lib/outbreak/sitrep.js';
 import { suggestIndicatorColumns } from '../lib/outbreak/importSuggestions.js';
 
 const source = (records,extra={}) => ({id:'cases',label:'Cases',purpose:'cases',status:'ready',kind:'cumulative',level:'health_zone',records,...extra});
 const row = (location,date,value) => ({location,date,value});
+
+test('cumulative periods prefer seven days, then six, then eight and share actual endpoints',()=>{
+  const records=[row('DRC','2026-09-07',6757),row('DRC','2026-09-08',6843),row('DRC','2026-09-13',7258),row('DRC','2026-09-15',7404),row('DRC','2026-09-21',7773)];
+  const d=source(records,{level:'national'});
+  const periods=reportingPeriods(d,['DRC'],'2026-09-21',2);
+  assert.deepEqual(periods,[{start:'2026-09-08',end:'2026-09-15',days:7,value:561},{start:'2026-09-15',end:'2026-09-21',days:6,value:369}]);
+  const model=sitrepEpidemiology([d],null,null,'health_zone','2026-09-23');
+  assert.equal(model.rows[0].delta,null); // Different durations cannot imply acceleration.
+  assert.equal(reportingPeriods(source([...records,row('DRC','2026-09-14',7300)]),['DRC'],'2026-09-21',1)[0].days,7);
+  const eight=reportingPeriods(source(records.filter(r=>r.date!=='2026-09-15')),['DRC'],'2026-09-21',1)[0];
+  assert.deepEqual(eight,{start:'2026-09-13',end:'2026-09-21',days:8,value:515});
+  assert.equal(reportingPeriods(source([row('A','2026-09-12',1),row('A','2026-09-21',2)]),['A'],'2026-09-21',1)[0].value,null);
+});
+
+test('fallback preserves nulls, zero, revisions and stable group membership',()=>{
+  const records=[row('A','2026-09-14',null),row('A','2026-09-15',10),row('A','2026-09-21',8)];
+  assert.equal(reportingPeriods(source(records),['A'],'2026-09-21',1)[0].value,-2);
+  assert.equal(reportingPeriods(source([row('A','2026-09-15',0),row('A','2026-09-21',0)]),['A'],'2026-09-21',1)[0].value,0);
+  assert.equal(reportingPeriods(source([...records,row('B','2026-09-13',1),row('B','2026-09-21',2)]),['A','B'],'2026-09-21',1)[0].value,null);
+  assert.equal(reportingPeriods(source([...records,row('A','2026-09-15',12)]),['A'],'2026-09-21',1)[0].value,null);
+});
+
+test('rising reports distinguish unavailable comparisons from observed nonpositive changes',()=>{
+  const epi={baseline:'2026-09-14',date:'2026-09-21',zones:[{location:'A'},{location:'B'}],growth:[]};
+  assert.match(risingReports(epi),/comparison unavailable.*2026-09-14–2026-09-21.*does not mean there were no increases/);
+  assert.match(risingReports({...epi,growth:[{location:'A',delta:0}]}),/No positive change.*1\/2 areas.*cannot be assessed/);
+  assert.match(risingReports({...epi,growth:[{location:'A',delta:-2}]}),/No positive change/);
+  assert.match(risingReports({...epi,growth:[{location:'A',delta:12}]}),/A: \+12.*1\/2 areas/);
+  assert.match(risingReports(null),/evidence unavailable/);
+});
 
 test('report periods preserve missing endpoints, zero and downward revisions',()=>{
   const d=source([row('A','2026-08-25',10),row('A','2026-09-01',10),row('A','2026-09-08',8)]);
