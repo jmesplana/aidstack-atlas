@@ -4,7 +4,7 @@
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Email **johnm.esplana@gmail.com** with:
+Email **john@aidstack.ai** with:
 
 - a description of the vulnerability and its impact
 - steps to reproduce it
