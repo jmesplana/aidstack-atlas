@@ -31,7 +31,7 @@ function exportSVG(ref,name) {
   copy.setAttribute('xmlns','http://www.w3.org/2000/svg');
   download(name,new XMLSerializer().serializeToString(copy),'image/svg+xml');
 }
-export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, mines=[], events=[], hazards=[], sites=[], selected, onSelect, label, asOf, source, focusNames=[], routes=[], routeDirection='outflow', routeUnit, documentSignals=[], overlayCaption='' }) {
+export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, mines=[], events=[], hazards=[], sites=[], selected, onSelect, label, asOf, source, focusNames=[], routes=[], routeDirection='outflow', routeUnit, documentSignals=[], overlayCaption='', highlightNames=[], groupLabels=false, callout=null }) {
   const routeColor=routeDirection==='inflow'?'#c96a37':'#176f89';
   const ref=useRef(null),mapRef=useRef(null),drag=useRef(null),pointers=useRef(new Map()),liveView=useRef(null);
   const arrowId=useId().replace(/:/g, "");
@@ -52,7 +52,7 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
       const coordinates=rings.flat().map(project);
       const xs=coordinates.map(c=>c[0]),ys=coordinates.map(c=>c[1]);
       const b=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
-      return {name:zoneName(f),labelWidth:measure?measure.measureText(zoneName(f)).width+12:undefined,path:path(f),bounds:b,center:[(b[0]+b[2])/2,(b[1]+b[3])/2]};
+      return {name:zoneName(f),province:f.properties?.province,district:f.properties?.district||f.properties?.ADM2_EN||f.properties?.NAME_2,labelWidth:measure?measure.measureText(zoneName(f)).width+12:undefined,path:path(f),bounds:b,center:[(b[0]+b[2])/2,(b[1]+b[3])/2]};
     }),project,west,east,south,north};
   },[geometry]);
   const automatic=useMemo(()=>{
@@ -63,7 +63,7 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
     const w=Math.max(right-left,(bottom-top)*900/440,15)*1.2,h=w*440/900;
     return [(left+right-w)/2,(top+bottom-h)/2,w,h];
   },[shapes,focusNames.join('|')]);
-  useEffect(()=>setViewport(null),[geometry,label]);
+  useEffect(()=>setViewport(null),[geometry,label,focusNames.join('|')]);
   const view=viewport||automatic,zoom=900/view[2];
   const mapHeight=(overlayCaption?615:590)+(documentSignals.length?22:0);
   liveView.current=view;
@@ -114,6 +114,19 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
   const visibleLabels=placeLabels(shapes.features,view,selected,allowed,renderScale);
   const point=(p)=>p.longitude!==''&&p.latitude!==''&&p.longitude!=null&&p.latitude!=null&&Number.isFinite(Number(p.longitude))&&Number.isFinite(Number(p.latitude))&&p.longitude>=shapes.west&&p.longitude<=shapes.east&&p.latitude>=shapes.south&&p.latitude<=shapes.north;
   const signalGroups=[...documentSignals.reduce((groups,f)=>{const key=JSON.stringify([f.mapLocation,f.kind,f.themes[0]||'']);const group=groups.get(key)||[];group.push(f);groups.set(key,group);return groups;},new Map()).values()];
+  const groupNames=new Map();
+  if(groupLabels) for(const f of shapes.features){
+    const name=zoom>2&&f.district?`${f.province||''} · ${f.district}`:f.province;
+    if(!name)continue;
+    const members=groupNames.get(name)||[];members.push(f);groupNames.set(name,members);
+  }
+  const groups=[...groupNames].map(([name,members])=>{
+    const center=[members.reduce((n,f)=>n+f.center[0],0)/members.length,members.reduce((n,f)=>n+f.center[1],0)/members.length];
+    return {name,center,labelWidth:name.length*8+12};
+  });
+  const provinceLabels=placeLabels(groups,view,'',new Set(groups.map(g=>g.name)),renderScale);
+  const anchor=callout&&shapes.features.find(f=>f.name===selected)?.center;
+  const anchorScreen=anchor?[(anchor[0]-view[0])*900/view[2],66+(anchor[1]-view[1])*440/view[3]]:null;
   const signalOffsets=new Map();
   return <div>
     <div data-print-hide="true" style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',margin:'12px 0'}}>
@@ -133,7 +146,7 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
         onDoubleClick={e=>{e.preventDefault();setViewport(zoomView(view,.65,screenPoint(e)));}}
         onKeyDown={e=>{const shift={ArrowLeft:[-.12,0],ArrowRight:[.12,0],ArrowUp:[0,-.12],ArrowDown:[0,.12]}[e.key];if(shift){e.preventDefault();setViewport([view[0]+shift[0]*view[2],view[1]+shift[1]*view[3],view[2],view[3]]);}else if(['+','=','-','Home'].includes(e.key)){e.preventDefault();if(e.key==='Home')setViewport(null);else zoomBy(e.key==='-'?1.25:.8);}}}>
         <rect x="-10000" y="-10000" width="20000" height="20000" fill="#f3f6f9"/>
-        {shapes.features.map(f=><path key={f.name} data-admin={f.name} d={f.path} fill={fill(values.get(f.name))} fillRule="evenodd" stroke={selected===f.name?'#113d64':'#9aaaba'} strokeWidth={selected===f.name?2:.65} vectorEffect="non-scaling-stroke"><title>{f.name}: {values.has(f.name)?`${values.get(f.name).value??'No data'} ${unit||''} (${values.get(f.name).date})`:'No matched observation'}</title></path>)}
+        {shapes.features.map(f=><path key={f.name} data-admin={f.name} d={f.path} fill={fill(values.get(f.name))} fillRule="evenodd" stroke={selected===f.name?'#113d64':highlightNames.includes(f.name)?'#c88700':'#9aaaba'} strokeWidth={selected===f.name?2:highlightNames.includes(f.name)?2.5:.65} vectorEffect="non-scaling-stroke"><title>{f.name}: {values.has(f.name)?`${values.get(f.name).value??'No data'} ${unit||''} (${values.get(f.name).date})`:'No matched observation'}</title></path>)}
         <defs><marker id={arrowId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill={routeColor}/></marker></defs>
         {routes.map((r,i)=>{
           const a=shapes.features.find(f=>f.name===r.origin)?.center,b=shapes.features.find(f=>f.name===r.destination)?.center;
@@ -152,8 +165,15 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
           const title=`${f.mapLocation} · ${f.kind} · ${f.themes.join(', ')} · ${group.length} source findings (not prevalence). ${group.map(item=>`${item.summary} (${item.endDate}; ${item.file}, ${item.reference})`).join(' ')}`;
           return f.kind==='vaccination'?<rect key={f.id} data-document-finding={f.id} data-admin={f.mapLocation} x={cx-5/zoom} y={cy-5/zoom} width={10/zoom} height={10/zoom} fill="white" stroke={color} strokeWidth={2/zoom}><title>{title}</title></rect>:<circle key={f.id} data-document-finding={f.id} data-admin={f.mapLocation} cx={cx} cy={cy} r={5/zoom} fill={color} stroke="white" strokeWidth={1/zoom}><title>{title}</title></circle>;
         })}
+        {provinceLabels.map(f=><text key={f.name} x={f.labelX} y={f.labelY-15/zoom/renderScale} textAnchor="middle" fontSize={14/zoom/renderScale} fontWeight="bold" fill="#38576c" stroke="white" strokeWidth={4/zoom/renderScale} paintOrder="stroke" pointerEvents="none">{f.name}</text>)}
         {visibleLabels.map(f=><g key={f.name}><line x1={f.center[0]} y1={f.center[1]} x2={f.labelX} y2={f.labelY} stroke="#718598" strokeWidth={.6/zoom} pointerEvents="none"/><text data-admin={f.name} x={f.labelX} y={f.labelY} fontFamily="sans-serif" fontSize={12/zoom/renderScale} fontWeight="600" fill="#153b55" stroke="white" strokeWidth={3/zoom/renderScale} paintOrder="stroke" textAnchor="middle">{f.name}</text></g>)}
       </svg>
+      {anchorScreen&&anchorScreen[0]>=0&&anchorScreen[0]<=900&&anchorScreen[1]>=66&&anchorScreen[1]<=506&&<g pointerEvents="none" aria-label="Health-zone map callout">
+        <line x1={anchorScreen[0]} y1={anchorScreen[1]} x2={anchorScreen[0]<450?575:325} y2="172" stroke="#197c8c" strokeWidth="2"/>
+        <circle cx={anchorScreen[0]} cy={anchorScreen[1]} r="5" fill="#197c8c" stroke="white"/>
+        <rect x={anchorScreen[0]<450?575:15} y="82" width="310" height="155" rx="8" fill="white" stroke="#197c8c"/>
+        {callout.map((line,i)=><text key={i} x={anchorScreen[0]<450?589:29} y={106+i*22} fontSize={i===0?15:12} fontWeight={i===0?'bold':'normal'} fill="#18324b">{line.length>44?line.slice(0,43)+'…':line}</text>)}
+      </g>}
       <rect x="22" y="520" width="12" height="12" fill="#e3e8ed"/><text x="40" y="531" fontFamily="sans-serif" fontSize="12">No data</text>
       <rect x="122" y="520" width="12" height="12" fill="white" stroke="#9aaaba"/><text x="140" y="531" fontFamily="sans-serif" fontSize="12">Zero</text>
       <rect x="191" y="520" width="12" height="12" fill="hsl(12 76% 42%)"/><text x="209" y="531" fontFamily="sans-serif" fontSize="12">Darker: larger values · max absolute value {known.length?formatValue(max):'not available'}</text>

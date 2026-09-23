@@ -12,6 +12,7 @@ import MineUpload from './MineUpload';
 import {minesAtCutoff,mergePublicDatasets} from '../../../lib/outbreak/imports';
 import GeoImport from './GeoImport';
 import Overview from './Overview';
+import Dashboard from './Dashboard';
 import Sitrep from './Sitrep';
 import SitrepWorkspace from './SitrepWorkspace';
 import useOutbreakDraft, { DRAFT_ID } from './useOutbreakDraft';
@@ -36,6 +37,10 @@ const sourceLabel=d=>d?.url||d?.source||'Unknown';
 
 export default function Outbreak({ storage, districts=[], facilities=[], acledData=[], disasters=[], onOpenWorkspace, leaveGuard }) {
   const briefElement=useRef(null),explorerElement=useRef(null),refreshGeneration=useRef(0),autoConnection=useRef('');
+  const [dashboardProvince,setDashboardProvince]=useState('');
+  const [lastSuccessfulCheck,setLastSuccessfulCheck]=useState('');
+  const [refreshMinutes,setRefreshMinutes]=useState(15),[liveDashboard,setLiveDashboard]=useState(true);
+  const refreshLock=useRef(false),refreshLatest=useRef(null);
   const [includeEvidenceDates,setIncludeEvidenceDates]=useState(false);
   const [reportOptions,setReportOptions]=useState({notes:{},mobilityAreas:[]});
   const appElement=useRef(null), draftSaved=useRef(false);
@@ -49,7 +54,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   function openData(view='reports'){setDataView(view);goTab('Data');}
   const [documentFilter,setDocumentFilter]=useState({kind:'',theme:'',from:'',measure:''});
   const [datasets,setDatasets]=useState([]),[selectedId,setSelectedId]=useState(''),[location,setLocation]=useState('');
-  const [asOf,setAsOf]=useState(today()),[tab,setTab]=useState('Situation'),[busy,setBusy]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState('');
+  const [asOf,setAsOf]=useState(today()),[tab,setTab]=useState('Dashboard'),[busy,setBusy]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState('');
   const eligibleRcce=useMemo(()=>rcceAtCutoff(rcceDocuments,asOf),[rcceDocuments,asOf]);
   const [boundaryField,setBoundaryField]=useState('auto'),[boundaryLevel,setBoundaryLevel]=useState('health_zone');
   const [mines,setMines]=useState(null),[showMines,setShowMines]=useState(false);
@@ -153,12 +158,14 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
     setRouteLoading(true);setRouteError('');
     try{const response=await fetch('/api/outbreak-data?kind=relocations');const data=await response.json();if(!response.ok||!Array.isArray(data.routes))throw new Error(data.error||'Invalid mobility response');change();setRouteData(data);}catch(e){setRouteError(e.message);}finally{setRouteLoading(false);}
   }
-  async function refreshConnected(connection=preset) {
+  async function refreshConnected(connection=preset, indicatorsOnly=false) {
+    if(refreshLock.current)return;
     if(connection!=='drc'){setRefreshStatus('No live source connected. Choose a source in Data. Uploaded and main-app records cannot be refreshed without a source connection.');return;}
     const generation=++refreshGeneration.current;
+    refreshLock.current=true;
     setRefreshing(true);setRefreshStatus('Checking connected sources…');
     const uploadedMobility=routeData&&(routeData.origin==='upload'||routeData.origin!=='public'&&!routeData.source?.startsWith('https://raw.githubusercontent.com/INRB-UMIE/'));
-    const kinds=['indicators',...(!uploadedMobility?['relocations']:[]),'mobility',...(mines?.origin==='upload'?[]:['mines'])];
+    const kinds=indicatorsOnly?['indicators']:['indicators',...(!uploadedMobility?['relocations']:[]),'mobility',...(mines?.origin==='upload'?[]:['mines'])];
     const results=await Promise.allSettled(kinds.map(async kind=>{
       const response=await fetch(`/api/outbreak-data?kind=${kind}`,{signal:AbortSignal.timeout(90000)});
       const data=await response.json();
@@ -166,6 +173,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
       if(kind==='indicators'&&(!Array.isArray(data.datasets)||!data.datasets.length)||kind==='relocations'&&!Array.isArray(data.routes)||kind==='mobility'&&!Array.isArray(data.products)||kind==='mines'&&!Array.isArray(data.data))throw new Error('Source returned an unexpected format.');
       return data;
     }));
+    refreshLock.current=false;
     if(generation!==refreshGeneration.current)return;
     const failures=[];
     results.forEach((result,i)=>{
@@ -182,9 +190,20 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
       if(kind==='mobility')setFlowCatalogue(data);
       if(kind==='mines')setMines(old=>old?.origin==='upload'?old:data);
     });
-    setLastChecked(new Date().toISOString());setRefreshing(false);change();
+    const checkedAt=new Date().toISOString();
+    setLastChecked(checkedAt);if(!failures.length)setLastSuccessfulCheck(checkedAt);setRefreshing(false);change();
     setRefreshStatus(failures.length?`Some sources could not refresh. Previously loaded observations remain dated as before. ${failures.join(' · ')}`:'Connected sources checked. Latest available observations loaded; reporting dates may still be older than today.');
   }
+  refreshLatest.current=()=>{
+    if(refreshLock.current||refreshing||busy||compareLoading||document.visibilityState==='hidden')return;
+    setAsOf(today());
+    refreshConnected(preset,true);
+  };
+  useEffect(()=>{
+    if(tab!=='Dashboard'||preset!=='drc'||!liveDashboard||!refreshMinutes)return;
+    const timer=setInterval(()=>refreshLatest.current?.(),refreshMinutes*60000);
+    return()=>clearInterval(timer);
+  },[tab,preset,liveDashboard,refreshMinutes]);
   async function refresh(){await refreshConnected('drc');}
   const connectionKey='aidstack.outbreak.connection:'+JSON.stringify(districts.map(d=>d.id||d.name).sort());
   const registeredEpi=geoLayers.some(l=>l.id.startsWith('insp_sitrep.'));
@@ -195,6 +214,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
     autoConnection.current='drc';setPreset('drc');setName(current=>current===INITIAL_NAME?'DRC Ebola (BVD) outbreak':current);refreshConnected('drc');
   },[registeredEpi,connectionKey]);
   function connectSource(value){
+    setLiveDashboard(true);
     refreshGeneration.current++;setRefreshing(false);autoConnection.current='manual';change();setPreset(value);if(value==='drc'&&name===INITIAL_NAME)setName('DRC Ebola (BVD) outbreak');
     try{localStorage.setItem(connectionKey,value);}catch{}
     if(value==='drc')refreshConnected(value);else setRefreshStatus('Using uploaded and main-app data. No live source connected.');
@@ -219,7 +239,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   }
   async function restore(id) {
     if(!id||dirty&&!window.confirm('Replace unsaved work with this snapshot?'))return;
-    refreshGeneration.current++;autoConnection.current='snapshot';setRefreshing(false);setRefreshStatus('Saved snapshot — showing the recorded data. Refresh data to update it.');setLastChecked('');
+    refreshGeneration.current++;autoConnection.current='snapshot';setLiveDashboard(false);setRefreshing(false);setRefreshStatus('Saved snapshot — showing the recorded data. Refresh data to update it.');setLastChecked('');setLastSuccessfulCheck('');
     setBusy('Opening snapshot');setError('');
     try{const s=await storage.loadPlan(id);if(![1,2].includes(s?.schemaVersion))throw new Error('Unsupported snapshot version');
       applySnapshot(s);
@@ -232,8 +252,9 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   }
   function newOutbreak() {
     if(dirty&&!window.confirm('Start another outbreak without saving current changes?'))return;
+    setLiveDashboard(true);
     compareGeneration.current++;setCompareLoading(false);setCompareId('');setCompareSnapshot(null);
-    refreshGeneration.current++;autoConnection.current='manual';setRefreshing(false);setRefreshStatus('No live source connected.');setLastChecked('');try{localStorage.removeItem(connectionKey);}catch{}
+    refreshGeneration.current++;autoConnection.current='manual';setRefreshing(false);setRefreshStatus('No live source connected.');setLastChecked('');setLastSuccessfulCheck('');try{localStorage.removeItem(connectionKey);}catch{}
     setReportOptions({notes:{},mobilityAreas:[]});setIntakeVersion(v=>v+1);setDataView('reports');setIncludeEvidenceDates(false);setRcceDocuments([]);setDocumentFilter({kind:'',theme:'',from:'',measure:''});
     setRestoredDisasters(null);setIncludeAppendix(false);setBottomLine('');setBriefDirection('outflow');setRouteData(null);setName('New outbreak');setPreset('custom');setDatasets([]);setSelectedId('');setLocation('');setAsOf(today());setActions([]);setFactIds([]);setMines(null);setShowMines(false);setRecord(null);setRestoredGeometry(null);setRestoredSecurity(null);setUseWorkspaceContext(false);setSecurityFrom('');setSecurityTo('');setEpiSource('');setMovementField('');setMapMode('indicator');change();
   }
@@ -247,7 +268,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   const draft=useOutbreakDraft(storage,snapshot(),dirty&&!busy&&!refreshing&&!compareLoading);
   draftSaved.current=draft.saved;
   function resumeDraft(){
-    refreshGeneration.current++;autoConnection.current='snapshot';setRefreshing(false);setLastChecked('');
+    refreshGeneration.current++;autoConnection.current='snapshot';setLiveDashboard(false);setRefreshing(false);setLastChecked('');setLastSuccessfulCheck('');
     applySnapshot(draft.candidate);setRecord(null);setDirty(true);draft.useCurrent();
     setRefreshStatus('Recovered draft — showing its recorded data. Refresh data to update it.');
     setNotice('Working draft recovered.');
@@ -256,10 +277,10 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   return <section ref={appElement} className={styles.app} aria-label="Outbreak response"><fieldset disabled={!!busy||compareLoading} className={styles.fieldset}>
     <div className={styles.appNavigation}>
       <header className={styles.header}><div><span className={styles.eyebrow}>OUTBREAK RESPONSE</span><h2>{name===INITIAL_NAME?'Situation workspace':name}</h2></div><div className={styles.toolbar}><span className={styles.saveStatus} role="status">{dirty?(draft.status||'Unsaved changes'):record?'Saved report version':'Local workspace'}</span><button onClick={save} disabled={!!busy||refreshing||!name.trim()}>Save snapshot{dirty?' *':''}</button><button className={styles.primaryAction} onClick={()=>goTab('Briefing')}>Prepare Sitrep</button></div></header>
-      <nav className={styles.tabs} aria-label="Outbreak sections">{[['Situation','Situation'],['Data','Data'],['Actions','Actions'],['Briefing','Sitrep']].map(([id,label])=><button key={id} aria-pressed={tab===id} onClick={()=>goTab(id)}>{label}</button>)}</nav>
+      <nav className={styles.tabs} aria-label="Outbreak sections">{[['Dashboard','Dashboard'],['Situation','Situation'],['Data','Data'],['Actions','Actions'],['Briefing','Sitrep']].map(([id,label])=><button key={id} aria-pressed={tab===id} onClick={()=>goTab(id)}>{label}</button>)}</nav>
     </div>
     <div className={styles.scopeBar}>
-      <label>Reporting cut-off<input type="date" value={asOf} onChange={e=>{if(validDate(e.target.value)){change();setAsOf(e.target.value);}}}/></label>
+      <label>Reporting cut-off<input type="date" value={asOf} onChange={e=>{if(validDate(e.target.value)){change();setLiveDashboard(false);setAsOf(e.target.value);}}}/></label>
       <button onClick={()=>refreshConnected()} disabled={refreshing||!!busy}>{refreshing?'Refreshing data…':'Refresh data'}</button>
       <details className={styles.reportSettings}><summary>Report settings &amp; saved versions</summary><div className={styles.controls}>
         <label>Outbreak / operational scope<input value={name} maxLength={180} onChange={e=>{change();setName(e.target.value);}}/></label>
@@ -269,6 +290,14 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
         <button onClick={newOutbreak}>New outbreak</button>
       </div></details>
     </div>
+    {tab==='Dashboard'&&<div className={styles.controls} aria-label="Dashboard refresh controls">
+      <label>Auto-refresh<select aria-label="Auto-refresh" value={refreshMinutes} onChange={e=>setRefreshMinutes(Number(e.target.value))}>{[0,5,15,30,60].map(n=><option key={n} value={n}>{n?`Every ${n} minutes`:'Off'}</option>)}</select></label>
+      <label><input type="checkbox" checked={liveDashboard} onChange={e=>{setLiveDashboard(e.target.checked);if(e.target.checked){change();setAsOf(today());}}}/>Follow latest reporting dates</label>
+      <span role="status">{preset!=='drc'?'Connect a live source in Data to enable automatic refresh.':!liveDashboard?'Automatic refresh paused — historical cut-off or saved data.':!refreshMinutes?'Automatic refresh off.':`Checks every ${refreshMinutes} minutes while this dashboard is visible.`} {lastChecked?`Last check completed: ${new Date(lastChecked).toLocaleString()}.`:'No source check completed this session.'}</span>
+      {lastSuccessfulCheck&&<small>Last successful check: {new Date(lastSuccessfulCheck).toLocaleString()}.</small>}
+      {refreshStatus&&<small>{refreshStatus}</small>}
+    </div>}
+    {tab==='Dashboard'&&<Dashboard province={dashboardProvince} setProvince={setDashboardProvince} epi={epi} geometry={geography.data} boundaryLevel={boundaryLevel} message={openingMessage} asOf={asOf} location={location} onSelect={n=>{change();setLocation(n);}} onAnalysis={()=>goTab('Briefing')} onData={()=>openData('indicators')} reviewed={reviewed}/>}
     {draft.candidate&&<div className={styles.notice} role="status">A working draft is available: {draft.candidate.name} · {draft.candidate.asOf}. <button onClick={resumeDraft}>Resume draft</button> <button onClick={()=>{draft.useCurrent();change();}}>Keep current work</button></div>}
     {error&&<p className={styles.error} role="alert">{error}</p>}{notice&&<p className={styles.notice} role="status">{notice}</p>}{busy&&<p role="status">{busy}…</p>}
     {tab==='Situation'&&<KeyMessage compact message={openingMessage} asOf={asOf} reviewed={reviewed} onBriefing={()=>goTab('Briefing')} editor={<><label>Coordinator key message<textarea value={bottomLine} maxLength={800} placeholder="Leave blank to use the summary from loaded data." onChange={e=>{change();setBottomLine(e.target.value);}}/></label><p>Review your wording after changing the reporting cut-off or refreshing data.</p>{bottomLine.trim()&&<button type="button" onClick={()=>{change();setBottomLine('');}}>Use data summary</button>}</>}/>}

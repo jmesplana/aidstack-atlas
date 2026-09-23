@@ -235,6 +235,7 @@ async function openOutbreak(page, boundaries=[], sourceHandler=null, acledData=[
   await card.getByRole('button',{name:'Install app',exact:true}).click();
   await card.getByRole('button',{name:'Open',exact:true}).click();
   await expect(page.getByRole('region',{name:'Outbreak response'})).toBeVisible();
+  await page.getByRole('button',{name:'Situation',exact:true}).click();
   await openSettings(page);
 }
 async function openSettings(page) {

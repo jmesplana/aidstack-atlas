@@ -45,7 +45,7 @@ export function ProvinceHorizon({ model }) {
   return <section className="report-horizon" aria-label="Health-zone horizon charts">
     <h3>Reported case changes by health zone and epidemiological week</h3>
     <p>Health zones grouped by province · ISO weeks (Monday–Sunday) · {weeks[0].label}–{weeks.at(-1).label}{model.truncated ? ' · last 26 weeks' : ''}</p>
-    <small>Horizon strips fold changes into three colour bands on one shared scale: each band represents {number(band)} cases. Darker bands show larger changes. Teal = increase; purple = downward revision; a baseline = zero; grey × = unavailable. Only health zones with positive cumulative cases on the latest reporting date are shown.</small>
+    <small>Horizon strips fold changes into three colour bands on one shared scale: each band represents {number(band)} cases. Darker bands show larger changes. Teal = increase; purple = downward revision; a baseline = zero; grey × = unavailable. {model.includeAll ? 'All matched health zones with observations in the loaded history are shown.' : 'Only health zones with positive cumulative cases on the latest reporting date are shown.'}</small>
     <div className="report-horizon-legend" aria-label="Horizon colour scale">{[positive,negative].map((colors,sign) => <span key={sign}>{sign ? 'Revisions: ' : 'Increases: '}{colors.map((color,i) => <span key={color} style={{borderBottom:`6px solid ${color}`,marginRight:8}}>{number(i*band)}–{number((i+1)*band)}</span>)}</span>)}</div>
     {panels.map(panel => <figure key={`${panel.province}:${panel.part}`}>
       <h4>{panel.province}{panel.part ? ' (continued)' : ''}</h4>

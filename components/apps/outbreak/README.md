@@ -392,3 +392,24 @@ unique alerts published within the 28 days ending at the cut-off whose centre
 matches one uploaded polygon. Centres are not affected-area footprints, and
 concurrent hazards are not evidence of infection or transmission. Snapshot
 exports preserve the loaded GDACS input for reproduction.
+
+## Live dashboard
+
+Dashboard is the default landing view. It shares the sitrep key message, province
+coverage calculations and health-zone horizon strips. Province and health-zone
+selections link the map, callout and trends; Deep analysis opens the sitrep with
+the selected health zone and reporting cut-off. Province labels use boundary
+attributes; district labels appear when zoomed in where district attributes exist.
+Amber outlines identify first positive reports in the selected 7/14/30-day window
+ending on the latest case reporting date. These are first reports in the available
+history, not claims of first-ever infection. All zones with data also includes
+zero-only and historical reporting zones; missing periods remain unavailable.
+
+Automatic epidemiology checks default to 15 minutes (Off, 5, 15, 30 or 60).
+Checks run only while Dashboard is visible, a DRC source is connected and Follow
+latest reporting dates is enabled. Historical cut-offs, restored snapshots and
+recovered drafts pause them. Re-enabling Follow latest opts into today's cut-off.
+Overlapping requests are skipped. Failed checks retain dated observations and
+show an error. Selection and map position survive indicator refreshes. Uploaded
+replacements remain protected. Manual full refresh additionally checks connected
+mobility and mining sources. This is an open-browser timer, not a background job.

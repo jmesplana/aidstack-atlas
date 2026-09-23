@@ -69,3 +69,10 @@ test('horizon does not bridge missing calendar weeks and handles ISO year rollov
   assert.deepEqual(model.weeks.map(w=>w.label),['2026-W52','2026-W53','2027-W01','2027-W02']);
   assert.deepEqual(model.groups[0].rows[0].values,[null,5,null,null]);
 });
+
+test('dashboard can include zero-only zones with data without including unknown or future-only zones',()=>{
+  const report=epi([row('A','2026-09-14',0),row('A','2026-09-21',3),row('B','2026-09-14',0),row('B','2026-09-21',0),row('C','2026-09-21',null),row('D','2026-09-22',7)]);
+  const coverage=provinceCoverage(report,geometry([['A','P'],['B','P'],['C','P'],['D','P']]),'health_zone');
+  assert.deepEqual(provinceHorizon(report,coverage).groups[0].rows.map(r=>r.location),['A']);
+  assert.deepEqual(provinceHorizon(report,coverage,26,true).groups[0].rows.map(r=>r.location),['A','B']);
+});
