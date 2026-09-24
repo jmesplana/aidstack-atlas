@@ -36,7 +36,7 @@ test('dashboard links coverage, first reports, map callouts, trends and sitrep',
   await expect(page.getByRole('heading',{name:'Situation dashboard',exact:true})).toBeVisible();
   const coverage=page.getByRole('region',{name:'Dashboard province coverage'});
   await expect(coverage.getByRole('row').filter({hasText:'Province One'})).toContainText('50.0%');
-  await expect(coverage.getByRole('row').filter({hasText:'Province Two'})).toContainText('Unknown');
+  await expect(coverage.getByRole('row').filter({hasText:'Province Two'})).toHaveCount(0);
   await page.getByRole('region',{name:'First positive reports',exact:true}).getByRole('button',{name:/A ·/}).click();
   await expect(page.getByLabel('Health zone',{exact:true})).toHaveValue('A');
   await expect(page.getByLabel('Selected health zone',{exact:true})).toContainText('Cumulative cases: 4');
