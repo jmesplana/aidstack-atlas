@@ -133,3 +133,7 @@ public/videos/README.md
 
 # Isolated outbreak dashboard validation build
 /.next-dashboard/
+
+# Windows download and endpoint metadata
+*:Zone.Identifier
+*:sec.endpointdlp

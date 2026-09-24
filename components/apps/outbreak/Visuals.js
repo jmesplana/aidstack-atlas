@@ -31,7 +31,12 @@ function exportSVG(ref,name) {
   copy.setAttribute('xmlns','http://www.w3.org/2000/svg');
   download(name,new XMLSerializer().serializeToString(copy),'image/svg+xml');
 }
-export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, mines=[], events=[], hazards=[], sites=[], selected, onSelect, label, asOf, source, focusNames=[], routes=[], routeDirection='outflow', routeUnit, documentSignals=[], overlayCaption='', highlightNames=[], groupLabels=false, callout=null, presentation=false }) {
+export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, mines=[], events=[], hazards=[], sites=[], selected, onSelect, label, asOf, source, focusNames=[], routes=[], routeDirection='outflow', routeUnit, documentSignals=[], overlayCaption='', highlightNames=[], groupLabels=false, callout=null, presentation=false, fillContainer=false }) {
+  const fill=fillContainer||presentation;
+  const [frameHeight,setFrameHeight]=useState(440);
+  const plotHeight=fill?frameHeight:440,plotTop=fill?0:66;
+  const dimensions=[900,plotHeight];
+  const mapZoom=(view,factor,anchor)=>zoomView(view,factor,anchor,dimensions);
   const routeColor=routeDirection==='inflow'?'#c96a37':'#176f89';
   const ref=useRef(null),mapRef=useRef(null),drag=useRef(null),pointers=useRef(new Map()),liveView=useRef(null);
   const arrowId=useId().replace(/:/g, "");
@@ -55,26 +60,31 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
       return {name:zoneName(f),province:f.properties?.province,district:f.properties?.district||f.properties?.ADM2_EN||f.properties?.NAME_2,labelWidth:measure?measure.measureText(zoneName(f)).width+12:undefined,path:path(f),bounds:b,center:[(b[0]+b[2])/2,(b[1]+b[3])/2]};
     }),project,west,east,south,north};
   },[geometry]);
-  const automatic=useMemo(()=>{
-    const targets=shapes?.features.filter(f=>focusNames.includes(f.name))||[];
-    if(!targets.length)return [0,0,900,440];
+  const fitBounds=targets=>{
+    if(!targets?.length)return [0,0,900,plotHeight];
     const left=Math.min(...targets.map(f=>f.bounds[0])),top=Math.min(...targets.map(f=>f.bounds[1]));
     const right=Math.max(...targets.map(f=>f.bounds[2])),bottom=Math.max(...targets.map(f=>f.bounds[3]));
-    const w=Math.max(right-left,(bottom-top)*900/440,15)*1.2,h=w*440/900;
+    const w=Math.max(right-left,(bottom-top)*900/plotHeight,15)*1.08,h=w*plotHeight/900;
     return [(left+right-w)/2,(top+bottom-h)/2,w,h];
-  },[shapes,focusNames.join('|')]);
+  };
+  const allBounds=useMemo(()=>fill?fitBounds(shapes?.features):[0,0,900,440],[shapes,fill,plotHeight]);
+  const automatic=useMemo(()=>{
+    const targets=shapes?.features.filter(f=>focusNames.includes(f.name))||[];
+    return targets.length?fitBounds(targets):allBounds;
+  },[shapes,focusNames.join('|'),allBounds,plotHeight]);
   useEffect(()=>setViewport(null),[geometry,label,focusNames.join('|')]);
+  useEffect(()=>{setViewport(current=>current?[current[0],current[1]+current[3]/2-current[2]*plotHeight/900/2,current[2],current[2]*plotHeight/900]:null);},[plotHeight]);
   const view=viewport||automatic,zoom=900/view[2];
-  const mapHeight=(overlayCaption?615:590)+(documentSignals.length?22:0);
+  const mapHeight=fill?frameHeight:(overlayCaption?615:590)+(documentSignals.length?22:0);
   liveView.current=view;
-  function screenPoint(e){const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(ref.current.getScreenCTM().inverse());return [p.x,p.y-66];}
-  function zoomBy(factor){setViewport(zoomView(liveView.current,factor));}
+  function screenPoint(e){const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(ref.current.getScreenCTM().inverse());return [p.x,p.y-plotTop];}
+  function zoomBy(factor){setViewport(mapZoom(liveView.current,factor));}
   useEffect(()=>{
     const node=mapRef.current;if(!node)return;
-    const wheel=e=>{e.preventDefault();e.stopPropagation();setViewport(zoomView(liveView.current,Math.exp(Math.max(-100,Math.min(100,e.deltaY))*.004),screenPoint(e)));};
+    const wheel=e=>{e.preventDefault();e.stopPropagation();setViewport(mapZoom(liveView.current,Math.exp(Math.max(-100,Math.min(100,e.deltaY))*.004),screenPoint(e)));};
     node.addEventListener('wheel',wheel,{passive:false});return()=>node.removeEventListener('wheel',wheel);
-  },[!!shapes]);
-  useEffect(()=>{const node=ref.current;if(!node)return;const observer=new ResizeObserver(()=>{const b=node.getBoundingClientRect();setRenderScale(Math.max(.1,Math.min(b.width/900,b.height/mapHeight)));});observer.observe(node);return()=>observer.disconnect();},[!!shapes,mapHeight]);
+  },[!!shapes,plotHeight,plotTop]);
+  useEffect(()=>{const node=ref.current;if(!node)return;const observer=new ResizeObserver(()=>{const b=node.getBoundingClientRect();setRenderScale(Math.max(.1,Math.min(b.width/900,b.height/mapHeight)));if(fill&&b.width>0&&b.height>0)setFrameHeight(Math.max(80,900*b.height/b.width));});observer.observe(node);return()=>observer.disconnect();},[!!shapes,mapHeight,fill]);
   function startDrag(e){
     if(e.button!==0&&e.pointerType==='mouse')return;e.preventDefault();
     const point=screenPoint(e);pointers.current.set(e.pointerId,point);e.currentTarget.setPointerCapture(e.pointerId);
@@ -89,13 +99,13 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
     if(pair.length===2&&d.distance){
       const distance=Math.hypot(pair[1][0]-pair[0][0],pair[1][1]-pair[0][1]);
       const middle=[(pair[0][0]+pair[1][0])/2,(pair[0][1]+pair[1][1])/2];
-      const next=zoomView(d.view,d.distance/Math.max(1,distance),d.middle);
-      next[0]-=(middle[0]-d.middle[0])*next[2]/900;next[1]-=(middle[1]-d.middle[1])*next[3]/440;
+      const next=mapZoom(d.view,d.distance/Math.max(1,distance),d.middle);
+      next[0]-=(middle[0]-d.middle[0])*next[2]/900;next[1]-=(middle[1]-d.middle[1])*next[3]/plotHeight;
       d.moved=true;setViewport(next);return;
     }
     const dx=point[0]-d.point[0],dy=point[1]-d.point[1];
     if(Math.abs(dx)+Math.abs(dy)>3)d.moved=true;
-    if(d.moved)setViewport([d.view[0]-dx*d.view[2]/900,d.view[1]-dy*d.view[3]/440,d.view[2],d.view[3]]);
+    if(d.moved)setViewport([d.view[0]-dx*d.view[2]/900,d.view[1]-dy*d.view[3]/plotHeight,d.view[2],d.view[3]]);
   }
   function endDrag(e){
     const d=drag.current;pointers.current.delete(e.pointerId);
@@ -107,11 +117,11 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
   const values=new Map(level===boundaryLevel?rows.map(r=>[r.location,r]):[]),mappedNames=new Set(shapes.features.map(f=>f.name));
   const known=[...values.values()].filter(r=>r.value!==null&&mappedNames.has(r.location));
   const max=Math.max(0,...known.map(r=>Math.abs(r.value)));
-  const fill=r=>!r||r.value===null?'#e3e8ed':r.value===0?'#fff':r.value<0?'#3283b4':`hsl(12 76% ${88-46*Math.sqrt(r.value/Math.max(.000001,max))}%)`;
+  const areaFill=r=>!r||r.value===null?'#e3e8ed':r.value===0?'#fff':r.value<0?'#3283b4':`hsl(12 76% ${88-46*Math.sqrt(r.value/Math.max(.000001,max))}%)`;
   const priority=new Set([...known].sort((a,b)=>Math.abs(b.value)-Math.abs(a.value)).slice(0,8).map(r=>r.location));
   if(selected)priority.add(selected);
   const allowed=labels==='none'?new Set():labels==='all'?new Set(shapes.features.map(f=>f.name)):priority;
-  const visibleLabels=placeLabels(shapes.features,view,selected,allowed,renderScale);
+  const visibleLabels=placeLabels(shapes.features,view,selected,allowed,renderScale,dimensions);
   const point=(p)=>p.longitude!==''&&p.latitude!==''&&p.longitude!=null&&p.latitude!=null&&Number.isFinite(Number(p.longitude))&&Number.isFinite(Number(p.latitude))&&p.longitude>=shapes.west&&p.longitude<=shapes.east&&p.latitude>=shapes.south&&p.latitude<=shapes.north;
   const signalGroups=[...documentSignals.reduce((groups,f)=>{const key=JSON.stringify([f.mapLocation,f.kind,f.themes[0]||'']);const group=groups.get(key)||[];group.push(f);groups.set(key,group);return groups;},new Map()).values()];
   const groupNames=new Map();
@@ -124,29 +134,31 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
     const center=[members.reduce((n,f)=>n+f.center[0],0)/members.length,members.reduce((n,f)=>n+f.center[1],0)/members.length];
     return {name,center,labelWidth:name.length*8+12};
   });
-  const provinceLabels=placeLabels(groups,view,'',new Set(groups.map(g=>g.name)),renderScale);
+  const provinceLabels=placeLabels(groups,view,'',new Set(groups.map(g=>g.name)),renderScale,dimensions);
   const anchor=callout&&shapes.features.find(f=>f.name===selected)?.center;
-  const anchorScreen=anchor?[(anchor[0]-view[0])*900/view[2],66+(anchor[1]-view[1])*440/view[3]]:null;
+  const anchorScreen=anchor?[(anchor[0]-view[0])*900/view[2],plotTop+(anchor[1]-view[1])*plotHeight/view[3]]:null;
+  const calloutScale=Math.min(1,(plotHeight-16)/155);
+  const calloutY=fill?Math.max(8,Math.min(82,plotHeight-155*calloutScale-8)):82;
   const signalOffsets=new Map();
-  return <div className={presentation?styles.presentationMap:undefined}>
+  return <div className={fill?`${styles.fittedMap} ${presentation?styles.presentationMap:styles.dashboardMapCanvas}`:undefined}>
     {!presentation&&<div data-print-hide="true" style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',margin:'12px 0'}}>
       <button type="button" aria-label={`Zoom in ${label} map`} onClick={()=>zoomBy(.65)}>＋</button>
       <button type="button" aria-label={`Zoom out ${label} map`} onClick={()=>zoomBy(1.5)}>−</button>
       <button type="button" onClick={()=>setViewport(null)}>Focus relevant areas</button>
-      <button type="button" onClick={()=>setViewport([0,0,900,440])}>All boundaries</button>
+      <button type="button" onClick={()=>setViewport(allBounds)}>All boundaries</button>
       <label>Admin labels<select aria-label={`Admin labels for ${label}`} value={labels} onChange={e=>setLabels(e.target.value)}><option value="priority">Leading areas</option><option value="all">All areas (avoid overlap)</option><option value="none">Hide labels</option></select></label>
       <span style={{fontSize:12,color:'#597086'}}>Drag to pan · scroll or pinch to zoom · arrows to pan when focused</span>
     </div>}
-    <svg ref={ref} viewBox={`0 0 900 ${mapHeight}`} role="img" aria-label={`${label} map`} style={{width:'100%',maxHeight:'65vh',userSelect:'none',background:'#f8fafc',border:'1px solid #dce5ed',borderRadius:8}}>
+    <svg ref={ref} viewBox={`0 0 900 ${mapHeight}`} role="img" aria-label={`${label} map`} style={{width:'100%',maxHeight:fill?'none':'65vh',userSelect:'none',background:'#f8fafc',border:'1px solid #dce5ed',borderRadius:8}}>
       <title>{label} — reporting cut-off {asOf}</title><rect width="900" height={mapHeight} fill="#fff"/>
-      <text x="22" y="28" fontSize="19" fontWeight="bold" fontFamily="sans-serif" fill="#18334b">{label.slice(0,78)}</text>
-      <text x="22" y="50" fontSize="12" fontFamily="sans-serif" fill="#536c81">{presentation?'Cumulative confirmed cases · amber outlines: first positive reports':`${boundaryLevel} · ${kind} · ${unit} · cut-off ${asOf}; observation dates may differ`}</text>
-      <svg ref={mapRef} role="group" tabIndex="0" aria-label={`Pan and zoom ${label}`} x="0" y="66" width="900" height="440" viewBox={view.join(' ')} data-map-viewport="true" style={{touchAction:'none',cursor:'grab'}}
+      {!fill&&<><text x="22" y="28" fontSize="19" fontWeight="bold" fontFamily="sans-serif" fill="#18334b">{label.slice(0,78)}</text>
+      <text x="22" y="50" fontSize="12" fontFamily="sans-serif" fill="#536c81">{presentation?'Cumulative confirmed cases · amber outlines: first positive reports':`${boundaryLevel} · ${kind} · ${unit} · cut-off ${asOf}; observation dates may differ`}</text></>}
+      <svg ref={mapRef} role="group" tabIndex="0" aria-label={`Pan and zoom ${label}`} x="0" y={plotTop} width="900" height={plotHeight} viewBox={view.join(' ')} data-map-viewport="true" style={{touchAction:'none',cursor:'grab'}}
         onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}
-        onDoubleClick={e=>{e.preventDefault();setViewport(zoomView(view,.65,screenPoint(e)));}}
+        onDoubleClick={e=>{e.preventDefault();setViewport(mapZoom(view,.65,screenPoint(e)));}}
         onKeyDown={e=>{const shift={ArrowLeft:[-.12,0],ArrowRight:[.12,0],ArrowUp:[0,-.12],ArrowDown:[0,.12]}[e.key];if(shift){e.preventDefault();setViewport([view[0]+shift[0]*view[2],view[1]+shift[1]*view[3],view[2],view[3]]);}else if(['+','=','-','Home'].includes(e.key)){e.preventDefault();if(e.key==='Home')setViewport(null);else zoomBy(e.key==='-'?1.25:.8);}}}>
         <rect x="-10000" y="-10000" width="20000" height="20000" fill="#f3f6f9"/>
-        {shapes.features.map(f=><path key={f.name} data-admin={f.name} d={f.path} fill={fill(values.get(f.name))} fillRule="evenodd" stroke={selected===f.name?'#113d64':highlightNames.includes(f.name)?'#c88700':'#9aaaba'} strokeWidth={selected===f.name?2:highlightNames.includes(f.name)?2.5:.65} vectorEffect="non-scaling-stroke"><title>{f.name}: {values.has(f.name)?`${values.get(f.name).value??'No data'} ${unit||''} (${values.get(f.name).date})`:'No matched observation'}</title></path>)}
+        {shapes.features.map(f=><path key={f.name} data-admin={f.name} d={f.path} fill={areaFill(values.get(f.name))} fillRule="evenodd" stroke={selected===f.name?'#113d64':highlightNames.includes(f.name)?'#c88700':'#9aaaba'} strokeWidth={selected===f.name?2:highlightNames.includes(f.name)?2.5:.65} vectorEffect="non-scaling-stroke"><title>{f.name}: {values.has(f.name)?`${values.get(f.name).value??'No data'} ${unit||''} (${values.get(f.name).date})`:'No matched observation'}</title></path>)}
         <defs><marker id={arrowId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill={routeColor}/></marker></defs>
         {routes.map((r,i)=>{
           const a=shapes.features.find(f=>f.name===r.origin)?.center,b=shapes.features.find(f=>f.name===r.destination)?.center;
@@ -168,20 +180,21 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
         {provinceLabels.map(f=><text key={f.name} x={f.labelX} y={f.labelY-15/zoom/renderScale} textAnchor="middle" fontSize={14/zoom/renderScale} fontWeight="bold" fill="#38576c" stroke="white" strokeWidth={4/zoom/renderScale} paintOrder="stroke" pointerEvents="none">{f.name}</text>)}
         {visibleLabels.map(f=><g key={f.name}><line x1={f.center[0]} y1={f.center[1]} x2={f.labelX} y2={f.labelY} stroke="#718598" strokeWidth={.6/zoom} pointerEvents="none"/><text data-admin={f.name} x={f.labelX} y={f.labelY} fontFamily="sans-serif" fontSize={12/zoom/renderScale} fontWeight="600" fill="#153b55" stroke="white" strokeWidth={3/zoom/renderScale} paintOrder="stroke" textAnchor="middle">{f.name}</text></g>)}
       </svg>
-      {anchorScreen&&anchorScreen[0]>=0&&anchorScreen[0]<=900&&anchorScreen[1]>=66&&anchorScreen[1]<=506&&<g pointerEvents="none" aria-label="Health-zone map callout">
-        <line x1={anchorScreen[0]} y1={anchorScreen[1]} x2={anchorScreen[0]<450?575:325} y2="172" stroke="#197c8c" strokeWidth="2"/>
+      {anchorScreen&&anchorScreen[0]>=0&&anchorScreen[0]<=900&&anchorScreen[1]>=plotTop&&anchorScreen[1]<=plotTop+plotHeight&&<g pointerEvents="none" aria-label="Health-zone map callout">
+        <line x1={anchorScreen[0]} y1={anchorScreen[1]} x2={anchorScreen[0]<450?575:325} y2={calloutY+90*calloutScale} stroke="#197c8c" strokeWidth="2"/>
         <circle cx={anchorScreen[0]} cy={anchorScreen[1]} r="5" fill="#197c8c" stroke="white"/>
-        <rect x={anchorScreen[0]<450?575:15} y="82" width="310" height="155" rx="8" fill="white" stroke="#197c8c"/>
-        {callout.map((line,i)=><text key={i} x={anchorScreen[0]<450?589:29} y={106+i*22} fontSize={i===0?15:12} fontWeight={i===0?'bold':'normal'} fill="#18324b">{line.length>44?line.slice(0,43)+'…':line}</text>)}
+        <g transform={`translate(${anchorScreen[0]<450?885-310*calloutScale:15},${calloutY}) scale(${calloutScale})`}><rect x="0" y="0" width="310" height="155" rx="8" fill="white" stroke="#197c8c"/>
+        {callout.map((line,i)=><text key={i} x="14" y={24+i*22} fontSize={i===0?15:12} fontWeight={i===0?'bold':'normal'} fill="#18324b">{line.length>44?line.slice(0,43)+'…':line}</text>)}</g>
       </g>}
-      <rect x="22" y="520" width="12" height="12" fill="#e3e8ed"/><text x="40" y="531" fontFamily="sans-serif" fontSize="12">No data</text>
+      {!fill&&<><rect x="22" y="520" width="12" height="12" fill="#e3e8ed"/><text x="40" y="531" fontFamily="sans-serif" fontSize="12">No data</text>
       <rect x="122" y="520" width="12" height="12" fill="white" stroke="#9aaaba"/><text x="140" y="531" fontFamily="sans-serif" fontSize="12">Zero</text>
       <rect x="191" y="520" width="12" height="12" fill="hsl(12 76% 42%)"/><text x="209" y="531" fontFamily="sans-serif" fontSize="12">Darker: larger values · max absolute value {known.length?formatValue(max):'not available'}</text>
       <text x="22" y="552" fontFamily="sans-serif" fontSize="11" fill="#536c81">{hazards.length?'Gold triangles: GDACS centres. ':''}{mines.length?'Teal dots: documented mines. ':''}{events.length?'Purple diamonds: ACLED events. ':''}{sites.length?'Blue squares: uploaded sites. ':''}Blue areas: negative changes, where present.</text>
       {!presentation&&<text x="22" y="574" fontFamily="sans-serif" fontSize="10" fill="#536c81">Source: {String(source||'Uploaded administrative boundaries').slice(0,130)}</text>}
       {documentSignals.length>0&&<text x="22" y={mapHeight-10} fontFamily="sans-serif" fontSize="11" fill="#536c81">AI-extracted findings may be incomplete or incorrect. Verify source. Circles: themes; squares: vaccination reports.</text>}
-      {overlayCaption&&<text x="22" y="596" fontFamily="sans-serif" fontSize="11" fill="#536c81">{overlayCaption}</text>}
+      {overlayCaption&&<text x="22" y="596" fontFamily="sans-serif" fontSize="11" fill="#536c81">{overlayCaption}</text>}</>}
     </svg>
+    {fill&&<div className={styles.mapLegend}><span><i style={{background:'#e3e8ed'}}/>No data</span><span><i style={{background:'white'}}/>Zero</span><span><i style={{background:'hsl(12 76% 42%)'}}/>Darker: {kind==='directed mobility'?unit:'more cases'} · max {known.length?formatValue(max):'unknown'}</span>{kind==='directed mobility'?<span style={{color:routeColor}}>→ {routeDirection==='inflow'?'Inflow':'Outflow'} · origin to destination</span>:<span>Amber: first positive report</span>}</div>}
     {!presentation&&<p data-print-hide="true" style={{fontSize:12,color:"#536c81"}}>Labels are spaced to avoid overlap. Zoom in to reveal more; select an area to keep its label visible.</p>}
     {level!==boundaryLevel&&<p>Map values hidden: dataset level ({level||'none'}) differs from boundary level ({boundaryLevel}).</p>}
     {!presentation&&<button type="button" onClick={()=>exportSVG(ref,'outbreak-map.svg')}>Export map SVG</button>}

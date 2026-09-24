@@ -34,6 +34,13 @@ test('viewport zoom preserves pointer anchor and labels avoid collision',async()
  const view=[100,200,900,440],anchor=[100,80],next=zoomView(view,.5,anchor);
  assert.equal(next[0]+anchor[0]/900*next[2],view[0]+anchor[0]);
  assert.equal(next[1]+anchor[1]/440*next[3],view[1]+anchor[1]);
+ for(const height of [180,900]){
+  const fitted=[100,200,900,height],point=[700,height*.7];
+  const zoomed=zoomView(fitted,.5,point,[900,height]);
+  assert.equal(zoomed[0]+point[0]/900*zoomed[2],fitted[0]+point[0]);
+  assert.equal(zoomed[1]+point[1]/height*zoomed[3],fitted[1]+point[1]);
+  assert.equal(zoomed[2]/zoomed[3],900/height);
+ }
  const features=Array.from({length:20},(_,i)=>({name:`Area ${i}`,center:[450,220]}));
  const placed=placeLabels(features,[0,0,900,440],'Area 19',new Set(features.map(f=>f.name)));
  assert.equal(placed[0].name,'Area 19');
