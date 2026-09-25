@@ -3,6 +3,7 @@ import { latestPerLocation, nationalEvidence, revisionCount, dailyComparison, va
 import Upload from './Upload';
 import LocationMatching from './LocationMatching';
 import { reconcileLocations } from '../../../lib/outbreak/locationMatching';
+import { areaMonitoring, monitoringSettings } from '../../../lib/outbreak/monitoring';
 import DataWorkspace from './DataWorkspace';
 import ReportMetadataEditor from './ReportMetadataEditor';
 import RcceUpload, { RcceReports } from './RcceUpload';
@@ -30,7 +31,7 @@ import { BriefChanges, EvidenceReadiness } from './BriefWorkflow';
 import { comparisonRecord, actionFollowUp } from '../../../lib/outbreak/briefing';
 import KeyMessage from './KeyMessage';
 import { keyMessage } from '../../../lib/outbreak/keyMessage';
-import { sinceLast } from '../../../lib/outbreak/response';
+import { sinceLast, responseStatus } from '../../../lib/outbreak/response';
 import styles from './outbreak.module.css';
 
 const today=()=>new Date().toISOString().slice(0,10);
@@ -40,6 +41,7 @@ const sourceLabel=d=>d?.url||d?.source||'Unknown';
 export default function Outbreak({ storage, districts=[], facilities=[], acledData=[], disasters=[], onOpenWorkspace, leaveGuard }) {
   const briefElement=useRef(null),explorerElement=useRef(null),refreshGeneration=useRef(0),autoConnection=useRef('');
   const [dashboardProvince,setDashboardProvince]=useState('');
+  const [monitorOptions,setMonitorOptions]=useState(()=>monitoringSettings());
   const [lastSuccessfulCheck,setLastSuccessfulCheck]=useState('');
   const [refreshMinutes,setRefreshMinutes]=useState(15),[liveDashboard,setLiveDashboard]=useState(true);
   const refreshLock=useRef(false),refreshLatest=useRef(null);
@@ -131,7 +133,8 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   const securityEnd=securityTo||latestSecurityDate||asOf,securityStart=securityFrom||shiftDate(securityEnd,-27);
   const securityRangeError=securityStart>securityEnd||securityEnd>asOf;
   const security=useMemo(()=>securityInput.length&&!securityRangeError?securityOverlap(securityInput,index,securityStart,securityEnd):null,[securityInput,index,securityStart,securityEnd,securityRangeError]);
-  const openingMessage=keyMessage({datasets:availableDatasets,epi,mining,security,mobility:routeData,asOf,override:bottomLine});
+  const monitoring=useMemo(()=>areaMonitoring(epi,geography.data,boundaryLevel,asOf,monitorOptions),[epi,geography,boundaryLevel,asOf,monitorOptions]);
+  const openingMessage=keyMessage({datasets:availableDatasets,epi,mining,security,mobility:routeData,asOf,override:bottomLine,monitoring});
   const integrated=useMemo(()=>integratedEvidence(epi,mining,security,selectedMobility,!!geography.data&&epi?.dataset.level===boundaryLevel),[epi,mining,security,selectedMobility,geography,boundaryLevel]);
   const evidenceSource=f=>f.source||sourceLabel(availableDatasets.find(d=>d.id===f.sourceId));
   const chooseArea=n=>{change();setLocation(n);setExplorerOpen(true);};
@@ -147,6 +150,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
     return base;
   },[availableDatasets,integrated,selected,rows,asOf,comparisons]);
   const highlights=factIds.length?facts.filter(f=>factIds.includes(f.id)).sort((a,b)=>factIds.indexOf(a.id)-factIds.indexOf(b.id)):(integrated.length?integrated.filter(f=>['integrated:hotspots','integrated:growth','integrated:security-overlap','integrated:mobility'].includes(f.id)).slice(0,3):facts.slice(0,3));
+  const responseStatusValue=useMemo(()=>responseStatus(availableDatasets,actions,asOf),[availableDatasets,actions,asOf]);
   const since=useMemo(()=>sinceLast({national:nationalEvidence(availableDatasets,asOf),epi,datasets:availableDatasets,actions},compareSnapshot,asOf),[availableDatasets,epi,compareSnapshot,asOf,actions]);
   const activeMines=showMines?eligibleMines:[];
   const movementOverlays={documentSignals:mappedFindings,mines:eligibleMines,events:security?.records||[],showMines,showSecurity,securityPeriod:`${securityStart}–${securityEnd}`,onMines:value=>{change();setShowMines(value);},onSecurity:value=>{change();setShowSecurity(value);}};
@@ -235,7 +239,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
       setFactIds(data.ids);setDirty(true);setReviewed(false);setNotice('AI selected existing evidence sentences. No AI-written claims were added.');
     }catch(e){setError(e.message);}finally{setBusy('');}
   }
-  function snapshot() {return {schemaVersion:2,reportOptions,rcceDocuments,documentFilter,includeEvidenceDates,comparison:comparisonRecord(compareSnapshot),disasters:disasterInput,includeAppendix,bottomLine,briefDirection,routeData,routeDirection,routeLimit,name,preset,asOf,datasets:availableDatasets,selectedId:selected?.id||selectedId,location:selectedLocation,boundaryField,boundaryLevel,boundarySource,geometry:geography.data,mines,showMines,actions,factIds,reviewed,flowCatalogue,useWorkspaceContext,provinceField,epiSource,movementDirection,movementField,securityFrom,securityTo,showSecurity,showSites,mapMode,securityEvents:securityInput.map(e=>({event_id:e.event_id_cnty||e.event_id||e.id,event_date:e.event_date,latitude:e.latitude,longitude:e.longitude,fatalities:e.fatalities,actor1:e.actor1,event_type:e.event_type,location:e.location,country:e.country}))};}
+  function snapshot() {return {schemaVersion:2,monitorOptions,reportOptions,rcceDocuments,documentFilter,includeEvidenceDates,comparison:comparisonRecord(compareSnapshot),disasters:disasterInput,includeAppendix,bottomLine,briefDirection,routeData,routeDirection,routeLimit,name,preset,asOf,datasets:availableDatasets,selectedId:selected?.id||selectedId,location:selectedLocation,boundaryField,boundaryLevel,boundarySource,geometry:geography.data,mines,showMines,actions,factIds,reviewed,flowCatalogue,useWorkspaceContext,provinceField,epiSource,movementDirection,movementField,securityFrom,securityTo,showSecurity,showSites,mapMode,securityEvents:securityInput.map(e=>({event_id:e.event_id_cnty||e.event_id||e.id,event_date:e.event_date,latitude:e.latitude,longitude:e.longitude,fatalities:e.fatalities,actor1:e.actor1,event_type:e.event_type,location:e.location,country:e.country}))};}
   async function save() {
     setBusy('Saving snapshot');setError('');
     try{const value=await storage.savePlan({id:crypto.randomUUID(),metadata:{name:`${name} — ${asOf} — ${new Date().toISOString()}`},...snapshot()},0);setRecord(value);setDirty(false);setSaved((await storage.listPlans()).filter(s=>s.id!==DRAFT_ID));setNotice('Snapshot saved in this browser workspace.');await draft.flush(snapshot());}catch(e){setError(e.message);}finally{setBusy('');}
@@ -249,6 +253,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
     }catch(e){setError(e.message);}finally{setBusy('');}
   }
   function applySnapshot(s) {
+      setMonitorOptions(monitoringSettings(s.monitorOptions));
       compareGeneration.current++;setCompareLoading(false);setCompareSnapshot(s.comparison||null);setCompareId(s.comparison?.id||'');
       setReportOptions(s.reportOptions||{notes:{},mobilityAreas:[]});setIntakeVersion(v=>v+1);setIncludeEvidenceDates(s.includeEvidenceDates??false);setRcceDocuments(s.rcceDocuments||[]);setDocumentFilter(s.documentFilter||{kind:'',theme:'',from:'',measure:''});
       setRestoredDisasters(s.disasters||[]);setIncludeAppendix(s.includeAppendix||false);setBottomLine(s.bottomLine||'');setBriefDirection(s.briefDirection||'outflow');setRouteDirection(s.routeDirection||'outflow');setRouteLimit(s.routeLimit||'10');setRouteData(s.routeData||null);setName(s.name);setPreset(s.preset);setAsOf(s.asOf);setDatasets(s.datasets);setSelectedId(s.selectedId);setLocation(s.location);setBoundaryField(s.boundaryField);setBoundaryLevel(s.boundaryLevel);setBoundarySource(s.boundarySource);setRestoredGeometry(s.geometry);setMines(s.mines);setShowMines(s.showMines);setActions(s.actions);setFactIds(s.factIds);setReviewed(s.schemaVersion===2&&s.reviewed);setFlowCatalogue(s.flowCatalogue||null);setUseWorkspaceContext(s.useWorkspaceContext??true);setProvinceField(s.provinceField||'province');setEpiSource(s.epiSource||'');setMovementDirection(s.movementDirection||'outflow');setMovementField(s.movementField||'');setSecurityFrom(s.securityFrom||'');setSecurityTo(s.securityTo||'');setRestoredSecurity(s.securityEvents||[]);setShowSecurity(s.showSecurity??true);setShowSites(s.showSites??false);setMapMode(s.mapMode||'indicator');setRecord(s);setDirty(false);setNotice('Saved snapshot opened. Sources were not refreshed.');
@@ -256,6 +261,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   function newOutbreak() {
     if(dirty&&!window.confirm('Start another outbreak without saving current changes?'))return;
     setLiveDashboard(true);
+    setMonitorOptions(monitoringSettings());
     compareGeneration.current++;setCompareLoading(false);setCompareId('');setCompareSnapshot(null);
     refreshGeneration.current++;autoConnection.current='manual';setRefreshing(false);setRefreshStatus('No live source connected.');setLastChecked('');setLastSuccessfulCheck('');try{localStorage.removeItem(connectionKey);}catch{}
     setReportOptions({notes:{},mobilityAreas:[]});setIntakeVersion(v=>v+1);setDataView('reports');setIncludeEvidenceDates(false);setRcceDocuments([]);setDocumentFilter({kind:'',theme:'',from:'',measure:''});
@@ -300,7 +306,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
       {lastSuccessfulCheck&&<small>Last successful check: {new Date(lastSuccessfulCheck).toLocaleString()}.</small>}
       {refreshStatus&&<small>{refreshStatus}</small>}
     </div>}
-    {tab==='Dashboard'&&<Dashboard routeData={routeData} movementDirection={briefDirection} onMovementDirection={d=>{change();setBriefDirection(d);}} movementOverlays={movementOverlays} defaultMovementLocation={selectedLocation} onLoadMovement={fetchRoutes} movementLoading={routeLoading} movementError={routeError} title={name} freshness={refreshing?'Checking for updates…':refreshStatus.startsWith('Some sources')?'Refresh failed · showing last available reports':preset!=='drc'?'Uploaded / workspace data':!liveDashboard?'Historical view · refresh paused':!refreshMinutes?'Automatic refresh off':`Updates every ${refreshMinutes} min${lastSuccessfulCheck?` · checked ${new Date(lastSuccessfulCheck).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`:''}`} province={dashboardProvince} setProvince={setDashboardProvince} epi={epi} geometry={geography.data} boundaryLevel={boundaryLevel} message={openingMessage} asOf={asOf} location={location} onSelect={n=>{change();setLocation(n);}} onAnalysis={()=>goTab('Briefing')} onData={()=>openData('indicators')} reviewed={reviewed}/>}
+    {tab==='Dashboard'&&<Dashboard monitoring={monitoring} monitorOptions={monitorOptions} onMonitorOptions={value=>{change();setMonitorOptions(monitoringSettings(value));}} routeData={routeData} movementDirection={briefDirection} onMovementDirection={d=>{change();setBriefDirection(d);}} movementOverlays={movementOverlays} defaultMovementLocation={selectedLocation} onLoadMovement={fetchRoutes} movementLoading={routeLoading} movementError={routeError} title={name} freshness={refreshing?'Checking for updates…':refreshStatus.startsWith('Some sources')?'Refresh failed · showing last available reports':preset!=='drc'?'Uploaded / workspace data':!liveDashboard?'Historical view · refresh paused':!refreshMinutes?'Automatic refresh off':`Updates every ${refreshMinutes} min${lastSuccessfulCheck?` · checked ${new Date(lastSuccessfulCheck).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`:''}`} province={dashboardProvince} setProvince={setDashboardProvince} epi={epi} geometry={geography.data} boundaryLevel={boundaryLevel} message={openingMessage} asOf={asOf} location={location} onSelect={n=>{change();setLocation(n);}} onAnalysis={()=>goTab('Briefing')} onData={()=>openData('indicators')} reviewed={reviewed} security={security} mining={mining} response={responseStatusValue} actions={actions} onAddAction={selectProposal} isActionAdded={s=>proposalSelected(actions,s)} onOpenPlan={()=>goTab('Actions')}/>}
     {draft.candidate&&<div className={styles.notice} role="status">A working draft is available: {draft.candidate.name} · {draft.candidate.asOf}. <button onClick={resumeDraft}>Resume draft</button> <button onClick={()=>{draft.useCurrent();change();}}>Keep current work</button></div>}
     {error&&<p className={styles.error} role="alert">{error}</p>}{notice&&<p className={styles.notice} role="status">{notice}</p>}{busy&&<p role="status">{busy}…</p>}
     {tab==='Situation'&&<KeyMessage compact message={openingMessage} asOf={asOf} reviewed={reviewed} onBriefing={()=>goTab('Briefing')} editor={<><label>Coordinator key message<textarea value={bottomLine} maxLength={800} placeholder="Leave blank to use the summary from loaded data." onChange={e=>{change();setBottomLine(e.target.value);}}/></label><p>Review your wording after changing the reporting cut-off or refreshing data.</p>{bottomLine.trim()&&<button type="button" onClick={()=>{change();setBottomLine('');}}>Use data summary</button>}</>}/>}

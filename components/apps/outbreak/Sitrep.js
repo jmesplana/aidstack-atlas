@@ -79,6 +79,7 @@ const Sitrep = forwardRef(function Sitrep({ name, asOf, reviewed, options, openi
     <section className="report-summary" aria-label="Key message"><h2>Situation assessment</h2>
       {assessment.split(/\n\s*\n/).map((text,i)=><p key={i}>{text}</p>)}
       {openingMessage.origin !== 'Coordinator message' && activityMessages(epi?.activity).map(text=><p key={text}>{text}</p>)}
+      {openingMessage.highlights?.length>0&&<div aria-label="Area monitoring summary"><h3>Area monitoring</h3>{openingMessage.highlights.map(h=><p key={h.view}>{h.text}</p>)}<small>Trend comparisons use changes in cumulative reports per day over actual 6–8 day reporting intervals. Missing values and revisions cannot establish improvement.</small></div>}
       <ul className="report-priorities">
         <li><strong>Burden:</strong> {burden.length ? burden.map(z=>`${z.location}${z.province?` (${z.province})`:''}: ${number(z.value)}`).join('; ') + ` cumulative cases (${epi.date}). Confirm current workload before allocating capacity.` : 'Area-level case evidence unavailable.'}</li>
         <li><strong>Rising reports:</strong> {risingReports(epi)}</li>

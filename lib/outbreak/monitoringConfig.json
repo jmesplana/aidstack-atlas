@@ -1,0 +1,31 @@
+{
+  "defaultThreshold": 10,
+  "defaultHistoryWeeks": 3,
+  "historyWeeks": [3, 6],
+  "horizonWeeks": [3, 6, 26],
+  "maximumReportGapDays": 8,
+  "weeklyIntervalDays": [7, 6, 8],
+  "trendCategories": {
+    "rising": {"label": "Rising reported rate", "color": "#c94040"},
+    "declining": {"label": "Sustained decline", "color": "#148577"},
+    "falling": {"label": "Declining / not sustained", "color": "#89c1b8"},
+    "mixed": {"label": "Mixed / below threshold", "color": "#8095b0"},
+    "unchanged": {"label": "Unchanged reported rate", "color": "#b8cad3"},
+    "revision": {"label": "Downward revision", "color": "#9470b2"},
+    "stale": {"label": "Reporting gap", "color": "#db9c36"},
+    "unknown": {"label": "Insufficient data", "color": "#e3e8ed"}
+  },
+  "gapCategories": {
+    "gap6": {"label": "No valid report for ≥6 weeks", "color": "#ad6816"},
+    "gap3": {"label": "No valid report for 3–6 weeks", "color": "#edb653"},
+    "recent": {"label": "Valid report within 3 weeks", "color": "#689baa"},
+    "unknown": {"label": "No valid report in loaded history", "color": "#e3e8ed"}
+  },
+  "quietCategories": {
+    "quiet6": {"label": "No reported increase for ≥6 weeks", "color": "#3b677a"},
+    "quiet3": {"label": "No reported increase for 3–6 weeks", "color": "#87b6c7"},
+    "recent": {"label": "No 3-week unchanged run", "color": "#d5e2e7"},
+    "stale": {"label": "Reporting gap / latest value missing", "color": "#db9c36"},
+    "unknown": {"label": "No valid report in loaded history", "color": "#e3e8ed"}
+  }
+}

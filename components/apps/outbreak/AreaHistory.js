@@ -34,7 +34,7 @@ export function AreaHistoryTable({ activity, date }) {
 const positive = ['#b6dce2','#54a6b5','#146078'];
 const negative = ['#dfcbe8','#b282c6','#77428f'];
 
-export function ProvinceHorizon({ model, compact=false }) {
+export function ProvinceHorizon({ model, compact=false, onSelect, selected }) {
   const [detail,setDetail] = useState('Hover over or focus a week to inspect the reported change and its actual dates.');
   if (!model?.groups.length) return <p className="report-unavailable">{model?.comparisonsOnly?'No weekly case comparisons are available for this selection.':'Province horizon charts require matched health zones with dated case history.'}</p>;
   const {weeks,band} = model;
@@ -44,7 +44,7 @@ export function ProvinceHorizon({ model, compact=false }) {
   const left = 190, plotWidth = 750, rowHeight = 27, cell = plotWidth / weeks.length;
   return <section className="report-horizon" aria-label="Health-zone horizon charts">
     {!compact&&<><h3>Reported case changes by health zone and epidemiological week</h3>
-    <p>Health zones grouped by province · ISO weeks (Monday–Sunday) · {weeks[0].label}–{weeks.at(-1).label}{model.truncated ? ' · last 26 weeks' : ''}</p>
+    <p>Health zones grouped by province · ISO weeks (Monday–Sunday) · {weeks[0].label}–{weeks.at(-1).label}{model.truncated ? ` · last ${model.maxWeeks||26} weeks` : ''}</p>
     <small>Horizon strips fold changes into three colour bands on one shared scale: each band represents {number(band)} cases. Darker bands show larger changes. Teal = increase; purple = downward revision; a baseline = zero; grey × = unavailable. {model.comparisonsOnly ? 'Matched health zones with available weekly comparisons are shown.' : model.includeAll ? 'All matched health zones with observations in the loaded history are shown.' : 'Only health zones with positive cumulative cases on the latest reporting date are shown.'}</small></>}
     <div className="report-horizon-legend" aria-label="Horizon colour scale">{[positive,negative].map((colors,sign) => <span key={sign}>{sign ? 'Revisions: ' : 'Increases: '}{colors.map((color,i) => <span key={color} style={{borderBottom:`6px solid ${color}`,marginRight:8}}>{number(i*band)}–{number((i+1)*band)}</span>)}</span>)}</div>
     {panels.map(panel => <figure key={`${panel.province}:${panel.part}`}>
@@ -56,7 +56,7 @@ export function ProvinceHorizon({ model, compact=false }) {
         {weeks.map((week,i) => <g key={week.label}><title>{week.label}{week.partial ? ' — partial week' : ''}</title><text x={left+(i+.5)*cell} y="16" textAnchor="middle" fontSize={weeks.length>30?8:10} fill="#52616d">{`W${String(week.week).padStart(2,'0')}`}{week.partial?'*':''}</text>{(i===0 || week.year!==weeks[i-1].year) && <text x={left+i*cell} y="30" fontSize="10" fill="#52616d">{week.year}</text>}</g>)}
         {panel.rows.map((row,j) => {
           const top=40+j*rowHeight, height=rowHeight-5;
-          return <g key={row.location}><text x="0" y={top+16} fontSize="12" fill="#203b50">{row.location.length>26?`${row.location.slice(0,25)}…`:row.location}<title>{row.location}</title></text>
+          return <g key={row.location}>{selected===row.location&&<rect x="0" y={top-2} width="950" height={rowHeight} fill="#e4f1f5"/>}<g role={onSelect?'button':undefined} tabIndex={onSelect?0:undefined} aria-label={onSelect?`Select ${row.location} on map`:undefined} onClick={()=>onSelect?.(row.location)} onKeyDown={e=>{if(onSelect&&['Enter',' '].includes(e.key)){e.preventDefault();onSelect(row.location);}}} style={{cursor:onSelect?'pointer':'default'}}><text x="0" y={top+16} fontSize="12" fill="#203b50">{row.location.length>26?`${row.location.slice(0,25)}…`:row.location}<title>{row.location}</title></text></g>
             {row.values.map((value,i) => {
               const week=weeks[i], x=left+i*cell;
               const description=`${panel.province} / ${row.location} · ${week.label}${week.partial?' (partial week)':''}: ${value===null?'comparison unavailable':`${value>0?'+':''}${number(value)} change in reported cumulative cases`}. ${week.start||'No previous report'}–${week.end||'No current report'}${week.days?` (${week.days} days)`:''}.`;

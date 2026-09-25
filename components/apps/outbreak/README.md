@@ -47,6 +47,22 @@ Recognizable, unambiguous headers are suggested; users review geographic level,
 measure type, units, mapping and preview before confirmation. Existing mappings
 remain editable and ambiguous headers require an explicit choice.
 
+## Recommended actions (full-screen overview)
+
+The full-screen overview has a **Recommended actions** rail. It opens with the
+rule-based suggestions (`recommendations()` in `lib/outbreak/overview.js`).
+**Draft with AI** sends a numbered evidence package (`lib/outbreak/actionPlan.js`)
+to `/api/outbreak-actions`. The package covers first reports, reported increases,
+burden, weekly trends, reporting gaps, security, mining, movement, response
+indicators, missing layers and open plan items. GPT-4o drafts at most six
+actions, each tagged with a pillar from `actionPlaybook.json`, an urgency (24h,
+72h or week) and a confidence level. The server drops any action that cites
+unknown evidence, names an area not in the evidence, or uses a number not found
+in its cited evidence. **Add to response plan** creates a Proposed action. Only
+the cited evidence sentences are kept as its basis. The rail shows overdue,
+blocked and unassigned plan items. The last draft is kept for the session, and a
+notice appears when the situation data has changed since it was drafted.
+
 ## Workflow
 
 ### Daily response brief
@@ -454,3 +470,46 @@ map location. Unknown and ambiguous names also remain available. Source records
 are preserved in snapshots, allowing re-matching after boundaries change.
 Identical location/date duplicates are counted once; conflicting values become
 missing and are listed for review, never summed or silently overwritten.
+
+### Monitoring pages and configurable decline threshold
+
+Dashboard and the full-screen presentation share four pages: Overview, High
+burden & movement, Reporting history, and Case trends. Selections link maps,
+ranked zones, movement connections and horizontal history. The overview horizon
+chart supports 3, 6 and 26 weeks; zone labels select the same zone on the map.
+
+High burden ranks current cumulative reports or recent reported increases and
+shows the leading individual inbound/outbound connections for each priority
+zone. Movement keeps its own observation period and units; missing or future
+movement data cannot establish a connection. Cumulative burden is not current
+caseload, and historical movement is not proof of transmission.
+
+Reporting history has 3- and 6-week windows and separate measures for missing
+valid reports and continued unchanged cumulative reports. Gaps run from the last
+valid observation to the selected cut-off, including time after the latest feed
+report. Never-reported boundaries stay unknown. Unchanged runs end at the last
+valid observation; an explicit missing value, downward revision or gap longer
+than eight days breaks the run. A stale or missing latest observation cannot
+establish continued reporting. These views do not establish zero infections or
+end-of-outbreak criteria. Non-geographic rollups identified by the source
+reference config are excluded from zone monitoring.
+
+Case trends uses three successive reporting intervals and two comparisons.
+Four common cumulative reporting dates are needed. Exact seven-day intervals
+are preferred, with six- or eight-day intervals allowed for irregular reporting.
+The table shows the actual dates, changes and per-day accumulation rates;
+percentage changes compare those rates so unequal durations are not treated as
+equal weeks. Both comparisons must decline by the chosen percentage. The default
+is 10%, editable from 1–100% on the page or in full-screen presentation. Changes
+update map categories and key-message summaries immediately. Missing endpoints,
+intermediate missing observations, downward revisions, stale reports and zero
+percentage denominators cannot support a sustained-decline classification.
+A recent decline below the threshold remains separate from a sustained decline.
+
+Defaults, windows, reporting tolerances and colour categories are in
+`lib/outbreak/monitoringConfig.json`; no country-specific place names are used.
+All controls are stored in `monitorOptions` in saved snapshots and working
+drafts, with defaults for older saved versions. Coordinator message overrides
+remain authoritative; automatic summaries return when the override is cleared.
+The Sitrep assessment includes the same area-monitoring highlights and chosen
+threshold, so printed and exported reports retain that interpretation.

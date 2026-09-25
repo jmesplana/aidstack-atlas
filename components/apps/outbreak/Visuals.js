@@ -31,7 +31,7 @@ function exportSVG(ref,name) {
   copy.setAttribute('xmlns','http://www.w3.org/2000/svg');
   download(name,new XMLSerializer().serializeToString(copy),'image/svg+xml');
 }
-export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, mines=[], events=[], hazards=[], sites=[], selected, onSelect, label, asOf, source, focusNames=[], routes=[], routeDirection='outflow', routeUnit, documentSignals=[], overlayCaption='', highlightNames=[], groupLabels=false, callout=null, presentation=false, fillContainer=false }) {
+export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, mines=[], events=[], hazards=[], sites=[], selected, onSelect, label, asOf, source, focusNames=[], routes=[], routeDirection='outflow', routeUnit, documentSignals=[], overlayCaption='', highlightNames=[], groupLabels=false, callout=null, presentation=false, fillContainer=false, categoryStyles=null }) {
   const fill=fillContainer||presentation;
   const [frameHeight,setFrameHeight]=useState(440);
   const plotHeight=fill?frameHeight:440,plotTop=fill?0:66;
@@ -117,11 +117,13 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
   const values=new Map(level===boundaryLevel?rows.map(r=>[r.location,r]):[]),mappedNames=new Set(shapes.features.map(f=>f.name));
   const known=[...values.values()].filter(r=>r.value!==null&&mappedNames.has(r.location));
   const max=Math.max(0,...known.map(r=>Math.abs(r.value)));
-  const areaFill=r=>!r||r.value===null?'#e3e8ed':r.value===0?'#fff':r.value<0?'#3283b4':`hsl(12 76% ${88-46*Math.sqrt(r.value/Math.max(.000001,max))}%)`;
+  const areaFill=r=>categoryStyles?(categoryStyles[r?.category]?.color||'#e3e8ed'):!r||r.value===null?'#e3e8ed':r.value===0?'#fff':r.value<0?'#3283b4':`hsl(12 76% ${88-46*Math.sqrt(r.value/Math.max(.000001,max))}%)`;
   const priority=new Set([...known].sort((a,b)=>Math.abs(b.value)-Math.abs(a.value)).slice(0,8).map(r=>r.location));
   if(selected)priority.add(selected);
   const allowed=labels==='none'?new Set():labels==='all'?new Set(shapes.features.map(f=>f.name)):priority;
   const visibleLabels=placeLabels(shapes.features,view,selected,allowed,renderScale,dimensions);
+  const waterColor=presentation?'#c4d9e8':'#f8fafc';
+  const landColor=presentation?'#dde9d8':'#fff';
   const point=(p)=>p.longitude!==''&&p.latitude!==''&&p.longitude!=null&&p.latitude!=null&&Number.isFinite(Number(p.longitude))&&Number.isFinite(Number(p.latitude))&&p.longitude>=shapes.west&&p.longitude<=shapes.east&&p.latitude>=shapes.south&&p.latitude<=shapes.north;
   const signalGroups=[...documentSignals.reduce((groups,f)=>{const key=JSON.stringify([f.mapLocation,f.kind,f.themes[0]||'']);const group=groups.get(key)||[];group.push(f);groups.set(key,group);return groups;},new Map()).values()];
   const groupNames=new Map();
@@ -149,16 +151,21 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
       <label>Admin labels<select aria-label={`Admin labels for ${label}`} value={labels} onChange={e=>setLabels(e.target.value)}><option value="priority">Leading areas</option><option value="all">All areas (avoid overlap)</option><option value="none">Hide labels</option></select></label>
       <span style={{fontSize:12,color:'#597086'}}>Drag to pan · scroll or pinch to zoom · arrows to pan when focused</span>
     </div>}
-    <svg ref={ref} viewBox={`0 0 900 ${mapHeight}`} role="img" aria-label={`${label} map`} style={{width:'100%',maxHeight:fill?'none':'65vh',userSelect:'none',background:'#f8fafc',border:'1px solid #dce5ed',borderRadius:8}}>
-      <title>{label} — reporting cut-off {asOf}</title><rect width="900" height={mapHeight} fill="#fff"/>
+    {presentation&&<div data-print-hide="true" className={styles.mapZoomControls}>
+      <button type="button" aria-label="Zoom in" onClick={()=>zoomBy(.65)}>＋</button>
+      <button type="button" aria-label="Reset view" onClick={()=>setViewport(null)} title="Reset to relevant areas">⊙</button>
+      <button type="button" aria-label="Zoom out" onClick={()=>zoomBy(1.5)}>−</button>
+    </div>}
+    <svg ref={ref} viewBox={`0 0 900 ${mapHeight}`} role="img" aria-label={`${label} map`} style={{width:'100%',maxHeight:fill?'none':'65vh',userSelect:'none',background:waterColor,border:'1px solid #dce5ed',borderRadius:8}}>
+      <title>{label} — reporting cut-off {asOf}</title><rect width="900" height={mapHeight} fill={landColor}/>
       {!fill&&<><text x="22" y="28" fontSize="19" fontWeight="bold" fontFamily="sans-serif" fill="#18334b">{label.slice(0,78)}</text>
       <text x="22" y="50" fontSize="12" fontFamily="sans-serif" fill="#536c81">{presentation?'Cumulative confirmed cases · amber outlines: first positive reports':`${boundaryLevel} · ${kind} · ${unit} · cut-off ${asOf}; observation dates may differ`}</text></>}
       <svg ref={mapRef} role="group" tabIndex="0" aria-label={`Pan and zoom ${label}`} x="0" y={plotTop} width="900" height={plotHeight} viewBox={view.join(' ')} data-map-viewport="true" style={{touchAction:'none',cursor:'grab'}}
         onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}
         onDoubleClick={e=>{e.preventDefault();setViewport(mapZoom(view,.65,screenPoint(e)));}}
         onKeyDown={e=>{const shift={ArrowLeft:[-.12,0],ArrowRight:[.12,0],ArrowUp:[0,-.12],ArrowDown:[0,.12]}[e.key];if(shift){e.preventDefault();setViewport([view[0]+shift[0]*view[2],view[1]+shift[1]*view[3],view[2],view[3]]);}else if(['+','=','-','Home'].includes(e.key)){e.preventDefault();if(e.key==='Home')setViewport(null);else zoomBy(e.key==='-'?1.25:.8);}}}>
-        <rect x="-10000" y="-10000" width="20000" height="20000" fill="#f3f6f9"/>
-        {shapes.features.map(f=><path key={f.name} data-admin={f.name} d={f.path} fill={areaFill(values.get(f.name))} fillRule="evenodd" stroke={selected===f.name?'#113d64':highlightNames.includes(f.name)?'#c88700':'#9aaaba'} strokeWidth={selected===f.name?2:highlightNames.includes(f.name)?2.5:.65} vectorEffect="non-scaling-stroke"><title>{f.name}: {values.has(f.name)?`${values.get(f.name).value??'No data'} ${unit||''} (${values.get(f.name).date})`:'No matched observation'}</title></path>)}
+        <rect x="-10000" y="-10000" width="20000" height="20000" fill={presentation?waterColor:'#f3f6f9'}/>
+        {shapes.features.map(f=><path key={f.name} data-admin={f.name} data-category={categoryStyles?values.get(f.name)?.category:undefined} d={f.path} fill={areaFill(values.get(f.name))} fillRule="evenodd" stroke={selected===f.name?'#113d64':highlightNames.includes(f.name)?'#c88700':'#9aaaba'} strokeWidth={selected===f.name?2:highlightNames.includes(f.name)?2.5:.65} vectorEffect="non-scaling-stroke"><title>{f.name}: {categoryStyles?(values.get(f.name)?.detail||categoryStyles[values.get(f.name)?.category]?.label||'No matched observation'):values.has(f.name)?`${values.get(f.name).value??'No data'} ${unit||''} (${values.get(f.name).date})`:'No matched observation'}</title></path>)}
         <defs><marker id={arrowId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill={routeColor}/></marker></defs>
         {routes.map((r,i)=>{
           const a=shapes.features.find(f=>f.name===r.origin)?.center,b=shapes.features.find(f=>f.name===r.destination)?.center;
@@ -194,7 +201,7 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
       {documentSignals.length>0&&<text x="22" y={mapHeight-10} fontFamily="sans-serif" fontSize="11" fill="#536c81">AI-extracted findings may be incomplete or incorrect. Verify source. Circles: themes; squares: vaccination reports.</text>}
       {overlayCaption&&<text x="22" y="596" fontFamily="sans-serif" fontSize="11" fill="#536c81">{overlayCaption}</text>}</>}
     </svg>
-    {fill&&<div className={styles.mapLegend}><span><i style={{background:'#e3e8ed'}}/>No data</span><span><i style={{background:'white'}}/>Zero</span><span><i style={{background:'hsl(12 76% 42%)'}}/>Darker: {kind==='directed mobility'?unit:'more cases'} · max {known.length?formatValue(max):'unknown'}</span>{kind==='directed mobility'?<span style={{color:routeColor}}>→ {routeDirection==='inflow'?'Inflow':'Outflow'} · origin to destination</span>:<span>Amber: first positive report</span>}</div>}
+    {fill&&(categoryStyles?<div className={styles.mapLegend} aria-label="Map categories">{Object.entries(categoryStyles).map(([key,c])=><span key={key}><i style={{background:c.color}}/>{c.label}</span>)}</div>:<div className={styles.mapLegend}><span><i style={{background:'#e3e8ed'}}/>No data</span><span><i style={{background:'white'}}/>Zero</span><span><i style={{background:'hsl(12 76% 42%)'}}/>Darker: {kind==='directed mobility'?unit:'more cases'} · max {known.length?formatValue(max):'unknown'}</span>{kind==='directed mobility'?<span style={{color:routeColor}}>→ {routeDirection==='inflow'?'Inflow':'Outflow'} · origin to destination</span>:<span>Amber: first positive report</span>}</div>)}
     {!presentation&&<p data-print-hide="true" style={{fontSize:12,color:"#536c81"}}>Labels are spaced to avoid overlap. Zoom in to reveal more; select an area to keep its label visible.</p>}
     {level!==boundaryLevel&&<p>Map values hidden: dataset level ({level||'none'}) differs from boundary level ({boundaryLevel}).</p>}
     {!presentation&&<button type="button" onClick={()=>exportSVG(ref,'outbreak-map.svg')}>Export map SVG</button>}

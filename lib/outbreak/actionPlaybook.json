@@ -1,0 +1,22 @@
+{
+  "urgency": [
+    {"id": "24h", "label": "Next 24 hours"},
+    {"id": "72h", "label": "Next 72 hours"},
+    {"id": "week", "label": "This week"}
+  ],
+  "confidence": ["high", "medium", "low"],
+  "timeframes": [1, 2, 3, 24, 48, 72, 7, 14, 21, 42],
+  "pillars": [
+    {"id": "coordination", "label": "Coordination", "activities": "Activate or reinforce area coordination, assign lead partner, escalate resource requests, joint field missions"},
+    {"id": "surveillance", "label": "Surveillance & contact tracing", "activities": "Alert investigation, active case finding, contact listing and 21-day follow-up, reporting completeness checks, community-based surveillance"},
+    {"id": "laboratory", "label": "Laboratory", "activities": "Sample transport, testing turnaround, mobile lab placement"},
+    {"id": "case_management", "label": "Case management", "activities": "Isolation and treatment capacity, referral pathways, ambulance availability, triage at health facilities"},
+    {"id": "ipc", "label": "Infection prevention & control", "activities": "IPC assessment and support in health facilities, health-worker protection, decontamination"},
+    {"id": "sdb", "label": "Safe & dignified burial", "activities": "SDB team capacity and response time, community alert for deaths"},
+    {"id": "vaccination", "label": "Vaccination", "activities": "Ring vaccination of contacts and contacts of contacts, front-line worker vaccination, cold chain"},
+    {"id": "rcce", "label": "Community engagement / RCCE", "activities": "Community feedback, rumour tracking, engagement with leaders, mining and mobile populations"},
+    {"id": "poe", "label": "Points of entry & mobility", "activities": "Screening at points of control, readiness in receiving areas, cross-border information sharing"},
+    {"id": "logistics", "label": "Logistics & supplies", "activities": "PPE and medical supply pipeline, prepositioning, transport"},
+    {"id": "access", "label": "Security & access", "activities": "Access negotiation, movement planning, alternative delivery modalities"}
+  ]
+}

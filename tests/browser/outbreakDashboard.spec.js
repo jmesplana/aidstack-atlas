@@ -284,3 +284,211 @@ test('equal dashboard columns and section focus preserve map state and work on m
   await expect(focused).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+const monitorNames=['Declining','Rising','Quiet','Gap3','Gap6','Never','Receiver'];
+const monitorBoundaries=monitorNames.map((nom,i)=>({...boundaries[0],id:nom,name:nom,properties:{...boundaries[0].properties,nom,province:'Test province'},geometry:{type:'Polygon',coordinates:[[[25+i,1],[26+i,1],[26+i,2],[25+i,2],[25+i,1]]]}}));
+const monitorDates=['2026-08-31','2026-09-07','2026-09-14','2026-09-21'];
+const monitorCases={...dataset(),records:[
+  ...[0,100,190,271].map((value,i)=>({location:'Declining',date:monitorDates[i],value})),
+  ...[0,20,45,95].map((value,i)=>({location:'Rising',date:monitorDates[i],value})),
+  ...Array.from({length:7},(_,i)=>({location:'Quiet',date:new Date(Date.parse('2026-08-10')+i*7*86400000).toISOString().slice(0,10),value:10})),
+  {location:'Gap3',date:'2026-08-31',value:2},{location:'Gap6',date:'2026-08-10',value:3}
+]};
+const monitorMovement={...movement,routes:[{origin:'Declining',destination:'Receiver',value:50},{origin:'Receiver',destination:'Declining',value:20}]};
+async function openMonitoring(page){
+  await openOutbreak(page,monitorBoundaries,route=>{const kind=new URL(route.request().url()).searchParams.get('kind');return route.fulfill({json:kind==='indicators'?{datasets:[monitorCases]}:kind==='mines'?{data:[]}:kind==='relocations'?monitorMovement:{products:[]}});});
+  await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-21');
+}
+
+test('live decline threshold updates map, key message, presentation and saved snapshot',async({page},testInfo)=>{
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await openMonitoring(page);
+  await page.getByRole('navigation',{name:'Dashboard views'}).getByRole('button',{name:'Case trends',exact:true}).click();
+  const map=page.getByRole('region',{name:'Case trend map',exact:true});
+  await expect(map.locator('path[data-admin="Declining"]')).toHaveAttribute('data-category','declining');
+  await expect(map.locator('path[data-admin="Rising"]')).toHaveAttribute('data-category','rising');
+  await expect(map.locator('path[data-admin="Never"]')).toHaveAttribute('data-category','unknown');
+  await page.getByLabel('Sustained decline threshold (%)',{exact:true}).fill('11');
+  await expect(map.locator('path[data-admin="Declining"]')).toHaveAttribute('data-category','falling');
+  await expect(page.getByRole('region',{name:'Key message'})).toContainText('at least 11%');
+  await page.getByLabel('Sustained decline threshold (%)',{exact:true}).fill('10');
+  await page.getByRole('region',{name:'Case trend comparisons'}).getByRole('button',{name:'Declining',exact:true}).click();
+  await expect(page.getByLabel('Selected case trend',{exact:true})).toContainText('Sustained decline');
+  await page.screenshot({path:testInfo.outputPath('case-trends.png'),fullPage:true});
+  await page.getByRole('button',{name:'Full-screen dashboard',exact:true}).click();
+  const board=page.getByRole('dialog',{name:'Decision dashboard',exact:true});
+  await expect(board.getByLabel('Presentation page')).toHaveValue('trends');
+  await board.getByLabel('Sustained decline threshold (%)',{exact:true}).fill('15');
+  await expect(board.locator('path[data-admin="Declining"]')).toHaveAttribute('data-category','falling');
+  await board.getByRole('button',{name:'Exit full-screen dashboard',exact:true}).click();
+  await expect(page.getByLabel('Sustained decline threshold (%)',{exact:true})).toHaveValue('15');
+  await page.getByRole('button',{name:/Save snapshot/}).click();
+  await expect(page.getByLabel('Saved snapshots').locator('option')).toHaveCount(2);
+  await page.getByLabel('Sustained decline threshold (%)',{exact:true}).fill('25');
+  await page.getByText('Report settings & saved versions',{exact:true}).click();
+  page.once('dialog',dialog=>dialog.accept());
+  await page.getByLabel('Saved snapshots').selectOption({index:1});
+  await expect(page.getByLabel('Sustained decline threshold (%)',{exact:true})).toHaveValue('15');
+  await page.getByRole('navigation',{name:'Outbreak sections'}).getByRole('button',{name:'Sitrep',exact:true}).click();
+  await expect(page.getByRole('article',{name:'Sitrep print preview'}).getByLabel('Area monitoring summary',{exact:true})).toContainText('at least 15%');
+  expect(errors).toEqual([]);
+});
+
+test('reporting pages separate 3/6-week gaps from unchanged reports and link history to map',async({page},testInfo)=>{
+  await openMonitoring(page);
+  await page.getByRole('navigation',{name:'Dashboard views'}).getByRole('button',{name:'Reporting history',exact:true}).click();
+  const map=page.getByRole('region',{name:'Reporting status map',exact:true});
+  await expect(map.locator('path[data-admin="Gap3"]')).toHaveAttribute('data-category','gap3');
+  await expect(map.locator('path[data-admin="Gap6"]')).toHaveAttribute('data-category','gap6');
+  await expect(map.locator('path[data-admin="Quiet"]')).toHaveAttribute('data-category','recent');
+  await expect(map.locator('path[data-admin="Never"]')).toHaveAttribute('data-category','unknown');
+  await page.getByRole('combobox',{name:'History window',exact:true}).selectOption('6');
+  await page.getByLabel('Only zones with at least 6 weeks',{exact:true}).check();
+  const history=page.getByRole('region',{name:'Horizontal reporting history',exact:true});
+  await expect(history.getByRole('button',{name:'Gap6',exact:true})).toBeVisible();
+  await expect(history.getByRole('button',{name:'Gap3',exact:true})).toHaveCount(0);
+  await history.getByRole('button',{name:'Gap6',exact:true}).click();
+  await expect(page.getByLabel('Selected reporting status',{exact:true})).toContainText('Gap6');
+  await page.getByRole('combobox',{name:'Reporting measure',exact:true}).selectOption('quiet');
+  await expect(map.locator('path[data-admin="Quiet"]')).toHaveAttribute('data-category','quiet6');
+  await expect(map.locator('path[data-admin="Gap6"]')).toHaveAttribute('data-category','stale');
+  await history.getByRole('button',{name:'Quiet',exact:true}).click();
+  await expect(page.getByLabel('Selected reporting status',{exact:true})).toContainText('42 days');
+  await expect(history.getByRole('columnheader')).toHaveCount(8);
+  await page.screenshot({path:testInfo.outputPath('reporting-history.png'),fullPage:true});
+  await page.setViewportSize({width:390,height:844});
+  await expect(page.getByRole('region',{name:'Reporting timeline',exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+});
+
+test('high-burden page connects ranked zones to movement and horizon windows link back to map',async({page},testInfo)=>{
+  await openMonitoring(page);
+  await page.getByRole('navigation',{name:'Dashboard views'}).getByRole('button',{name:'High burden & movement',exact:true}).click();
+  const connections=page.getByRole('region',{name:'High burden connections',exact:true});
+  await expect(connections.getByRole('row').filter({hasText:'Declining'})).toContainText('Receiver: 50');
+  await connections.getByRole('button',{name:'Declining',exact:true}).click();
+  const mobility=page.getByRole('region',{name:'High burden mobility',exact:true});
+  await expect(mobility.locator('[data-mobility-route="Declining → Receiver"]')).toHaveCount(1);
+  await mobility.getByLabel('Movement direction',{exact:true}).selectOption('inflow');
+  await expect(connections.getByRole('row').filter({hasText:'Declining'})).toContainText('Receiver: 20');
+  await page.screenshot({path:testInfo.outputPath('burden-movement.png'),fullPage:true});
+  await page.getByRole('navigation',{name:'Dashboard views'}).getByRole('button',{name:'Overview',exact:true}).click();
+  await page.getByRole('combobox',{name:'Trend history window',exact:true}).selectOption('3');
+  const trends=page.getByRole('region',{name:'Dashboard health-zone trends',exact:true});
+  await expect(trends).toContainText('last 3 weeks');
+  await trends.getByRole('button',{name:'Select Declining on map',exact:true}).click();
+  await expect(page.getByLabel('Health zone',{exact:true})).toHaveValue('Declining');
+});
+
+test('full-screen actions rail drafts grounded AI actions and adds them to the response plan',async({page},testInfo)=>{
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.setViewportSize({width:1600,height:900});
+  await openMonitoring(page);
+  let sent=null;
+  await page.route('**/api/outbreak-actions',route=>{
+    sent=route.request().postDataJSON().evidence;
+    const growth=sent.find(e=>e.kind==='growth'&&e.areas[0]==='Rising');
+    return route.fulfill({json:{actions:[{id:'ai-1',source:'ai',title:'Investigate rising reports in Rising',pillar:'surveillance',urgency:'24h',confidence:'medium',areas:['Rising'],evidence:[growth.id],action:'Deploy an investigation team within 48 hours.',rationale:'Reported cases rose.',dataNeeded:'Contact follow-up rates'}],dataGaps:['No vaccination indicators are loaded.']}});
+  });
+  await page.getByRole('button',{name:'Full-screen dashboard',exact:true}).click();
+  const board=page.getByRole('dialog',{name:'Decision dashboard',exact:true});
+  const rail=board.getByRole('complementary',{name:'Recommended actions',exact:true});
+  await expect(rail).toContainText('Rule-based suggestions');
+  await expect(rail.getByRole('listitem').first()).toBeVisible();
+  await rail.getByRole('button',{name:'Draft with AI',exact:true}).click();
+  await expect(rail.getByRole('heading',{name:'Investigate rising reports in Rising'})).toBeVisible();
+  expect(sent.some(e=>e.kind==='mobility'&&e.areas.includes('Receiver'))).toBe(true);
+  await expect(rail).toContainText('Next 24 hours');
+  await expect(rail.getByLabel('Data gaps')).toContainText('No vaccination indicators');
+  await rail.getByText(/^Why · 1 evidence item$/).click();
+  await expect(rail).toContainText('→ 95');
+  await rail.getByRole('button',{name:'Show Rising on map',exact:true}).click();
+  await expect(board.getByLabel('Health-zone map callout')).toContainText('Rising');
+  await rail.getByRole('button',{name:'Add to response plan',exact:true}).click();
+  await expect(rail.getByRole('button',{name:'In response plan ✓',exact:true})).toBeDisabled();
+  await expect(rail.getByLabel('Response plan status')).toContainText('1 action');
+  await expect(rail).not.toContainText('Data has changed');
+  const layout=await board.evaluate(el=>({scroll:el.scrollHeight,height:el.clientHeight}));
+  expect(layout.scroll).toBeLessThanOrEqual(layout.height+1);
+  await page.screenshot({path:testInfo.outputPath('decision-actions.png')});
+  await rail.getByRole('button',{name:'Open plan',exact:true}).click();
+  await expect(board).toHaveCount(0);
+  await expect(page.getByLabel('Action, rationale and decision requested').first()).toHaveValue(/Investigate rising reports in Rising\..*→ 95.*AI-drafted/);
+  expect(errors).toEqual([]);
+});
+
+test('case trend comparisons hide zones with no reported change',async({page})=>{
+  await openMonitoring(page);
+  await page.getByRole('navigation',{name:'Dashboard views'}).getByRole('button',{name:'Case trends',exact:true}).click();
+  const table=page.getByRole('region',{name:'Case trend comparisons',exact:true});
+  await expect(table.getByRole('button',{name:'Rising',exact:true})).toBeVisible();
+  await expect(table.getByRole('button',{name:'Gap6',exact:true})).toHaveCount(0);
+  await expect(table.getByRole('button',{name:'Quiet',exact:true})).toHaveCount(0);
+  await table.getByLabel(/Show \d+ health zones with no reported change in these weeks/).check();
+  await expect(table.getByRole('button',{name:'Gap6',exact:true})).toBeVisible();
+  await expect(table.getByRole('row').filter({hasText:'Quiet'})).toContainText('Same daily rate in all three weeks');
+});
+
+test('case trend comparisons sort by assessment and filter from the status counts',async({page})=>{
+  await openMonitoring(page);
+  await page.getByRole('navigation',{name:'Dashboard views'}).getByRole('button',{name:'Case trends',exact:true}).click();
+  const table=page.getByRole('region',{name:'Case trend comparisons',exact:true});
+  const rows=table.getByRole('row');
+  await expect(rows.nth(1)).toContainText('Rising reported rate');
+  await expect(rows.nth(2)).toContainText('Sustained decline');
+  const filters=page.getByRole('group',{name:'Filter comparisons by assessment',exact:true});
+  await filters.getByRole('button',{name:/Rising reported rate/}).click();
+  await expect(filters.getByRole('button',{name:/Rising reported rate/})).toHaveAttribute('aria-pressed','true');
+  await expect(table.getByRole('button',{name:'Rising',exact:true})).toBeVisible();
+  await expect(table.getByRole('button',{name:'Declining',exact:true})).toHaveCount(0);
+  await filters.getByRole('button',{name:/Unchanged reported rate/}).click();
+  await expect(table.getByRole('button',{name:'Quiet',exact:true})).toBeVisible();
+  await table.getByRole('button',{name:'Show all assessments',exact:true}).click();
+  await expect(table.getByRole('button',{name:'Declining',exact:true})).toBeVisible();
+  await expect(table.getByRole('button',{name:'Quiet',exact:true})).toHaveCount(0);
+});
+
+test('case trend comparisons export the filtered, sorted rows as CSV',async({page})=>{
+  await openMonitoring(page);
+  await page.getByRole('navigation',{name:'Dashboard views'}).getByRole('button',{name:'Case trends',exact:true}).click();
+  const table=page.getByRole('region',{name:'Case trend comparisons',exact:true});
+  await page.getByRole('group',{name:'Filter comparisons by assessment',exact:true}).getByRole('button',{name:/Rising reported rate/}).click();
+  const [file]=await Promise.all([page.waitForEvent('download'),table.getByRole('button',{name:/^Export CSV \(\d+\)$/}).click()]);
+  expect(file.suggestedFilename()).toBe('case-trends_2026-09-21_rising.csv');
+  const lines=require('fs').readFileSync(await file.path(),'utf8').replace(/^﻿/,'').trim().split('\n');
+  expect(lines[0]).toMatch(/^health_zone,province,reported_change_/);
+  expect(lines.slice(1).every(l=>l.includes('Rising reported rate'))).toBe(true);
+  expect(lines.some(l=>l.startsWith('Rising,'))).toBe(true);
+});
+
+test('case trend table explains each comparison and the assessment',async({page},testInfo)=>{
+  await openMonitoring(page);
+  await page.getByRole('navigation',{name:'Dashboard views'}).getByRole('button',{name:'Case trends',exact:true}).click();
+  const table=page.getByRole('region',{name:'Case trend comparisons',exact:true});
+  const map=page.getByRole('region',{name:'Case trend map',exact:true});
+  await page.setViewportSize({width:1600,height:900});
+  const [mapBox,tableBox]=[await map.boundingBox(),await table.boundingBox()];
+  expect(tableBox.x).toBeGreaterThan(mapBox.x+mapBox.width-1);
+  await table.getByRole('button',{name:'ⓘ How to read',exact:true}).click();
+  const guide=page.getByRole('dialog',{name:'How to read these trends',exact:true});
+  await expect(guide).toContainText('by any amount');
+  await page.keyboard.press('Escape');
+  await expect(guide).toHaveCount(0);
+  await expect(page.getByRole('region',{name:'How to read these trends'})).toHaveCount(0);
+  const row=page.getByRole('region',{name:'Case trend comparisons',exact:true}).getByRole('row').filter({hasText:'Rising'}).first();
+  await expect(row).toContainText('Wk 1 → 2');
+  await expect(row).toContainText('Wk 2 → 3');
+  expect(Math.abs(tableBox.width-mapBox.width)).toBeLessThan(2);
+  for(const width of [1280,1440,1600,1900]){
+    await page.setViewportSize({width,height:900});
+    const wrap=await table.locator('table').evaluate(t=>({need:t.scrollWidth,have:t.parentElement.clientWidth,cols:[...t.rows[1].cells].map(c=>Math.round(c.getBoundingClientRect().width))}));
+    expect(wrap.need).toBeLessThanOrEqual(wrap.have+1);
+  }
+  await expect(row).toContainText('Any increase counts as rising');
+  await page.setViewportSize({width:1900,height:1000});
+  await page.getByRole('region',{name:'Case trend comparisons',exact:true}).getByRole('button',{name:'Rising',exact:true}).click();
+  await expect(page.getByLabel('Selected case trend',{exact:true})).toContainText('Week 2 → 3: +100%');
+  await page.setViewportSize({width:1600,height:900});
+  await map.scrollIntoViewIfNeeded();
+  await page.screenshot({path:testInfo.outputPath('trend-top.png')});
+});
