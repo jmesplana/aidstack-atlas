@@ -1,0 +1,74 @@
+{
+  "references": [
+    {
+      "id": "drc-insp-health-zones",
+      "label": "DRC INSP health zones",
+      "appliesTo": {
+        "origin": "public",
+        "idPrefix": "insp:",
+        "levels": [
+          "health_zone"
+        ]
+      },
+      "source": "https://github.com/INRB-UMIE/BDBV2026-Data/blob/39df58b51c07bb4a5d3bbbb6e62d4d91f3445625/data/aliases.csv",
+      "reviewedOn": "2026-09-25",
+      "nonGeographicNames": [
+        "NA",
+        "Sans Fiche"
+      ],
+      "aliases": {
+        "Manguripa": "Manguredjipa",
+        "Rumba": "Rimba",
+        "Tchomai": "Tchomia",
+        "Lubunga": "Lubunga (Tshopo)",
+        "Banjow Moke": "Banzow Moke",
+        "Bena Tshiadi": "Bena Tshadi",
+        "Bogosenubia": "Bogosenubea",
+        "Boko-Kivulu": "Boko Kivulu",
+        "Boma-Mangbetu": "Boma Mangbetu",
+        "Bosanga": "Busanga",
+        "Djalo Djeka": "Djalo Ndjeka",
+        "Gethy": "Gety",
+        "Gombe-Matadi": "Gombe Matadi",
+        "Hauts-Plateaux": "Haut Plateau",
+        "Kabeya Kamuanga": "Kabeya Kamwanga",
+        "Kalamu I": "Kalamu 1",
+        "Kalamu II": "Kalamu 2",
+        "Kasa-Vubu": "Kasa Vubu",
+        "Kikwit-Nord": "Kikwit Nord",
+        "Kikwit-Sud": "Kikwit Sud",
+        "Kimbau": "Kimbao",
+        "Kiyambi": "Kiambi",
+        "Kwilu-Ngongo": "Kwilu Ngongo",
+        "Lolanga Mampoko": "Mampoko",
+        "Makiso-Kisangani": "Makiso Kisangani",
+        "Malemba": "Malemba Nkulu",
+        "Maluku I": "Maluku 1",
+        "Maluku II": "Maluku 2",
+        "Masa": "Massa",
+        "Masi-Manimba": "Masi Manimba",
+        "Masina I": "Masina 1",
+        "Masina II": "Masina 2",
+        "Mbanza-Ngungu": "Mbanza Ngungu",
+        "Miti-Murhesa": "Miti Murhesa",
+        "Moanda": "Muanda",
+        "Mongbalu": "Mongbwalu",
+        "Mont Ngafula I": "Mont Ngafula 1",
+        "Mont Ngafula II": "Mont Ngafula 2",
+        "Mwene Ditu": "Mweneditu",
+        "Ndjoko-Mpunda": "Ndjoko Mpunda",
+        "Ngiri-Ngiri": "Ngiri Ngiri",
+        "Nia-Nia": "Nia Nia",
+        "Nsona-Mpangu": "Nsona Mpangu",
+        "Nyakunde": "Nyankunde",
+        "Penjwa": "Pendjwa",
+        "Rwashi": "Ruashi",
+        "Seke-Banza": "Seke Banza",
+        "Sona-Bata": "Sona Bata",
+        "Tshitenge": "Citenge",
+        "Yalifafo": "Yalifafu",
+        "Yasa-Bonga": "Yasa Bonga"
+      }
+    }
+  ]
+}

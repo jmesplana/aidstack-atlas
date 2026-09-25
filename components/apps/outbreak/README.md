@@ -422,3 +422,35 @@ strips. It hides setup, editing, export and map configuration controls. Automati
 refresh continues under the same live/historical rules. Escape or Exit returns to
 the workspace; Deep analysis exits presentation and opens the sitrep. The background
 workspace is inert while presenting, and keyboard focus stays in the decision view.
+
+### CSV and boundary location matching
+
+Indicator records are reconciled against the loaded boundaries before maps,
+province summaries, trends and sitreps are calculated. Exact names take priority;
+case, accents, whitespace and hyphens may differ only when the resulting match
+is unique. Province qualifiers are preserved and fuzzy matches are never applied.
+
+Source-specific rules live in `lib/outbreak/locationReferences.json`. Each
+reference defines its dataset origin, ID prefix, geographic levels, aliases,
+non-geographic labels and provenance. Exactly one reference must match a dataset;
+unrelated uploads use only the general matching rules. To support another
+country's feed, add its scoped reference without changing the matching code.
+Every match is checked against the currently loaded GeoJSON, so replacing the
+geography does not retain assignments to the previous boundaries.
+
+The public INSP health-zone reference contains the INSP and July
+shapefile-migration entries from the upstream
+[`data/aliases.csv`](https://github.com/INRB-UMIE/BDBV2026-Data/blob/39df58b51c07bb4a5d3bbbb6e62d4d91f3445625/data/aliases.csv),
+reviewed on 2026-09-25. This resolves Makiso-Kisangani, Miti-Murhesa, Nia-Nia,
+Gethy, Lubunga and Rumba, including histories that switch between spellings.
+These source-specific corrections do not apply to unrelated uploads or national
+indicators. Update the bundled crosswalk and its pinned provenance together when
+new upstream corrections are verified.
+
+Location matching in Dashboard and Connected sources lists resolved variants
+and unlocated names across the full history. `NA` and `Sans Fiche` are documented
+non-geographic totals: their observations remain available without inventing a
+map location. Unknown and ambiguous names also remain available. Source records
+are preserved in snapshots, allowing re-matching after boundaries change.
+Identical location/date duplicates are counted once; conflicting values become
+missing and are listed for review, never summed or silently overwritten.

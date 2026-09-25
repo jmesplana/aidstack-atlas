@@ -9,6 +9,7 @@ import { formatValue } from '../../../lib/outbreak/data';
 import { OutbreakMap } from './Visuals';
 import { ProvinceHorizon } from './AreaHistory';
 import KeyMessage from './KeyMessage';
+import LocationMatching from './LocationMatching';
 import styles from './outbreak.module.css';
 
 const number = value => Number.isFinite(value) ? formatValue(value) : 'Unknown';
@@ -50,6 +51,7 @@ export default function Dashboard({ epi, geometry, boundaryLevel, message, asOf,
         {[['Reported cumulative cases',epi.zones.some(z=>z.value!==null)?number(epi.total):'Unknown'],['Health zones with cases',epi.dataset.level==='health_zone'?number(epi.affected.length):'Unavailable'],['First positive reports',epi.dataset.level==='health_zone'?number(alerts.length):'Unavailable'],['Health zones reporting',coverage?`${coverage.rows.reduce((n,r)=>n+r.reported,0)} / ${coverage.rows.reduce((n,r)=>n+r.total,0)}`:'Unavailable']].map(([label,value])=><div key={label}><span>{label}</span><strong>{value}</strong></div>)}
       </div>
       <p className={styles.helperText}>Totals cover available reports on {epi.date}; they may be partial. Cumulative cases do not represent current caseload. {epi.missing+epi.absent} case-series locations have missing or absent reports.</p>
+      <LocationMatching dataset={epi.dataset}/>
       <section className={styles.dashboardAlerts} aria-label="First positive reports"><div className={styles.sectionHeading}><h3>First positive reports in available history</h3><label>Alert window<select aria-label="Alert window" value={alertDays} onChange={e=>setAlertDays(Number(e.target.value))}><option value="7">Last 7 reporting days</option><option value="14">Last 14 reporting days</option><option value="30">Last 30 reporting days</option></select></label></div>
         {alerts.length?<div className={styles.dashboardAlertList}>{alerts.map(a=><button key={a.location} onClick={()=>chooseZone(a.location)}><strong>{a.location}</strong> · {a.date}<small>{a.priorZero?'Previously reported zero':'No earlier zero established'}</small></button>)}</div>:<p>No first positive reports identified in this window.</p>}
         <small>This describes the loaded history, not the first-ever infection. Amber map outlines mark these zones.</small>

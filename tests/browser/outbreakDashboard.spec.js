@@ -31,6 +31,35 @@ async function openOutbreak(page, boundaries=[], sourceHandler=null, acledData=[
 const boundaries=['A','B','C'].map((nom,i)=>({id:nom,name:nom,properties:{nom,flowminder:{_date:'2026-09-20',_unit:'source indicator units',outflow:i===0?12:i===1?0:null,inflow:i===0?8:i===1?2:null},province:i<2?'Province One':'Province Two',district:i<2?'District One':'District Two',insp_sitrep:{cumulative_confirmed_cases:{_date:'2026-09-21',cumulative_confirmed_cases:i===0?4:0}}},geometry:{type:'Polygon',coordinates:[[[29+i,1],[30+i,1],[30+i,2],[29+i,2],[29+i,1]]]}}));
 function dataset(value=4){return {id:'insp:cumulative_confirmed_cases',metricId:'cumulative_confirmed_cases',purpose:'cases',origin:'public',status:'ready',level:'health_zone',kind:'cumulative',label:'Confirmed cases',unit:'people',records:[{location:'A',date:'2026-09-14',value:0},{location:'B',date:'2026-09-14',value:0},{location:'A',date:'2026-09-21',value},{location:'B',date:'2026-09-21',value:0},{location:'C',date:'2026-09-21',value:null}]};}
 const movement={start:'2026-04-01',end:'2026-04-30',unit:'estimated relocations',source:'Fixture movement matrix',routes:[{origin:'A',destination:'B',value:25},{origin:'B',destination:'A',value:12},{origin:'A',destination:'C',value:0},{origin:'C',destination:'A',value:null},{origin:'A',destination:'Unmatched',value:5},{origin:'A',destination:'A',value:100}]};
+test('source aliases restore Kisangani map values, province totals and continuous trends',async({page})=>{
+  const geo=['Makiso Kisangani','Lubunga (Tshopo)','Lubunga (Kasaï-Central)'].map((nom,i)=>({...boundaries[i],id:nom,name:nom,properties:{...boundaries[i].properties,nom,province:i<2?'Tshopo':'Kasaï-Central'}}));
+  const cases={...dataset(),records:[
+    {location:'Makiso Kisangani',date:'2026-09-14',value:11},
+    {location:'Makiso-Kisangani',date:'2026-09-21',value:22},
+    {location:'Lubunga (Tshopo)',date:'2026-09-14',value:1},
+    {location:'Lubunga',date:'2026-09-21',value:1},
+    {location:'NA',date:'2026-09-14',value:17}
+  ]};
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await openOutbreak(page,geo,route=>{const kind=new URL(route.request().url()).searchParams.get('kind');return route.fulfill({json:kind==='indicators'?{datasets:[cases]}:kind==='mines'?{data:[]}:kind==='relocations'?{...movement,routes:[]}:{products:[]}});});
+  const matching=page.getByText('Location matching: 2 name variants resolved · 1 unlocated',{exact:true}).filter({visible:true});
+  await matching.click();
+  await expect(page.getByRole('row').filter({hasText:'Makiso-Kisangani'}).filter({visible:true})).toContainText('Makiso Kisangani');
+  await expect(page.getByRole('row').filter({hasText:'Non-geographic source total'}).filter({visible:true})).toContainText('NA');
+  await page.getByLabel('Health zone',{exact:true}).selectOption('Makiso Kisangani');
+  await expect(page.getByLabel('Selected health zone',{exact:true})).toContainText('Cumulative cases: 22');
+  await expect(page.getByLabel('Selected health zone',{exact:true})).toContainText('Reported change: 11');
+  await expect(page.getByRole('region',{name:'Dashboard map'}).locator('path[data-admin="Makiso Kisangani"]')).not.toHaveAttribute('fill','#e3e8ed');
+  const coverage=page.getByRole('region',{name:'Dashboard province coverage'});
+  await expect(coverage.getByRole('row').filter({hasText:'Tshopo'})).toContainText('23');
+  await expect(page.getByRole('region',{name:'Dashboard health-zone trends'}).getByRole('img',{name:/Tshopo \/ Makiso Kisangani/}).first()).toBeVisible();
+  await page.getByLabel('Health zone',{exact:true}).selectOption('Lubunga (Tshopo)');
+  await expect(page.getByLabel('Selected health zone',{exact:true})).toContainText('Cumulative cases: 1');
+  await page.getByRole('button',{name:'Clear selection',exact:true}).click();
+  await page.getByLabel('Health zone',{exact:true}).selectOption('Lubunga (Kasaï-Central)');
+  await expect(page.getByLabel('Selected health zone',{exact:true})).toContainText('Cumulative cases: Unknown');
+  expect(errors).toEqual([]);
+});
 test('dashboard links coverage, first reports, map callouts, trends and sitrep',async({page},testInfo)=>{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await openOutbreak(page,boundaries,route=>{const kind=new URL(route.request().url()).searchParams.get('kind');return route.fulfill({json:kind==='indicators'?{datasets:[dataset()]}:kind==='mines'?{data:[]}:kind==='relocations'?movement:{products:[]}});});
