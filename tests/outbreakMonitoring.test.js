@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { areaMonitoring, monitoringSettings, monitoringHighlights, highBurdenMovements } from '../lib/outbreak/monitoring.js';
+import { areaMonitoring, monitoringSettings, monitoringHighlights, highBurdenMovements, reportingHeatBand, matchesReportingTrend, reportingMapDetail, reportingWeekDescription } from '../lib/outbreak/monitoring.js';
 import { keyMessage } from '../lib/outbreak/keyMessage.js';
 
 const end='2026-09-21';
@@ -64,7 +64,7 @@ test('unchanged runs break on gaps, nulls and revisions; they do not grow during
   assert.equal(model([...stable,{location:'Quiet',date:'2026-09-22',value:null}],{},'2026-09-23').rows[0].quietStatus,'stale');
 });
 
-test('horizontal history uses cut-off anchored windows, retains missing weeks and links source dates',()=>{
+test('horizontal history orders epidemiological weeks from oldest to current and retains missing weeks',()=>{
   const m=model(stable,{historyWeeks:6});
   assert.equal(m.windows.length,6);assert.equal(m.windows.at(-1).end,end);
   assert.equal(m.rows[0].timeline.at(-1).status,'quiet');
@@ -121,4 +121,45 @@ test('trend explanation spells out each comparison and flags rises caused by a s
   assert.match(e.caveat,/did not increase \(19 then 19\).*week 3 is 6 days instead of 7/);
   const bambu={status:'rising',changes:[-72.73,561.11],observations:[{delta:11,rate:11/7,days:7},{delta:3,rate:3/7,days:7},{delta:17,rate:17/6,days:6}]};
   assert.equal(trendExplanation(bambu,10).caveat,'');
+});
+
+test('reporting weeks use Monday boundaries, partial cut-offs and ISO year rollover',()=>{
+  const m=model(stable,{historyWeeks:3},'2026-01-01');
+  assert.deepEqual(m.windows.map(w=>w.label),['2025-W51','2025-W52','2026-W01']);
+  assert.equal(m.windows.at(-1).start,'2025-12-29');
+  assert.equal(m.windows.at(-1).end,'2026-01-01');
+  assert.equal(m.windows.at(-1).partial,true);
+  assert.equal(m.windows[1].end,'2025-12-28');
+  assert.equal(m.windows[1].partial,false);
+});
+test('heatmap magnitude bands distinguish small and large increases without colouring unknowns as zero',()=>{
+  assert.notEqual(reportingHeatBand(6).color,reportingHeatBand(100).color);
+  assert.equal(reportingHeatBand(5).label,'+1–5');
+  assert.equal(reportingHeatBand(101).label,'+101 or more');
+  for(const value of [null,undefined,0,-6,NaN])assert.equal(reportingHeatBand(value),null);
+});
+
+test('reporting trend filters group declines and keep unknown evidence separate from steady',()=>{
+  assert.equal(matchesReportingTrend({status:'falling'},'declining'),true);
+  assert.equal(matchesReportingTrend({status:'declining'},'declining'),true);
+  assert.equal(matchesReportingTrend({status:'unchanged'},'steady'),true);
+  for(const status of ['unknown','stale','revision','mixed'])assert.equal(matchesReportingTrend({status},'steady'),false);
+  assert.equal(matchesReportingTrend({status:'rising'},'rising'),true);
+  assert.equal(monitoringSettings({reportingTrend:'invalid'}).reportingTrend,'all');
+});
+
+test('reporting map explains day-based runs and uses the exact visible weekly descriptions',()=>{
+  const rows=records('Short run',[10,10,10,10],['2026-08-30','2026-08-31','2026-09-07','2026-09-14']);
+  const m=model(rows,{historyWeeks:3,reportingMode:'quiet'},'2026-09-14');
+  const row=m.rows[0];
+  assert.equal(row.quietDays,15);
+  assert.equal(row.quietStatus,'recent');
+  assert.ok(row.timeline.every(w=>w.status==='quiet'));
+  const detail=reportingMapDetail(row,m.settings);
+  assert.match(detail,/Unchanged for 15 days/);
+  assert.match(detail,/21 elapsed days/);
+  for(const week of row.timeline)assert.ok(detail.includes(reportingWeekDescription(row,week)));
+  const six=model(rows,{historyWeeks:6,reportingMode:'quiet'},'2026-09-14');
+  assert.match(reportingMapDetail(six.rows[0],six.settings),/6 epi weeks/);
+  assert.match(reportingMapDetail(six.rows[0],six.settings),/No valid report/);
 });

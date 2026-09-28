@@ -166,7 +166,7 @@ for(const fallback of [false,true])test(`decision view fills the screen, stays l
   await expect(board).toBeVisible();
   await expect(page.getByRole('navigation',{name:'Outbreak sections'})).toHaveCount(0);
   const mobility=board.getByRole('region',{name:'Decision mobility'});
-  await expect(mobility.getByRole('combobox')).toHaveCount(2);
+  await expect(mobility.getByRole('combobox')).toHaveCount(3);
   await expect(mobility.getByRole('img',{name:'Outflow from A map',exact:true})).toBeVisible();
   await expect(mobility.locator('[data-mobility-route="A → B"]')).toHaveCount(1);
   await mobility.getByLabel('Movement direction',{exact:true}).selectOption('inflow');
@@ -392,6 +392,10 @@ test('full-screen actions rail drafts grounded AI actions and adds them to the r
   });
   await page.getByRole('button',{name:'Full-screen dashboard',exact:true}).click();
   const board=page.getByRole('dialog',{name:'Decision dashboard',exact:true});
+  await expect(board.getByRole('complementary',{name:'Recommended actions',exact:true})).toBeHidden();
+  const mapWidth=(await board.getByRole('region',{name:'Decision map',exact:true}).boundingBox()).width;
+  await board.getByRole('button',{name:'Recommended actions',exact:true}).click();
+  expect((await board.getByRole('region',{name:'Decision map',exact:true}).boundingBox()).width).toBeLessThan(mapWidth);
   const rail=board.getByRole('complementary',{name:'Recommended actions',exact:true});
   await expect(rail).toContainText('Rule-based suggestions');
   await expect(rail.getByRole('listitem').first()).toBeVisible();
@@ -411,6 +415,10 @@ test('full-screen actions rail drafts grounded AI actions and adds them to the r
   const layout=await board.evaluate(el=>({scroll:el.scrollHeight,height:el.clientHeight}));
   expect(layout.scroll).toBeLessThanOrEqual(layout.height+1);
   await page.screenshot({path:testInfo.outputPath('decision-actions.png')});
+  await board.getByRole('button',{name:'Hide recommended actions',exact:true}).click();
+  await expect(rail).toBeHidden();
+  await board.getByRole('button',{name:'Recommended actions',exact:true}).click();
+  await expect(rail.getByRole('button',{name:'In response plan ✓',exact:true})).toBeDisabled();
   await rail.getByRole('button',{name:'Open plan',exact:true}).click();
   await expect(board).toHaveCount(0);
   await expect(page.getByLabel('Action, rationale and decision requested').first()).toHaveValue(/Investigate rising reports in Rising\..*→ 95.*AI-drafted/);
@@ -491,4 +499,206 @@ test('case trend table explains each comparison and the assessment',async({page}
   await page.setViewportSize({width:1600,height:900});
   await map.scrollIntoViewIfNeeded();
   await page.screenshot({path:testInfo.outputPath('trend-top.png')});
+});
+
+test('full-screen filters clear across views and maps retain space across screen sizes',async({page},testInfo)=>{
+  await page.setViewportSize({width:1920,height:1080});
+  await openOutbreak(page,boundaries,route=>{
+    const kind=new URL(route.request().url()).searchParams.get('kind');
+    return route.fulfill({json:kind==='indicators'?{datasets:[dataset()]}:kind==='mines'?{data:[]}:kind==='relocations'?movement:{products:[]}});
+  });
+  await page.evaluate(()=>{Element.prototype.requestFullscreen=()=>Promise.reject(new Error('Test responsive fallback'));});
+  await page.getByRole('button',{name:'Full-screen dashboard',exact:true}).click();
+  const board=page.getByRole('dialog',{name:'Decision dashboard',exact:true});
+  const filter=board.getByLabel('Dashboard area filter');
+  const clear=filter.getByRole('button',{name:'Clear filters',exact:true});
+  await expect(clear).toBeDisabled();
+  await board.getByRole('region',{name:'Decision province coverage',exact:true}).getByRole('button',{name:'Province One',exact:true}).click();
+  await expect(filter).toContainText('Province One');
+  await clear.click();
+  await expect(filter).toContainText('All areas');
+  await board.getByRole('button',{name:'A',exact:true}).click();
+  await expect(filter).toContainText('Province One / A');
+  await board.getByRole('navigation',{name:'Dashboard views'}).getByRole('button',{name:'Case trends',exact:true}).click();
+  await clear.click();
+  await expect(clear).toBeDisabled();
+  await board.getByRole('navigation',{name:'Dashboard views'}).getByRole('button',{name:'Overview',exact:true}).click();
+  await expect(board.getByLabel('Health-zone map callout')).toHaveCount(0);
+  const contextMap=board.getByRole('region',{name:'Decision map',exact:true});
+  await expect(contextMap.getByLabel('Admin labels for Reported cumulative cases',{exact:true})).toHaveValue('all');
+  await expect(contextMap.locator('text[data-admin="B"]')).toBeVisible();
+  await contextMap.getByLabel('Admin labels for Reported cumulative cases',{exact:true}).selectOption('none');
+  await expect(contextMap.locator('text[data-admin]')).toHaveCount(0);
+  await contextMap.getByLabel('Admin labels for Reported cumulative cases',{exact:true}).selectOption('all');
+  await expect(contextMap.locator('path[data-country="Uganda"]')).toHaveCount(1);
+  await contextMap.getByRole('button',{name:'Regional view',exact:true}).click();
+  await expect(contextMap.locator('text[data-country-label="Uganda"]')).toBeVisible();
+  await contextMap.getByLabel('Country basemap for Reported cumulative cases',{exact:true}).uncheck();
+  await expect(contextMap.locator('path[data-country]')).toHaveCount(0);
+  await contextMap.getByLabel('Country basemap for Reported cumulative cases',{exact:true}).check();
+  await contextMap.getByRole('button',{name:'Reset view',exact:true}).click();
+  for(const [width,height] of [[1366,768],[1920,1080],[2560,1440],[3440,1440],[3840,2160]]){
+    await page.setViewportSize({width,height});
+    const map=board.getByRole('region',{name:'Decision map',exact:true});
+    await expect.poll(async()=> (await map.getByRole('img',{name:'Reported cumulative cases map',exact:true}).boundingBox()).height).toBeGreaterThan(180);
+    const layout=await board.evaluate(el=>{
+      const screen=el.firstElementChild;
+      return {width:screen.clientWidth,scroll:screen.scrollWidth,title:parseFloat(getComputedStyle(screen.querySelector('h1')).fontSize)};
+    });
+    expect(layout.scroll).toBeLessThanOrEqual(layout.width+1);
+    expect(layout.title).toBeLessThanOrEqual(24);
+    for(const name of ['Decision province coverage','Decision health-zone trends']){
+      const region=board.getByRole('region',{name,exact:true});
+      expect((await region.boundingBox()).height).toBeGreaterThanOrEqual(180);
+    }
+    await page.screenshot({path:testInfo.outputPath(`responsive-${width}.png`)});
+  }
+  await board.getByRole('button',{name:'Exit full-screen dashboard'}).click();
+  await expect(page.getByLabel('Health zone',{exact:true})).toHaveValue('');
+  await expect(page.getByLabel('Province filter',{exact:true})).toHaveValue('');
+});
+
+test('reporting history hides inactive rows, groups provinces and reveals gaps from map and status counts',async({page})=>{
+  const grouped=monitorBoundaries.map((area,i)=>({...area,properties:{...area.properties,province:i%2?'East province':'West province'}}));
+  await openOutbreak(page,grouped,route=>{const kind=new URL(route.request().url()).searchParams.get('kind');return route.fulfill({json:kind==='indicators'?{datasets:[monitorCases]}:kind==='mines'?{data:[]}:kind==='relocations'?monitorMovement:{products:[]}});});
+  await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-21');
+  await page.getByRole('navigation',{name:'Dashboard views'}).getByRole('button',{name:'Reporting history',exact:true}).click();
+  const history=page.getByRole('region',{name:'Horizontal reporting history',exact:true});
+  await expect(history.getByRole('button',{name:'Rising',exact:true})).toBeVisible();
+  await expect(history.getByRole('button',{name:'Declining',exact:true})).toBeVisible();
+  for(const name of ['Quiet','Gap6','Never'])await expect(history.getByRole('button',{name,exact:true})).toHaveCount(0);
+  await expect(history.getByRole('rowgroup',{name:'East province',exact:true})).toContainText('Rising');
+  await expect(history.getByRole('rowgroup',{name:'West province',exact:true})).toContainText('Declining');
+  const show=page.getByLabel(/Show \d+ zones with only unchanged or missing weeks/);
+  await show.check();
+  await expect(history.getByRole('button',{name:'Quiet',exact:true})).toBeVisible();
+  await expect(history.getByRole('button',{name:'Gap6',exact:true})).toBeVisible();
+  await show.uncheck();
+  const statuses=page.getByRole('group',{name:'Filter reporting history by status',exact:true});
+  await statuses.getByRole('button',{name:/No valid report for ≥6 weeks/}).click();
+  await expect(history.getByRole('button',{name:'Gap6',exact:true})).toBeVisible();
+  await expect(history.getByRole('button',{name:'Rising',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Clear status filter',exact:true}).click();
+  const map=page.getByRole('region',{name:'Reporting status map',exact:true});
+  await map.locator('text[data-admin="Gap6"]').click();
+  await expect(history.getByRole('button',{name:'Gap6',exact:true})).toBeVisible();
+  await expect(page.getByLabel('Selected reporting status',{exact:true})).toContainText('3 of 3 weeks without a valid report');
+  await expect(page.getByLabel('Selected reporting status',{exact:true})).toContainText('Request the missing weekly reports');
+  await page.getByRole('button',{name:'Full-screen dashboard',exact:true}).click();
+  const board=page.getByRole('dialog',{name:'Decision dashboard',exact:true});
+  await expect(board.getByRole('region',{name:'Horizontal reporting history',exact:true}).getByRole('button',{name:'Gap6',exact:true})).toBeVisible();
+  await expect(board.getByLabel('Selected reporting status',{exact:true})).toContainText('Gap6');
+});
+
+test('reporting history switches between cards and compact heatmap without losing selection',async({page},testInfo)=>{
+  await openMonitoring(page);
+  await page.getByRole('navigation',{name:'Dashboard views'}).getByRole('button',{name:'Reporting history',exact:true}).click();
+  const panel=page.getByRole('region',{name:'Reporting timeline',exact:true});
+  const display=panel.getByRole('group',{name:'Reporting history display',exact:true});
+  const history=panel.getByRole('region',{name:'Horizontal reporting history',exact:true});
+  await expect(display.getByRole('button',{name:'Cards',exact:true})).toHaveAttribute('aria-pressed','true');
+  const cell=history.getByRole('button',{name:/Rising: Reported increase/}).first();
+  const cardHeight=(await cell.boundingBox()).height;
+  await display.getByRole('button',{name:'Heatmap',exact:true}).click();
+  await expect(panel.getByLabel('Reporting heatmap legend')).toBeVisible();
+  await expect(history.getByRole('columnheader').nth(1)).toContainText('W37');
+  await expect(history.getByRole('columnheader').nth(2)).toContainText('W38');
+  await expect(history.getByRole('columnheader').nth(3)).toContainText('W39*');
+  await expect(cell).toHaveAttribute('data-heat-band','+6–20');
+  const larger=history.getByRole('button',{name:/Declining: Reported increase/}).first();
+  await expect(larger).toHaveAttribute('data-heat-band','+51–100');
+  expect(await cell.evaluate(el=>getComputedStyle(el).backgroundColor)).not.toBe(await larger.evaluate(el=>getComputedStyle(el).backgroundColor));
+  expect((await cell.boundingBox()).height).toBeLessThan(cardHeight);
+  const province=history.getByRole('button',{name:/Test province ·/});
+  await province.click();
+  await expect(history.getByRole('button',{name:'Rising',exact:true})).toHaveCount(0);
+  await province.click();
+  await cell.click();
+  await expect(panel.getByLabel('Selected reporting week')).toContainText('Rising: Reported increase');
+  await expect(page.getByLabel('Selected reporting status',{exact:true})).toContainText('Rising');
+  await display.getByRole('button',{name:'Cards',exact:true}).click();
+  await expect(cell).toContainText('Reported increase');
+  await expect(history.getByRole('row').filter({has:page.getByRole('button',{name:'Rising',exact:true})})).toHaveAttribute('aria-selected','true');
+  await display.getByRole('button',{name:'Heatmap',exact:true}).click();
+  await page.getByRole('combobox',{name:'History window',exact:true}).selectOption('6');
+  await expect(history.getByRole('columnheader')).toHaveCount(8);
+  await page.getByLabel(/Show \d+ zones with only unchanged or missing weeks/).check();
+  await expect(history.getByRole('button',{name:/Gap6: No valid report/}).first()).toHaveText('×');
+  await page.getByRole('button',{name:'Full-screen dashboard',exact:true}).click();
+  const board=page.getByRole('dialog',{name:'Decision dashboard',exact:true});
+  await expect(board.getByRole('group',{name:'Reporting history display'}).getByRole('button',{name:'Heatmap',exact:true})).toHaveAttribute('aria-pressed','true');
+  await page.setViewportSize({width:1920,height:1440});
+  await board.getByRole('button',{name:'Focus Reporting timeline',exact:true}).click();
+  const focused=page.getByRole('dialog',{name:'Reporting timeline',exact:true});
+  const focusedHistory=focused.getByRole('region',{name:'Horizontal reporting history',exact:true});
+  expect((await focusedHistory.boundingBox()).height).toBeGreaterThan(640);
+  const focusBox=await focused.boundingBox(),historyBox=await focusedHistory.boundingBox();
+  expect(focusBox.y+focusBox.height-historyBox.y-historyBox.height).toBeLessThan(180);
+  await expect(focused.getByRole('columnheader').nth(1)).toContainText('W34');
+  await page.screenshot({path:testInfo.outputPath('reporting-heatmap-focused.png')});
+  await focused.getByRole('button',{name:'Return from Reporting timeline',exact:true}).click();
+  await page.screenshot({path:testInfo.outputPath('reporting-heatmap.png')});
+  await board.getByRole('button',{name:'Exit full-screen dashboard'}).click();
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+});
+
+test('reporting trend filter applies to map and both history displays',async({page})=>{
+  await openMonitoring(page);
+  await page.getByRole('navigation',{name:'Dashboard views'}).getByRole('button',{name:'Reporting history',exact:true}).click();
+  const trend=page.getByRole('combobox',{name:'Health-zone trend',exact:true});
+  const history=page.getByRole('region',{name:'Horizontal reporting history',exact:true});
+  const map=page.getByRole('region',{name:'Reporting status map',exact:true});
+  await trend.selectOption('rising');
+  await expect(history.getByRole('button',{name:'Rising',exact:true})).toBeVisible();
+  await expect(history.getByRole('button',{name:'Declining',exact:true})).toHaveCount(0);
+  await expect(map.locator('path[data-admin="Rising"]')).not.toHaveAttribute('data-filtered-out','true');
+  await expect(map.locator('path[data-admin="Declining"]')).toHaveAttribute('data-filtered-out','true');
+  await history.getByRole('button',{name:'Rising',exact:true}).click();
+  await trend.selectOption('declining');
+  await expect(history.getByRole('button',{name:'Rising',exact:true})).toHaveCount(0);
+  await expect(history.getByRole('button',{name:'Declining',exact:true})).toBeVisible();
+  await expect(map.getByLabel('Selected reporting status',{exact:true})).not.toContainText('Rising');
+  await page.getByRole('group',{name:'Reporting history display'}).getByRole('button',{name:'Heatmap',exact:true}).click();
+  await trend.selectOption('steady');
+  await expect(history.getByRole('button',{name:'Quiet',exact:true})).toBeVisible();
+  await expect(map.locator('path[data-admin="Quiet"]')).not.toHaveAttribute('data-filtered-out','true');
+  await expect(map.locator('text[data-admin="Declining"]')).toHaveCount(0);
+  await page.getByLabel('Only zones with at least 3 weeks',{exact:true}).check();
+  await expect(history.getByRole('button',{name:'Quiet',exact:true})).toHaveCount(0);
+  await expect(map.locator('path[data-admin="Quiet"]')).toHaveAttribute('data-filtered-out','true');
+  await page.getByLabel('Only zones with at least 3 weeks',{exact:true}).uncheck();
+  await page.getByRole('button',{name:'Full-screen dashboard',exact:true}).click();
+  const board=page.getByRole('dialog',{name:'Decision dashboard',exact:true});
+  await expect(board.getByRole('combobox',{name:'Health-zone trend',exact:true})).toHaveValue('steady');
+  await expect(board.getByRole('region',{name:'Horizontal reporting history',exact:true}).getByRole('button',{name:'Quiet',exact:true})).toBeVisible();
+  await board.getByRole('combobox',{name:'Health-zone trend',exact:true}).selectOption('all');
+  await expect(board.getByRole('region',{name:'Reporting status map',exact:true}).locator('[data-filtered-out="true"]')).toHaveCount(0);
+});
+
+test('reporting map hover repeats the weekly card observations and distinguishes the unchanged run',async({page})=>{
+  await openMonitoring(page);
+  await page.getByRole('navigation',{name:'Dashboard views'}).getByRole('button',{name:'Reporting history',exact:true}).click();
+  await page.getByRole('combobox',{name:'Reporting measure',exact:true}).selectOption('quiet');
+  const map=page.getByRole('region',{name:'Reporting status map',exact:true});
+  const history=page.getByRole('region',{name:'Horizontal reporting history',exact:true});
+  await page.getByLabel(/Show \d+ zones with only unchanged or missing weeks/).check();
+  for(const weeks of ['3','6']){
+    await page.getByRole('combobox',{name:'History window',exact:true}).selectOption(weeks);
+    for(const zone of ['Quiet','Rising','Gap6']){
+      const tooltip=await map.locator(`path[data-admin="${zone}"] > title`).textContent();
+      expect(tooltip).toContain(`${weeks} epi weeks`);
+      const cells=history.getByRole('button',{name:new RegExp(`^${zone}: `)});
+      await expect(cells).toHaveCount(Number(weeks));
+      for(const cell of await cells.all())expect(tooltip).toContain(await cell.getAttribute('aria-label'));
+    }
+  }
+  await expect(map.locator('path[data-admin="Quiet"] > title')).toContainText('Unchanged for 42 days');
+  await expect(map.locator('path[data-admin="Rising"] > title')).toContainText('Case trend: Rising reported rate');
+  await page.getByRole('group',{name:'Reporting history display'}).getByRole('button',{name:'Heatmap',exact:true}).click();
+  const cell=history.getByRole('button',{name:/^Rising: Reported increase/}).first();
+  const text=await cell.getAttribute('aria-label');
+  await cell.click();
+  await expect(page.getByLabel('Selected reporting week')).toHaveText(text);
+  await expect(map.locator('path[data-admin="Rising"] > title')).toContainText(text);
 });

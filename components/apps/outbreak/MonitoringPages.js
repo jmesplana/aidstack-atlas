@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MONITORING_CONFIG, highBurdenMovements, trendExplanation, trendComparisonCsv } from '../../../lib/outbreak/monitoring';
+import { REPORTING_TIMELINE_STYLES as timelineStyles, reportingWeekDescription as reportingCellDescription, reportingMapDetail, reportingRunExplanation, REPORTING_HEAT_BANDS, reportingHeatBand, matchesReportingTrend, MONITORING_CONFIG, highBurdenMovements, trendExplanation, trendComparisonCsv } from '../../../lib/outbreak/monitoring';
 import { formatValue, validDate } from '../../../lib/outbreak/data';
 import { OutbreakMap, download } from './Visuals';
 import DashboardMobility from './DashboardMobility';
@@ -36,30 +36,53 @@ function ThresholdControl({value,onChange}) {
   return <label>Sustained decline threshold (%)<input aria-label="Sustained decline threshold (%)" type="number" min="1" max="100" step="1" value={draft} onChange={e=>{setDraft(e.target.value);const n=Number(e.target.value);if(e.target.value&&Number.isFinite(n)&&n>=1&&n<=100)onChange(n);}} onBlur={()=>setDraft(String(value))}/></label>;
 }
 
-const timelineStyles={
-  increase:{label:'Reported increase',color:'#e6aaa4'},
-  quiet:{label:'Unchanged reports',color:'#91becb'},
-  reported:{label:'Report; comparison unavailable',color:'#cadce4'},
-  revision:{label:'Downward revision',color:'#b29bc9'},
-  missing:{label:'No valid report',color:'#f0ca83'}
-};
-function ReportingTimeline({rows,model,onSelect,location}) {
-  return <div className={styles.monitorTimeline} role="region" aria-label="Horizontal reporting history" tabIndex={0}>
-    <table><caption>{model.settings.historyWeeks}-week reporting history · weeks ending at the reporting cut-off</caption><thead><tr><th>Health zone</th>{model.windows.map(w=><th key={w.end}>{w.start}<br/>to {w.end}</th>)}<th>Last valid report</th></tr></thead><tbody>{rows.map(r=><tr key={r.location} aria-selected={location===r.location}><th><button onClick={()=>onSelect(r.location)}>{r.location}</button><small>{r.province||(!r.matched?'Unmapped':'No province supplied')}</small></th>{r.timeline.map(w=>{
-      const style=timelineStyles[w.status],description=`${r.location}: ${style.label}, ${w.start}–${w.end}${w.delta!==null?`; change ${number(w.delta)}`:''}${w.date?`; latest report ${w.date}`:''}`;
-      return <td key={w.end}><button className={styles.historyCell} onClick={()=>onSelect(r.location)} style={{background:style.color}} title={description} aria-label={description}>{style.label}{w.delta!==null&&<strong>{w.delta>0?'+':''}{number(w.delta)}</strong>}</button></td>;
-    })}<td>{r.lastReport||'Never available'}{r.age!==null&&<small>{r.age} days before cut-off</small>}</td></tr>)}</tbody></table>
-  </div>;
+function ReportingTimeline({rows,model,onSelect,location,layout='cards'}) {
+  const heatmap=layout==='heatmap';
+  const [collapsed,setCollapsed]=useState(new Set()),[cellDetail,setCellDetail]=useState(null);
+  const provinceOf=row=>row.province||(row.matched?'Province unavailable':'Unmapped source locations');
+  useEffect(()=>{
+    const row=rows.find(r=>r.location===location);
+    if(row)setCollapsed(current=>{const next=new Set(current);next.delete(provinceOf(row));return next;});
+  },[location]);
+  const ref=useRef(null);
+  useEffect(()=>{
+    const container=ref.current,row=container?.querySelector('[aria-selected="true"]');
+    if(row)container.scrollTop+=row.getBoundingClientRect().top-container.getBoundingClientRect().top-80;
+  },[location,collapsed,layout]);
+  const groups=new Map();
+  for(const row of rows){
+    const province=provinceOf(row);
+    if(!groups.has(province))groups.set(province,[]);
+    groups.get(province).push(row);
+  }
+  const detailRow=rows.find(r=>r.location===location&&r.location===cellDetail?.location);
+  const detailWeek=detailRow?.timeline.find(w=>w.end===cellDetail.end);
+  return <>
+    {heatmap&&<div className={styles.historyLegend} aria-label="Reporting heatmap legend"><span>Reported increase:</span>{REPORTING_HEAT_BANDS.map(b=><span key={b.label}><i style={{background:b.color,color:b.text}}/> {b.label}</span>)}{Object.entries(timelineStyles).filter(([status])=>status!=='increase').map(([status,style])=><span key={status}><i style={{background:style.color}}>{({increase:'+',quiet:'0',reported:'•',revision:'↓',missing:'×'})[status]}</i>{style.label}</span>)}</div>}
+    <div ref={ref} className={`${styles.monitorTimeline} ${heatmap?styles.historyHeatmap:''}`} role="region" aria-label="Horizontal reporting history" tabIndex={0}>
+    <table><caption>{model.settings.historyWeeks} epidemiological weeks · oldest to current week · Monday–Sunday · * partial through {model.asOf}</caption><thead><tr><th>Health zone</th>{model.windows.map(w=><th key={w.end} title={`${w.start} to ${w.end}${w.partial?' (partial week)':''}`}>W{w.week}{w.partial?'*':''}<small>{w.year}</small>{!heatmap&&<small>{w.start.slice(5)}–{w.end.slice(5)}</small>}</th>)}<th>Last valid report</th></tr></thead>
+      {[...groups].sort(([a],[b])=>a.localeCompare(b)).map(([province,members])=><tbody key={province} aria-label={province}>
+        <tr className={styles.historyProvince}><th colSpan={model.windows.length+2} scope="rowgroup">{heatmap?<button type="button" aria-expanded={!collapsed.has(province)} onClick={()=>setCollapsed(current=>{const next=new Set(current);if(next.has(province))next.delete(province);else next.add(province);return next;})}>{collapsed.has(province)?'▸':'▾'} {province} · {members.length} health zones shown</button>:<>{province} · {members.length} health zones shown</>}</th></tr>
+        {(!heatmap||!collapsed.has(province))&&members.sort((a,b)=>(b.age??Infinity)-(a.age??Infinity)||a.location.localeCompare(b.location)).map(r=><tr key={r.location} aria-selected={location===r.location}><th scope="row"><button onClick={()=>onSelect(r.location)}>{r.location}</button></th>{r.timeline.map(w=>{
+          const style=timelineStyles[w.status],band=heatmap&&w.status==='increase'?reportingHeatBand(w.delta):null,description=reportingCellDescription(r,w);
+          return <td key={w.end}><button className={styles.historyCell} onClick={()=>{setCellDetail({location:r.location,end:w.end});onSelect(r.location);}} data-heat-band={band?.label} style={{background:band?.color||style.color,color:band?.text,backgroundImage:heatmap&&w.status==='missing'?'repeating-linear-gradient(135deg,transparent,transparent 4px,#ffffff60 4px,#ffffff60 6px)':undefined}} title={description} aria-label={description}>{heatmap?(w.status==='missing'?'×':w.status==='reported'?'•':w.status==='revision'?`↓ ${number(w.delta)}`:w.delta===0?'0':`+${number(w.delta)}`):<>{style.label}{w.delta!==null&&<strong>{w.delta>0?'+':''}{number(w.delta)}</strong>}</>}</button></td>;
+        })}<td>{r.lastReport||'Never available'}{r.age!==null&&<small>{r.age} days before cut-off</small>}</td></tr>)}
+      </tbody>)}
+    </table>
+  </div>
+  {heatmap&&<p className={styles.historyCellDetail} role="status" aria-label="Selected reporting week">{detailWeek?reportingCellDescription(detailRow,detailWeek):'Select a weekly cell for its report date and reported change. Expand or collapse a province to scan its health zones.'}</p>}
+  </>;
 }
 
 export default function MonitoringPages({settings,onSettings,model,epi,geometry,boundaryLevel,asOf,location,province,focus,onSelect,mobilityProps,presentation=false}) {
   const change=patch=>onSettings({...settings,...patch});
   const [showIncomparable,setShowIncomparable]=useState(false),[trendFilter,setTrendFilter]=useState('');
+  const [showQuietHistory,setShowQuietHistory]=useState(false),[reportingFilter,setReportingFilter]=useState('');
   if(!model)return <p role="status">These views need cumulative case history at the same geographic level as the selected boundaries.</p>;
   const observed=model.rows.filter(r=>(r.hasHistory||r.location===location)&&(!province||r.province===province));
   const selected=model.rows.find(r=>r.location===location);
   const source=epi.dataset.url||epi.dataset.source;
-  const map=(label,rows,categories)=> <OutbreakMap fillContainer presentation={presentation} geometry={geometry} rows={rows} level={epi.dataset.level} boundaryLevel={boundaryLevel} kind="reporting status" unit="" selected={location} onSelect={onSelect} label={label} asOf={asOf} source={source} focusNames={focus} categoryStyles={categories} groupLabels/>;
+  const map=(label,rows,categories,options={})=> <OutbreakMap fillContainer presentation={presentation} geometry={geometry} rows={rows} level={epi.dataset.level} boundaryLevel={boundaryLevel} kind="reporting status" unit="" selected={location} onSelect={onSelect} label={label} asOf={asOf} source={source} focusNames={focus} categoryStyles={categories} groupLabels {...options}/>;
   const mapRows=(field,categories)=>model.rows.map(r=>({...r,date:asOf,category:r[field],detail:`${categories[r[field]].label}; last valid report: ${r.lastReport||'unavailable'}${r.age!==null?` (${r.age} days before cut-off)`:''}`}));
   if(settings.view==='burden') {
     const ranked=highBurdenMovements({...epi,zones:epi.zones.filter(z=>!province||z.province===province)},mobilityProps.data,asOf,settings);
@@ -83,16 +106,43 @@ export default function MonitoringPages({settings,onSettings,model,epi,geometry,
   if(settings.view==='reporting') {
     const quiet=settings.reportingMode==='quiet',categories=quiet?MONITORING_CONFIG.quietCategories:MONITORING_CONFIG.gapCategories;
     const field=quiet?'quietStatus':'gapStatus';
-    const flagged=observed.filter(r=>quiet?r.quietDays>=settings.historyWeeks*7:r.age>=settings.historyWeeks*7);
-    const visible=settings.onlyFlagged?flagged:observed;
+    const areaRows=model.rows.filter(r=>!province||r.province===province);
+    const reportingTrend=settings.reportingTrend||'all';
+    const scoped=areaRows.filter(r=>matchesReportingTrend(r,reportingTrend));
+    const flagged=scoped.filter(r=>quiet?r.quietDays>=settings.historyWeeks*7:r.age>=settings.historyWeeks*7);
+    const candidates=reportingFilter?scoped.filter(r=>r[field]===reportingFilter):settings.onlyFlagged?flagged:scoped;
+    const hasSignal=r=>r.timeline.some(w=>['increase','revision','reported'].includes(w.status));
+    const filtering=!!reportingFilter||settings.onlyFlagged||reportingTrend!=='all';
+    const hidden=candidates.filter(r=>!hasSignal(r)&&r.location!==location).length;
+    const visible=candidates.filter(r=>filtering||showQuietHistory||hasSignal(r)||r.location===location);
+    if(!filtering&&selected&&scoped.includes(selected)&&!visible.includes(selected))visible.push(selected);
+    const reportSelected=selected&&candidates.includes(selected)?selected:null;
+    const mapSelection=reportSelected?.location||'';
+    const filterNames=filtering?candidates.map(r=>r.location):null;
+    const selectedMissing=reportSelected?.timeline.filter(w=>w.status==='missing').length;
+    const followUp=!reportSelected?.lastReport?'Confirm whether this zone is expected to report and request its reporting history.':selectedMissing>0?'Request the missing weekly reports and verify the reporting channel before interpreting case trends.':reportSelected?.timeline.some(w=>w.status==='revision')?'Reconcile the downward revision with the source reporting team.':quiet?'Confirm that unchanged totals reflect submitted reports, including explicit zero reporting.':'Review the reported changes with the source reporting team.';
     return <section aria-label="Reporting history view" className={styles.monitorPage}>
-      <div className={styles.controls}><label>Reporting measure<select value={settings.reportingMode} onChange={e=>change({reportingMode:e.target.value})}><option value="gaps">Missing valid reports</option><option value="quiet">No reported increase</option></select></label><label>History window<select value={settings.historyWeeks} onChange={e=>change({historyWeeks:Number(e.target.value)})}>{MONITORING_CONFIG.historyWeeks.map(n=><option key={n} value={n}>{n} weeks</option>)}</select></label><label><input type="checkbox" checked={settings.onlyFlagged} onChange={e=>change({onlyFlagged:e.target.checked})}/>Only zones with at least {settings.historyWeeks} weeks</label></div>
-      <p><strong>{flagged.length} zones</strong> {quiet?'with continued reporting and no cumulative increase':'without a valid case report'} for at least {settings.historyWeeks} weeks. Reporting gaps are measured to {asOf}; unchanged runs end at each zone’s last valid report.</p>
-      <div className={styles.dashboardMain}>
-        <FocusSection className={styles.panel} label="Reporting status map" title={quiet?'Where cumulative totals are unchanged':'Where reports are missing'}>{map(quiet?'No reported increase':'Reporting gaps',mapRows(field,categories),categories)}{selected&&<p aria-label="Selected reporting status"><strong>{selected.location}:</strong> {categories[selected[field]].label}. Last valid report: {selected.lastReport||'unavailable'}.{quiet&&selected.quietDays!==null?` Unchanged for ${selected.quietDays} days (${selected.quietStart}–${selected.lastReport}).`:''}</p>}</FocusSection>
-        <FocusSection className={styles.panel} label="Reporting timeline" title={`${settings.historyWeeks}-week horizontal history`}>
-          <ReportingTimeline rows={visible} model={model} onSelect={onSelect} location={location}/>
-          {!visible.length&&<p>No zones meet the current filter. Uncheck the filter to inspect all available histories.</p>}
+      <div className={styles.controls}><label>Reporting measure<select value={settings.reportingMode} onChange={e=>{change({reportingMode:e.target.value});setReportingFilter('');}}><option value="gaps">Missing valid reports</option><option value="quiet">No reported increase</option></select></label><label>Health-zone trend<select value={reportingTrend} onChange={e=>change({reportingTrend:e.target.value})}><option value="all">All trends</option><option value="rising">Rising</option><option value="declining">Declining</option><option value="steady">Steady</option><option value="mixed">Mixed</option><option value="revision">Downward revision</option><option value="stale">Reporting gap</option><option value="unknown">Insufficient data</option></select></label><label>History window<select value={settings.historyWeeks} onChange={e=>change({historyWeeks:Number(e.target.value)})}>{MONITORING_CONFIG.historyWeeks.map(n=><option key={n} value={n}>{n} weeks</option>)}</select></label><label><input type="checkbox" checked={settings.onlyFlagged} onChange={e=>{change({onlyFlagged:e.target.checked});setReportingFilter('');}}/>Only zones with at least {settings.historyWeeks} weeks</label></div>
+      <p><strong>{flagged.length} zones</strong> {quiet?'with continued reporting and no cumulative increase':'without a valid case report'} for at least {settings.historyWeeks} weeks. Reporting gaps are measured to {asOf}; unchanged runs end at each zone’s last valid report. Weekly cells are separate observations: three unchanged weekly cells do not by themselves establish 21 elapsed days.</p>
+      <div className={styles.monitorCounts} role="group" aria-label="Filter reporting history by status">{Object.entries(categories).map(([status,style])=>{
+        const count=scoped.filter(r=>r[field]===status).length;
+        return <button type="button" key={status} aria-pressed={reportingFilter===status} disabled={!count} style={{borderColor:style.color}} onClick={()=>{setReportingFilter(reportingFilter===status?'':status);change({onlyFlagged:false});}}><strong>{count}</strong> {style.label}</button>;
+      })}</div>
+      {reportingFilter&&<p role="status">Showing {categories[reportingFilter].label.toLowerCase()}. <button type="button" onClick={()=>setReportingFilter('')}>Clear status filter</button></p>}
+      <div className={`${styles.dashboardMain} ${styles.reportingLayout}`}>
+        <FocusSection className={styles.panel} label="Reporting status map" title={quiet?'Continuous unchanged reporting runs':'Where reports are missing'}>{map(quiet?'Continuous unchanged reporting runs':'Reporting gaps',model.rows.map(r=>({...r,date:asOf,category:r[field],detail:`${filterNames&&!filterNames.includes(r.location)?'Outside current filters.\n':''}${reportingMapDetail(r,settings)}`})),categories,{filterNames,selected:mapSelection,onSelect:name=>{if(!filterNames||filterNames.includes(name))onSelect(name);}})}<section className={styles.trendSelected} aria-label="Selected reporting status">{reportSelected?<>
+          <h3>{reportSelected.location}<small>{reportSelected.province||'Province unavailable'}</small></h3>
+          <p><span className={styles.statusDot} style={{background:categories[reportSelected[field]].color}}/><strong>{categories[reportSelected[field]].label}</strong></p>
+          <p>Last valid report: {reportSelected.lastReport||'unavailable'}{reportSelected.age!==null?` · ${reportSelected.age} days before cut-off`:''}. {selectedMissing} of {settings.historyWeeks} weeks without a valid report.</p>
+          {quiet&&<p>{reportingRunExplanation(reportSelected)}</p>}
+          <p>Case trend: {MONITORING_CONFIG.trendCategories[reportSelected.status].label} (latest three comparison periods).</p>
+          <p><strong>Reporting follow-up:</strong> {followUp}</p>
+        </>:<p>Select a health zone to inspect its reporting gaps and reveal its history on the right. Use the status counts above to build a follow-up list.</p>}</section><p className={styles.helperText}>Map colours show the selected reporting measure, not the case trend. Hover shows the same weekly observations as the history. Faded areas do not match the filters; matching zones appear in both the map and history. Trends use the latest three comparable reporting intervals, regardless of the history window. Steady means the same reported daily rate, not necessarily zero cases.</p></FocusSection>
+        <FocusSection className={`${styles.panel} ${styles.reportingTimelinePanel}`} label="Reporting timeline" title={`${settings.historyWeeks}-week horizontal history`} actions={<div className={styles.historyViewSwitch} role="group" aria-label="Reporting history display">{[['cards','Cards'],['heatmap','Heatmap']].map(([value,label])=><button key={value} type="button" aria-pressed={(settings.historyLayout||'cards')===value} onClick={()=>change({historyLayout:value})}>{label}</button>)}</div>}>
+          {!filtering&&<label className={styles.inlineCheck}><input type="checkbox" checked={showQuietHistory} onChange={e=>setShowQuietHistory(e.target.checked)}/>Show {hidden} zones with only unchanged or missing weeks</label>}
+          <p className={styles.helperText}>{visible.length} of {scoped.length} health zones shown · grouped by province, oldest reports first. {mapSelection?'The selected zone stays visible.':''}{filtering?' Status filters include unchanged and empty histories for follow-up.':''}</p>
+          <ReportingTimeline rows={visible} model={model} onSelect={onSelect} location={mapSelection} layout={settings.historyLayout}/>
+          {!visible.length&&<p>No health zones match this view. Adjust the trend or reporting-status filters, or show unchanged and missing weeks.</p>}
           <p className={styles.helperText}>Cells show received reports and changes from the preceding report, not onset-based incidence. Missing values remain unknown. Selecting a row or cell highlights its zone on the map.</p>
         </FocusSection>
       </div>

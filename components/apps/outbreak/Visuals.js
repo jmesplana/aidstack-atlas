@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {zoomView,placeLabels} from '../../../lib/outbreak/mapInteraction';
 import { zoneName, formatValue, epiWeek } from '../../../lib/outbreak/data';
 import styles from './outbreak.module.css';
+import countries from '../../../lib/outbreak/countries.json';
 import {themeColor} from '../../../lib/outbreak/documentInsights';
 
 export function download(name, content, type='text/plain') {
@@ -31,7 +32,7 @@ function exportSVG(ref,name) {
   copy.setAttribute('xmlns','http://www.w3.org/2000/svg');
   download(name,new XMLSerializer().serializeToString(copy),'image/svg+xml');
 }
-export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, mines=[], events=[], hazards=[], sites=[], selected, onSelect, label, asOf, source, focusNames=[], routes=[], routeDirection='outflow', routeUnit, documentSignals=[], overlayCaption='', highlightNames=[], groupLabels=false, callout=null, presentation=false, fillContainer=false, categoryStyles=null }) {
+export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, mines=[], events=[], hazards=[], sites=[], selected, onSelect, label, asOf, source, focusNames=[], routes=[], routeDirection='outflow', routeUnit, documentSignals=[], overlayCaption='', highlightNames=[], groupLabels=false, callout=null, presentation=false, fillContainer=false, categoryStyles=null, filterNames=null }) {
   const fill=fillContainer||presentation;
   const [frameHeight,setFrameHeight]=useState(440);
   const plotHeight=fill?frameHeight:440,plotTop=fill?0:66;
@@ -40,7 +41,7 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
   const routeColor=routeDirection==='inflow'?'#c96a37':'#176f89';
   const ref=useRef(null),mapRef=useRef(null),drag=useRef(null),pointers=useRef(new Map()),liveView=useRef(null);
   const arrowId=useId().replace(/:/g, "");
-  const [viewport,setViewport]=useState(null),[labels,setLabels]=useState('priority'),[renderScale,setRenderScale]=useState(1);
+  const [viewport,setViewport]=useState(null),[labels,setLabels]=useState('all'),[basemap,setBasemap]=useState(true),[renderScale,setRenderScale]=useState(1);
   const shapes=useMemo(()=> {
     if(!geometry?.features.length) return null;
     const features=geometry.features;
@@ -58,20 +59,20 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
       const xs=coordinates.map(c=>c[0]),ys=coordinates.map(c=>c[1]);
       const b=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];
       return {name:zoneName(f),province:f.properties?.province,district:f.properties?.district||f.properties?.ADM2_EN||f.properties?.NAME_2,labelWidth:measure?measure.measureText(zoneName(f)).width+12:undefined,path:path(f),bounds:b,center:[(b[0]+b[2])/2,(b[1]+b[3])/2]};
-    }),project,west,east,south,north};
+    }),countries:countries.features.map(f=>({name:f.properties.name,path:path(f),center:project(f.properties.label),labelWidth:f.properties.name.length*7+12})),project,west,east,south,north};
   },[geometry]);
   const fitBounds=targets=>{
     if(!targets?.length)return [0,0,900,plotHeight];
     const left=Math.min(...targets.map(f=>f.bounds[0])),top=Math.min(...targets.map(f=>f.bounds[1]));
     const right=Math.max(...targets.map(f=>f.bounds[2])),bottom=Math.max(...targets.map(f=>f.bounds[3]));
-    const w=Math.max(right-left,(bottom-top)*900/plotHeight,15)*1.08,h=w*plotHeight/900;
+    const w=Math.max(right-left,(bottom-top)*900/plotHeight,15)*(basemap?1.35:1.08),h=w*plotHeight/900;
     return [(left+right-w)/2,(top+bottom-h)/2,w,h];
   };
-  const allBounds=useMemo(()=>fill?fitBounds(shapes?.features):[0,0,900,440],[shapes,fill,plotHeight]);
+  const allBounds=useMemo(()=>fill?fitBounds(shapes?.features):[0,0,900,440],[shapes,fill,plotHeight,basemap]);
   const automatic=useMemo(()=>{
     const targets=shapes?.features.filter(f=>focusNames.includes(f.name))||[];
     return targets.length?fitBounds(targets):allBounds;
-  },[shapes,focusNames.join('|'),allBounds,plotHeight]);
+  },[shapes,focusNames.join('|'),allBounds,plotHeight,basemap]);
   useEffect(()=>setViewport(null),[geometry,label,focusNames.join('|')]);
   useEffect(()=>{setViewport(current=>current?[current[0],current[1]+current[3]/2-current[2]*plotHeight/900/2,current[2],current[2]*plotHeight/900]:null);},[plotHeight]);
   const view=viewport||automatic,zoom=900/view[2];
@@ -121,8 +122,10 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
   const priority=new Set([...known].sort((a,b)=>Math.abs(b.value)-Math.abs(a.value)).slice(0,8).map(r=>r.location));
   if(selected)priority.add(selected);
   const allowed=labels==='none'?new Set():labels==='all'?new Set(shapes.features.map(f=>f.name)):priority;
+  if(filterNames)for(const name of allowed)if(!filterNames.includes(name))allowed.delete(name);
   const visibleLabels=placeLabels(shapes.features,view,selected,allowed,renderScale,dimensions);
-  const waterColor=presentation?'#c4d9e8':'#f8fafc';
+  const countryLabels=basemap?placeLabels(shapes.countries,view,'',new Set(shapes.countries.map(f=>f.name)),renderScale,dimensions):[];
+  const waterColor=basemap||presentation?'#c4d9e8':'#f8fafc';
   const landColor=presentation?'#dde9d8':'#fff';
   const point=(p)=>p.longitude!==''&&p.latitude!==''&&p.longitude!=null&&p.latitude!=null&&Number.isFinite(Number(p.longitude))&&Number.isFinite(Number(p.latitude))&&p.longitude>=shapes.west&&p.longitude<=shapes.east&&p.latitude>=shapes.south&&p.latitude<=shapes.north;
   const signalGroups=[...documentSignals.reduce((groups,f)=>{const key=JSON.stringify([f.mapLocation,f.kind,f.themes[0]||'']);const group=groups.get(key)||[];group.push(f);groups.set(key,group);return groups;},new Map()).values()];
@@ -143,6 +146,11 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
   const calloutY=fill?Math.max(8,Math.min(82,plotHeight-155*calloutScale-8)):82;
   const signalOffsets=new Map();
   return <div className={fill?`${styles.fittedMap} ${presentation?styles.presentationMap:styles.dashboardMapCanvas}`:undefined}>
+    <div data-print-hide="true" className={styles.mapContextControls}>
+      {presentation&&<label>Admin labels<select aria-label={`Admin labels for ${label}`} value={labels} onChange={e=>setLabels(e.target.value)}><option value="all">All areas (avoid overlap)</option><option value="priority">Leading areas</option><option value="none">Hide labels</option></select></label>}
+      <label><input type="checkbox" checked={basemap} onChange={e=>setBasemap(e.target.checked)} aria-label={`Country basemap for ${label}`}/> Country basemap</label>
+      <button type="button" onClick={()=>{setBasemap(true);const [x,y,w,h]=allBounds;setViewport([x-w*.4,y-h*.4,w*1.8,h*1.8]);}}>Regional view</button>
+    </div>
     {!presentation&&<div data-print-hide="true" style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap',margin:'12px 0'}}>
       <button type="button" aria-label={`Zoom in ${label} map`} onClick={()=>zoomBy(.65)}>＋</button>
       <button type="button" aria-label={`Zoom out ${label} map`} onClick={()=>zoomBy(1.5)}>−</button>
@@ -164,8 +172,9 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
         onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}
         onDoubleClick={e=>{e.preventDefault();setViewport(mapZoom(view,.65,screenPoint(e)));}}
         onKeyDown={e=>{const shift={ArrowLeft:[-.12,0],ArrowRight:[.12,0],ArrowUp:[0,-.12],ArrowDown:[0,.12]}[e.key];if(shift){e.preventDefault();setViewport([view[0]+shift[0]*view[2],view[1]+shift[1]*view[3],view[2],view[3]]);}else if(['+','=','-','Home'].includes(e.key)){e.preventDefault();if(e.key==='Home')setViewport(null);else zoomBy(e.key==='-'?1.25:.8);}}}>
-        <rect x="-10000" y="-10000" width="20000" height="20000" fill={presentation?waterColor:'#f3f6f9'}/>
-        {shapes.features.map(f=><path key={f.name} data-admin={f.name} data-category={categoryStyles?values.get(f.name)?.category:undefined} d={f.path} fill={areaFill(values.get(f.name))} fillRule="evenodd" stroke={selected===f.name?'#113d64':highlightNames.includes(f.name)?'#c88700':'#9aaaba'} strokeWidth={selected===f.name?2:highlightNames.includes(f.name)?2.5:.65} vectorEffect="non-scaling-stroke"><title>{f.name}: {categoryStyles?(values.get(f.name)?.detail||categoryStyles[values.get(f.name)?.category]?.label||'No matched observation'):values.has(f.name)?`${values.get(f.name).value??'No data'} ${unit||''} (${values.get(f.name).date})`:'No matched observation'}</title></path>)}
+        <rect x="-10000" y="-10000" width="20000" height="20000" fill={basemap||presentation?waterColor:'#f3f6f9'}/>
+        {basemap&&<g aria-label="Country basemap" pointerEvents="none">{shapes.countries.map(f=><path key={f.name} data-country={f.name} d={f.path} fill="#edf0e5" fillRule="evenodd" stroke="#82958d" strokeWidth="1" vectorEffect="non-scaling-stroke"/>)}</g>}
+        {shapes.features.map(f=><path key={f.name} data-admin={f.name} data-filtered-out={filterNames&&!filterNames.includes(f.name)?'true':undefined} opacity={filterNames&&!filterNames.includes(f.name) ? 0.15 : 1} data-category={categoryStyles?values.get(f.name)?.category:undefined} d={f.path} fill={areaFill(values.get(f.name))} fillRule="evenodd" stroke={selected===f.name?'#113d64':highlightNames.includes(f.name)?'#c88700':'#9aaaba'} strokeWidth={selected===f.name?2:highlightNames.includes(f.name)?2.5:.65} vectorEffect="non-scaling-stroke"><title>{f.name}: {categoryStyles?(values.get(f.name)?.detail||categoryStyles[values.get(f.name)?.category]?.label||'No matched observation'):values.has(f.name)?`${values.get(f.name).value??'No data'} ${unit||''} (${values.get(f.name).date})`:'No matched observation'}</title></path>)}
         <defs><marker id={arrowId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill={routeColor}/></marker></defs>
         {routes.map((r,i)=>{
           const a=shapes.features.find(f=>f.name===r.origin)?.center,b=shapes.features.find(f=>f.name===r.destination)?.center;
@@ -184,6 +193,7 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
           const title=`${f.mapLocation} · ${f.kind} · ${f.themes.join(', ')} · ${group.length} source findings (not prevalence). ${group.map(item=>`${item.summary} (${item.endDate}; ${item.file}, ${item.reference})`).join(' ')}`;
           return f.kind==='vaccination'?<rect key={f.id} data-document-finding={f.id} data-admin={f.mapLocation} x={cx-5/zoom} y={cy-5/zoom} width={10/zoom} height={10/zoom} fill="white" stroke={color} strokeWidth={2/zoom}><title>{title}</title></rect>:<circle key={f.id} data-document-finding={f.id} data-admin={f.mapLocation} cx={cx} cy={cy} r={5/zoom} fill={color} stroke="white" strokeWidth={1/zoom}><title>{title}</title></circle>;
         })}
+        {countryLabels.map(f=><text key={f.name} data-country-label={f.name} x={f.labelX} y={f.labelY} textAnchor="middle" fontFamily="sans-serif" fontSize={12/zoom/renderScale} fontWeight="600" letterSpacing={.5/zoom/renderScale} fill="#4c6056" stroke="#fff" strokeWidth={3/zoom/renderScale} paintOrder="stroke" pointerEvents="none">{f.name}</text>)}
         {provinceLabels.map(f=><text key={f.name} x={f.labelX} y={f.labelY-15/zoom/renderScale} textAnchor="middle" fontSize={14/zoom/renderScale} fontWeight="bold" fill="#38576c" stroke="white" strokeWidth={4/zoom/renderScale} paintOrder="stroke" pointerEvents="none">{f.name}</text>)}
         {visibleLabels.map(f=><g key={f.name}><line x1={f.center[0]} y1={f.center[1]} x2={f.labelX} y2={f.labelY} stroke="#718598" strokeWidth={.6/zoom} pointerEvents="none"/><text data-admin={f.name} x={f.labelX} y={f.labelY} fontFamily="sans-serif" fontSize={12/zoom/renderScale} fontWeight="600" fill="#153b55" stroke="white" strokeWidth={3/zoom/renderScale} paintOrder="stroke" textAnchor="middle">{f.name}</text></g>)}
       </svg>
@@ -201,6 +211,7 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
       {documentSignals.length>0&&<text x="22" y={mapHeight-10} fontFamily="sans-serif" fontSize="11" fill="#536c81">AI-extracted findings may be incomplete or incorrect. Verify source. Circles: themes; squares: vaccination reports.</text>}
       {overlayCaption&&<text x="22" y="596" fontFamily="sans-serif" fontSize="11" fill="#536c81">{overlayCaption}</text>}</>}
     </svg>
+    {basemap&&<small className={styles.basemapAttribution}>Country context: <a href="https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/" target="_blank" rel="noreferrer">Natural Earth</a> · 1:110m</small>}
     {fill&&(categoryStyles?<div className={styles.mapLegend} aria-label="Map categories">{Object.entries(categoryStyles).map(([key,c])=><span key={key}><i style={{background:c.color}}/>{c.label}</span>)}</div>:<div className={styles.mapLegend}><span><i style={{background:'#e3e8ed'}}/>No data</span><span><i style={{background:'white'}}/>Zero</span><span><i style={{background:'hsl(12 76% 42%)'}}/>Darker: {kind==='directed mobility'?unit:'more cases'} · max {known.length?formatValue(max):'unknown'}</span>{kind==='directed mobility'?<span style={{color:routeColor}}>→ {routeDirection==='inflow'?'Inflow':'Outflow'} · origin to destination</span>:<span>Amber: first positive report</span>}</div>)}
     {!presentation&&<p data-print-hide="true" style={{fontSize:12,color:"#536c81"}}>Labels are spaced to avoid overlap. Zoom in to reveal more; select an area to keep its label visible.</p>}
     {level!==boundaryLevel&&<p>Map values hidden: dataset level ({level||'none'}) differs from boundary level ({boundaryLevel}).</p>}

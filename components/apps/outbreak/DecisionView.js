@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import DashboardMobility from './DashboardMobility';
 import FocusSection from './FocusSection';
@@ -11,6 +11,7 @@ import { MONITORING_PAGES } from './MonitoringPages';
 const number=value=>Number.isFinite(value)?formatValue(value):'Unknown';
 
 export default function DecisionView({ screenRef, title, epi, geometry, boundaryLevel, message, coverage, horizon, alerts, alertDays, asOf, location, province, focus, callout, onSelect, onProvince, onClear, onClose, onAnalysis, freshness, mobilityProps, view='overview',onView,pageContent,actionRail }) {
+  const [actionsExpanded,setActionsExpanded]=useState(false);
   const dialogRef=useRef(null);
   const closeRef=useRef(onClose);closeRef.current=onClose;
   useEffect(()=>{
@@ -85,7 +86,7 @@ export default function DecisionView({ screenRef, title, epi, geometry, boundary
     ['Health zones reporting',coverage?`${coverage.rows.reduce((n,r)=>n+r.reported,0)} / ${coverage.rows.reduce((n,r)=>n+r.total,0)}`:'Unknown',null],
   ];
 
-  return createPortal(<dialog ref={dialogRef} aria-label="Decision dashboard" className={styles.decisionDialog} onCancel={e=>{e.preventDefault();closeRef.current();}}><div ref={screenRef} className={`${styles.app} ${styles.decisionScreen} ${pageContent?styles.decisionPages:actionRail?styles.decisionWithRail:''}`}>
+  return createPortal(<dialog ref={dialogRef} aria-label="Decision dashboard" className={styles.decisionDialog} onCancel={e=>{e.preventDefault();closeRef.current();}}><div ref={screenRef} className={`${styles.app} ${styles.decisionScreen} ${pageContent?styles.decisionPages:actionRail&&actionsExpanded?styles.decisionWithRail:''}`}>
     <header className={styles.decisionHeader}>
       <div>
         <h1>{title==='Outbreak operation'?'Outbreak situation':title}</h1>
@@ -99,6 +100,11 @@ export default function DecisionView({ screenRef, title, epi, geometry, boundary
           {MONITORING_PAGES.map(([id,label])=><button key={id} type="button" aria-pressed={view===id} onClick={()=>onView(id)}>{label}</button>)}
         </nav>}
         <div className={styles.decisionHeaderActions}>
+          <div className={styles.decisionFilter} aria-label="Dashboard area filter">
+            <span role="status">{[province,location].filter(Boolean).join(' / ')||'All areas'}</span>
+            <button onClick={onClear} disabled={!province&&!location}>Clear filters</button>
+          </div>
+          {actionRail&&!pageContent&&<button type="button" aria-expanded={actionsExpanded} onClick={()=>setActionsExpanded(value=>!value)}>{actionsExpanded?'Hide recommended actions':'Recommended actions'}</button>}
           <button onClick={onAnalysis}>Deep analysis</button>
           <button onClick={onClose} aria-label="Exit full-screen dashboard">Exit</button>
         </div>
@@ -118,7 +124,7 @@ export default function DecisionView({ screenRef, title, epi, geometry, boundary
       {cards.map(([label,value,sub])=><div key={label} style={label.includes('First reports')&&alerts.length>0?{borderTop:'3px solid #c43b30'}:undefined}><strong>{value}</strong><span>{label}</span>{sub&&<small style={{display:'block',fontSize:'11px',color:label.includes('First reports')?'#c43b30':'#7a9aaa',marginTop:'4px'}}>{sub}</small>}</div>)}
     </div>
 
-    {actionRail}
+    {actionRail&&<div className={styles.actionRailSlot} hidden={!actionsExpanded}>{actionRail}</div>}
 
     <div className={styles.decisionMain}>
       <FocusSection headingLevel={2} className={`${styles.decisionPanel} ${styles.decisionMap}`} label="Decision map" title="Where cases are reported" actions={(province||location)?<button onClick={onClear}>Show all areas</button>:null}><OutbreakMap presentation geometry={geometry} rows={epi?.zones||[]} level={epi?.dataset.level} kind="cumulative" unit="confirmed cases" boundaryLevel={boundaryLevel} selected={location} onSelect={onSelect} label="Reported cumulative cases" asOf={asOf} source={epi?.dataset.source||epi?.dataset.url} focusNames={focus} highlightNames={alerts.map(a=>a.location)} groupLabels callout={callout}/></FocusSection>

@@ -1,0 +1,7 @@
+Country basemap: Natural Earth Admin 0 Countries, 1:110m, v5.1.2. Public domain.
+
+Source: https://github.com/nvkelso/natural-earth-vector/blob/v5.1.2/geojson/ne_110m_admin_0_countries.geojson
+
+https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/
+
+Coordinates rounded to four decimal places; retained English names and label points. Generalized country context, not operational administrative boundaries.
