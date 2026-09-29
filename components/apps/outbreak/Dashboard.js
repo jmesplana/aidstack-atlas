@@ -7,6 +7,7 @@ import { recommendations } from '../../../lib/outbreak/overview';
 import { actionFollowUp } from '../../../lib/outbreak/briefing';
 import DashboardMobility from './DashboardMobility';
 import DashboardBriefing from './DashboardBriefing';
+import PowerPointExport from './PowerPointExport';
 import { SlideViewProvider, SlideViewSlot } from './SlideViewActions';
 import FocusSection from './FocusSection';
 import { provinceCoverage, provinceHorizon, areaActivity } from '../../../lib/outbreak/areaHistory';
@@ -21,7 +22,7 @@ import styles from './outbreak.module.css';
 
 const number = value => Number.isFinite(value) ? formatValue(value) : 'Unknown';
 
-export default function Dashboard({ datasets=[], monitoring, monitorOptions, onMonitorOptions, epi, geometry, boundaryLevel, message, asOf, location, onSelect, onAnalysis, onData, reviewed, province, setProvince, title, freshness, routeData, movementDirection, onMovementDirection, movementOverlays, defaultMovementLocation, onLoadMovement, movementLoading, movementError, security, mining, response, actions=[], onAddAction, isActionAdded, onOpenPlan }) {
+export default function Dashboard({ ringSettings, onRingSettings, datasets=[], monitoring, monitorOptions, onMonitorOptions, epi, geometry, boundaryLevel, message, asOf, location, onSelect, onAnalysis, onData, reviewed, province, setProvince, title, freshness, routeData, movementDirection, onMovementDirection, movementOverlays, defaultMovementLocation, onLoadMovement, movementLoading, movementError, security, mining, response, actions=[], onAddAction, isActionAdded, onOpenPlan }) {
   const [presenting,setPresenting]=useState(false);
   const screenRef=useRef(null);
   function present(){flushSync(()=>setPresenting(true));screenRef.current?.requestFullscreen?.().catch(()=>{});}
@@ -53,7 +54,7 @@ export default function Dashboard({ datasets=[], monitoring, monitorOptions, onM
   const onView=view=>onMonitorOptions({...monitorOptions,view});
   const pageContent=presentation=><MonitoringPages settings={monitorOptions} onSettings={onMonitorOptions} model={monitoring} epi={epi} geometry={geometry} boundaryLevel={boundaryLevel} asOf={asOf} location={location} province={activeProvince} focus={focus} onSelect={chooseZone} mobilityProps={mobilityProps} presentation={presentation} operationTitle={title}/>;
 
-  const overviewSlides=<DashboardBriefing view="overview" datasets={datasets} epi={epi} geometry={geometry} boundaryLevel={boundaryLevel} model={monitoring} asOf={asOf} province={activeProvince} location={location} settings={monitorOptions} alertDays={alertDays} operationTitle={title}/>;
+  const overviewSlides=<DashboardBriefing ringSettings={ringSettings} onRingSettings={onRingSettings} view="overview" datasets={datasets} epi={epi} geometry={geometry} boundaryLevel={boundaryLevel} model={monitoring} asOf={asOf} province={activeProvince} location={location} settings={monitorOptions} alertDays={alertDays} operationTitle={title}/>;
 
   // Derived decision data
   const growthZones=useMemo(()=>epi?.growth?.filter(z=>z.delta>0).length||0,[epi]);
@@ -140,7 +141,7 @@ export default function Dashboard({ datasets=[], monitoring, monitorOptions, onM
 
   return <SlideViewProvider><div className={styles.dashboard}>
     {presenting&&<DecisionView overviewSlides={epi?overviewSlides:null} view={view} onView={onView} pageContent={view!=='overview'?pageContent(true):null} mobilityProps={mobilityProps} screenRef={screenRef} title={title} freshness={freshness} epi={epi} geometry={geometry} boundaryLevel={boundaryLevel} message={message} coverage={coverage} horizon={filteredHorizon} alerts={alerts} alertDays={alertDays} asOf={asOf} location={location} province={activeProvince} focus={focus} callout={callout} onSelect={chooseZone} onProvince={p=>{setProvince(p);onSelect('');}} onClear={()=>{setProvince('');onSelect('');}} onClose={closePresentation} onAnalysis={()=>{closePresentation();onAnalysis();}} actionRail={actionRail}/>}
-    <div className={styles.workspaceHeading}><div><span className={styles.eyebrow}>OUTBREAK MONITOR</span><h3>Situation dashboard</h3><p>Case reporting date: {epi?.date||'Unavailable'} · Cut-off: {asOf}</p></div><div className={styles.toolbar}><button className={styles.primaryAction} onClick={present}>Full-screen dashboard</button><button onClick={onAnalysis}>Deep analysis → Sitrep</button></div></div>
+    <div className={styles.workspaceHeading}><div><span className={styles.eyebrow}>OUTBREAK MONITOR</span><h3>Situation dashboard</h3><p>Case reporting date: {epi?.date||'Unavailable'} · Cut-off: {asOf}</p></div><div className={styles.toolbar}><PowerPointExport alertDays={alertDays} datasets={datasets} epi={epi} geometry={geometry} boundaryLevel={boundaryLevel} model={monitoring} asOf={asOf} settings={monitorOptions} ringSettings={ringSettings} movement={routeData} direction={movementDirection} operationTitle={title}/><button className={styles.primaryAction} onClick={present}>Full-screen dashboard</button><button onClick={onAnalysis}>Deep analysis → Sitrep</button></div></div>
     <KeyMessage compact onView={onView} message={message} asOf={asOf} reviewed={reviewed} onBriefing={onAnalysis}/>
     {!epi&&<div className={styles.panel}><p>Connect the DRC feeds or import cumulative health-zone case data to populate the dashboard.</p><button onClick={onData}>Connect or import data</button></div>}
     <div className={styles.dashboardViewToolbar}><MonitoringNavigation view={view} onView={onView}/><SlideViewSlot/></div>

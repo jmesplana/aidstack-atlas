@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dashboardSnapshot, reportingCurve, reportedCfr, overviewSignals, overviewSlideDeck, burdenSlideDeck, caseTrendSlideDeck } from '../lib/outbreak/dashboardBriefing.js';
+import { dashboardSnapshot, outbreakAtGlance, reportingCurve, reportedCfr, overviewSignals, overviewSlideDeck, burdenSlideDeck, caseTrendSlideDeck } from '../lib/outbreak/dashboardBriefing.js';
 
 const dates=['2026-08-31','2026-09-07','2026-09-14','2026-09-21'];
 const records=(location,values,when=dates)=>values.map((value,i)=>({location,date:when[i],value}));
@@ -116,4 +116,53 @@ test('reported CFR distinguishes zero deaths from missing deaths and rejects imp
   data.epi.dataset.records=[{location:'A',date:dates[3],value:0}];
   assert.equal(reportedCfr(data).percent,null);
   assert.match(reportedCfr(data).reason,/denominator is zero/);
+});
+
+
+test('at a glance separates exact seven-day cases and deaths from cumulative totals',()=>{
+  const data=cfrInput([...records('A',[0,2,6,14]),...records('B',[0,1,3,7])]);
+  const g=outbreakAtGlance(data);
+  assert.equal(g.cases.total,105);assert.equal(g.cases.recent,60);
+  assert.equal(g.deaths.total,21);assert.equal(g.deaths.recent,12);
+  assert.equal(g.start,'2026-09-14');assert.equal(g.end,'2026-09-21');
+  assert.equal(g.cases.paired,2);assert.equal(g.deaths.paired,2);
+  const old=outbreakAtGlance({...data,asOf:'2026-09-23'});
+  assert.equal(old.cases.recent,60);assert.equal(old.deaths.recent,12);assert.equal(old.cases.total,105);
+  assert.equal(old.cases.end,'2026-09-21');assert.equal(old.cases.start,'2026-09-14');assert.equal(old.cases.lagDays,2);
+  assert.equal(old.cases.sourceDate,'2026-09-21');
+});
+test('provincial affected share uses every uniquely mapped health zone, including missing reports',()=>{
+  const data=cfrInput();const g=outbreakAtGlance({...data,province:'East',location:'A'});
+  assert.equal(g.cases.total,70);assert.equal(g.healthZones.total,3);
+  assert.equal(g.healthZones.affected,1);assert.ok(Math.abs(g.healthZones.percent-100/3)<1e-10);
+  assert.equal(g.healthZones.missing,2);
+  assert.equal(outbreakAtGlance({...data,geometry:null}).healthZones.total,null);
+  const allMissing=outbreakAtGlance({...data,epi:{...data.epi,dataset:{...data.epi.dataset,records:[]}}});
+  assert.equal(allMissing.healthZones.affected,null);assert.equal(allMissing.healthZones.percent,null);
+});
+test('seven-day death changes distinguish zero from missing, revisions, duplicates and six-day pairs',()=>{
+  const source=[{location:'A',date:'2026-09-14',value:14},{location:'A',date:'2026-09-21',value:14}];
+  assert.equal(outbreakAtGlance(cfrInput(source)).deaths.recent,0);
+  for(const rows of [source.slice(1),[...source,{location:'A',date:'2026-09-18',value:null}],[...source,{location:'A',date:'2026-09-18',value:20}],[...source,source[0]],source.map((r,i)=>i?r:{...r,date:'2026-09-15'})]) {
+    assert.equal(outbreakAtGlance(cfrInput(rows)).deaths.recent,null);
+  }
+  const duplicate=cfrInput(source);duplicate.datasets.push({...duplicate.datasets[0],id:'another'});
+  assert.equal(outbreakAtGlance(duplicate).deaths.total,null);
+  const unconfirmed=cfrInput(source);unconfirmed.epi.dataset.metricId='cumulative_suspected_cases';
+  assert.equal(outbreakAtGlance(unconfirmed).cases.total,null);
+});
+
+
+test('each weekly card ends on its latest scoped source date without borrowing other areas or future reports',()=>{
+  const data=cfrInput([...records('A',[0,2,6],dates.slice(0,3)),...records('B',[0,1,3,7]),{location:'A',date:'2026-10-01',value:99}]);
+  const g=outbreakAtGlance({...data,asOf:'2026-09-29',location:'A'});
+  assert.equal(g.cases.start,'2026-09-14');assert.equal(g.cases.end,'2026-09-21');assert.equal(g.cases.recent,40);
+  assert.equal(g.deaths.start,'2026-09-07');assert.equal(g.deaths.end,'2026-09-14');assert.equal(g.deaths.recent,4);
+  assert.equal(g.deaths.sourceDate,'2026-09-14');assert.equal(g.deaths.lagDays,15);
+  assert.equal(g.deaths.total,null); // Cumulative total still uses the displayed case-source date.
+});
+test('a missing baseline for the latest report cannot be replaced with an older week',()=>{
+  const data=cfrInput([...records('A',[0,2,6,14]),{location:'A',date:'2026-09-26',value:18}]);
+  const g=outbreakAtGlance({...data,asOf:'2026-09-29'});
+  assert.equal(g.deaths.sourceDate,'2026-09-26');assert.equal(g.deaths.start,'2026-09-19');assert.equal(g.deaths.recent,null);
 });

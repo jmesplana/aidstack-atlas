@@ -513,3 +513,99 @@ drafts, with defaults for older saved versions. Coordinator message overrides
 remain authoritative; automatic summaries return when the override is cleared.
 The Sitrep assessment includes the same area-monitoring highlights and chosen
 threshold, so printed and exported reports retain that interpretation.
+
+## National three-ring response slides
+
+Situation dashboard → Slide view · 16:9 → National three-ring response shows
+all loaded provinces, colour-coded with the supplied DRC response packages.
+The following province-register slides retain every assignment and its basis.
+PNG export includes the map, response activities, cut-off and review caveat.
+National rings deliberately use all provinces, including while a health zone or
+province is selected elsewhere in the dashboard. A complete national map requires
+complete province boundaries or health-zone boundaries with province assignments.
+
+Suggestions recalculate from the selected cumulative case source, loaded boundaries
+and reporting cut-off. The default evidence window is 21 days; choose 7, 14, 21
+or 42 under **Ring criteria and coordinator assignments**. These are configurable
+planning windows, not validated outbreak-control thresholds:
+
+- Red: at least one reported increase between observations no more than eight
+  days apart within the window, with a latest valid report no more than eight days
+  before the cut-off and no observed downward revision in that area's window.
+- Orange: a province polygon touches or intersects a red province in the loaded
+  geography, including coordinator-assigned red provinces.
+- Yellow: every mapped constituent area has valid unchanged reports at both
+  window endpoints, no reporting gap over eight days and no downward revision;
+  geometry establishes no mapped border with red.
+- Grey: insufficient evidence or a coordinator assignment to unclassified.
+  Missing reports never default to zero. Cumulative totals alone do not establish
+  active transmission, and unchanged reports do not establish its absence.
+
+The algorithm does not incorporate travel corridors or official risk assessments;
+coordinators can override any province and record the assessment/source. Overrides
+apply from the current cut-off, persist until superseded, and can be returned to
+automatic suggestions. Earlier cut-offs exclude later assignments. Snapshot,
+draft and evidence-JSON persistence includes the window and dated assignments;
+older snapshots default to automatic suggestions and a new outbreak clears them.
+The slide is a planning aid, not an official national classification.
+
+
+**Situation at a glance** includes confirmed cases and confirmed deaths during
+the exact seven days ending at each metric’s latest available reporting date on or
+before the cut-off, cumulative reported totals
+since outbreak start at the displayed source date, affected health zones and CFR.
+Each card shows its comparison dates and reporting lag. A source-availability note
+states the latest case/death dates and the dashboard cut-off. Seven-day figures use
+exact cumulative endpoint observations; revisions, missing
+values and incompatible sources are excluded. Available subsets are labelled
+partial, and zero is distinct from unavailable. Death totals use the uniquely
+identified confirmed-death series at the case source's geographic level; CFR
+continues to use only matched case/death observations. National series and local
+sums are not combined.
+
+Affected health zones are those with a positive reported cumulative total on the
+source date. The denominator includes every uniquely mapped health zone in the
+selected province (or all loaded provinces); selecting a single zone does not
+shrink the province denominator. Missing reports are shown, and the affected
+percentage is labelled a known minimum when reporting is incomplete.
+
+
+Slide rendering is loaded on demand when **Slide view** is opened. Closed slides
+do not build briefing decks, and province ring classification runs only when a
+ring slide is selected. Neighbour checks discard disjoint bounding boxes before
+running exact polygon comparisons and cache results while boundaries are unchanged.
+Changing data or dated assignments still recalculates the suggested rings.
+
+**Export PowerPoint** in the dashboard heading defaults to a concise coordination
+briefing: cover, key findings, situation at a glance, reported changes, national
+response rings, five highest-burden areas, case trend summary, surveillance gaps
+by province, verification priorities and sources. With available case data and a
+normal source register this is **10 slides total**, or 11 with authored coordination
+requests. The dialog shows the exact total including all supporting slides.
+
+Summary counts retain every area in scope. Surveillance shows up to six province
+(or unassigned-location) groups ranked by older/missing report counts; verification
+shows up to four zones in each signal group, with displayed and total counts.
+Sustained increases are ordered by latest reported rate, visibility lost by report
+age, and ties alphabetically. These are reporting follow-up priorities, not a
+severity classification. No health-zone pagination or section dividers appear
+in the default deck. Methods are included in speaker notes.
+
+**Add detailed appendix** is off by default. When enabled, choose supporting
+sections from overview/ring details, burden/movement, trends, source availability,
+sustained increases and visibility lost. Detail pages follow the main briefing and
+sources, with labelled appendix dividers. The original detailed pages remain
+available without truncating eligible rows. Burden appendix pages use the dashboard
+ranking size; the main briefing always shows up to five areas. Choose all loaded
+provinces or a province; national rings always cover all loaded provinces.
+Temporary tab filters and a single selected zone do not restrict summary counts.
+The concise overview curve offers 3 or 6 reporting weeks.
+
+Opening the exporter captures the current data and settings. No feeds refresh
+within the export, and source availability and comparison dates remain visible.
+The preparer, key message and coordination requests are optional authored fields.
+Cover/findings/sources are native editable PowerPoint text; evidence charts and
+maps are 1920 × 1080 images with evidence transcripts in speaker notes. Cancellation
+discards the unfinished file. Export libraries load only on request. The download
+is a static briefing for review and circulation; regenerate it after new data
+arrive. Exporting does not send the file to other people.

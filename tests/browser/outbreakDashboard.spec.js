@@ -1,5 +1,7 @@
 const { test, expect } = require('@playwright/test');
 async function openOutbreak(page, boundaries=[], sourceHandler=null, acledData=[]) {
+  // Keep development-server refreshes from resetting the app during a briefing.
+  await page.routeWebSocket('**/_next/webpack-hmr*',()=>{});
   await page.route('**/api/**',route=>route.fulfill({json:route.request().url().includes('/gdacs')?[]:{reports:[],mapFeatures:[]}}));
   await page.route(/^https?:\/\/(?!127\.0\.0\.1|localhost).*$/,route=>route.abort());
   if(sourceHandler)await page.route('**/api/outbreak-data?*',sourceHandler);
@@ -295,7 +297,7 @@ const monitorCases={...dataset(),records:[
   {location:'Gap3',date:'2026-08-31',value:2},{location:'Gap6',date:'2026-08-10',value:3}
 ]};
 const monitorMovement={...movement,routes:[{origin:'Declining',destination:'Receiver',value:50},{origin:'Receiver',destination:'Declining',value:20}]};
-const monitorDeaths={id:'insp:cumulative_confirmed_deaths',metricId:'cumulative_confirmed_deaths',label:'Confirmed deaths',purpose:'other',status:'ready',kind:'cumulative',level:'health_zone',records:[{location:'Declining',date:'2026-09-21',value:27},{location:'Rising',date:'2026-09-21',value:19},{location:'Quiet',date:'2026-09-21',value:0}]};
+const monitorDeaths={id:'insp:cumulative_confirmed_deaths',metricId:'cumulative_confirmed_deaths',label:'Confirmed deaths',purpose:'other',status:'ready',kind:'cumulative',level:'health_zone',records:[{location:'Declining',date:'2026-09-14',value:20},{location:'Rising',date:'2026-09-14',value:10},{location:'Quiet',date:'2026-09-14',value:0},{location:'Declining',date:'2026-09-21',value:27},{location:'Rising',date:'2026-09-21',value:19},{location:'Quiet',date:'2026-09-21',value:0}]};
 async function openMonitoring(page){
   await openOutbreak(page,monitorBoundaries,route=>{const kind=new URL(route.request().url()).searchParams.get('kind');return route.fulfill({json:kind==='indicators'?{datasets:[monitorCases,monitorDeaths]}:kind==='mines'?{data:[]}:kind==='relocations'?monitorMovement:{products:[]}});});
   await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-21');
@@ -827,11 +829,23 @@ test('province briefings distinguish sustained increases from old rising signals
 test('overview slides show scoped dated totals, a fixed reporting cohort and export from full screen',async({page},testInfo)=>{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.setViewportSize({width:1440,height:900});await openMonitoring(page);
-  await page.getByRole('button',{name:'Slide view · 16:9',exact:true}).click();
+  // The dashboard is usable while the optional slide renderer downloads.
+  let resumeDownload;const downloadGate=new Promise(resolve=>{resumeDownload=resolve;});
+  const holdSlideDownload=async route=>{await downloadGate;await route.continue();};
+  await page.route('**/_next/static/chunks/*.js',holdSlideDownload);
+  try {
+    await page.getByRole('button',{name:'Slide view · 16:9',exact:true}).click();
+    await expect(page.getByRole('status').filter({hasText:'Preparing slides…'})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'Situation dashboard',exact:true})).toBeVisible();
+  } finally {resumeDownload();await page.unroute('**/_next/static/chunks/*.js',holdSlideDownload);}
   const dialog=page.getByRole('dialog',{name:'Situation overview slide view',exact:true});
   let slide=dialog.getByRole('img',{name:'Situation at a glance slide',exact:true});
   await expect(slide).toContainText('376');await expect(slide).toContainText('3/7 areas have values on 2026-09-21');await expect(slide).toContainText('+131');
   await expect(slide).toContainText('12.2%');await expect(slide).toContainText('46 deaths / 376 cases');
+  await expect(slide.getByLabel('Confirmed cases · latest reported week',{exact:true})).toContainText('+131');
+  await expect(slide.getByLabel('Confirmed deaths · latest reported week',{exact:true})).toContainText('+16');
+  await expect(slide.getByLabel('Confirmed deaths · since outbreak start',{exact:true})).toContainText('46');
+  await expect(slide.getByLabel('Affected health zones',{exact:true})).toContainText('3 / 7 · 42.9%');
   await expect(slide).toContainText('DRC Ebola');await slide.screenshot({path:testInfo.outputPath('overview-situation.png')});
   await dialog.getByRole('button',{name:'Next',exact:true}).click();
   const curve=dialog.getByRole('img',{name:'Reported changes over time slide',exact:true});
@@ -857,6 +871,10 @@ test('overview slides show scoped dated totals, a fixed reporting cohort and exp
   await page.getByLabel('Health zone',{exact:true}).selectOption('Rising');
   await page.getByRole('button',{name:'Slide view · 16:9',exact:true}).click();await expect(slide).toContainText('1/1 areas have values');await expect(slide).toContainText('95');await expect(slide).not.toContainText('376');
   await expect(slide).toContainText('20.0%');await expect(slide).toContainText('19 deaths / 95 cases');
+  await expect(slide.getByLabel('Confirmed cases · latest reported week',{exact:true})).toContainText('+50');
+  await expect(slide.getByLabel('Confirmed deaths · latest reported week',{exact:true})).toContainText('+9');
+  await expect(slide.getByLabel('Affected health zones',{exact:true})).toContainText('3 / 7 · 42.9%');
+  await expect(slide.getByLabel('Affected health zones',{exact:true})).toContainText('Test province');
   await page.keyboard.press('Escape');await page.getByRole('button',{name:'Full-screen dashboard',exact:true}).click();
   const board=page.getByRole('dialog',{name:'Decision dashboard',exact:true});
   await board.getByRole('button',{name:'Slide view · 16:9',exact:true}).click();
@@ -905,5 +923,122 @@ test('case trend slides retain assessment filters, thresholds and dated evidence
   await page.getByRole('button',{name:'Slide view · 16:9',exact:true}).click();await expect(summary).toContainText('1 areas in the dashboard comparison selection');await expect(summary).toContainText('11% threshold');
   await dialog.getByRole('button',{name:'Next',exact:true}).click();await expect(detail).not.toContainText('Trend evidence for Rising');await expect(detail).toContainText('Declining / not sustained');
   await page.keyboard.press('Escape');await page.getByRole('button',{name:'Full-screen dashboard',exact:true}).click();const board=page.getByRole('dialog',{name:'Decision dashboard',exact:true});await board.getByRole('button',{name:'Slide view · 16:9',exact:true}).click();await expect(summary).toBeVisible();await page.keyboard.press('Escape');await expect(board).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('national response rings update, export and retain dated coordinator assignments',async({page},testInfo)=>{
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.setViewportSize({width:1440,height:1000});
+  await openOutbreak(page,boundaries,route=>{const kind=new URL(route.request().url()).searchParams.get('kind');return route.fulfill({json:kind==='indicators'?{datasets:[dataset()]}:kind==='mines'?{data:[]}:kind==='relocations'?movement:{products:[]}});});
+  await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-21');
+  await page.getByLabel('Health zone',{exact:true}).selectOption('A');
+  const dialog=page.getByRole('dialog',{name:'Situation overview slide view',exact:true});
+  async function openRings(){
+    await page.getByRole('button',{name:'Slide view · 16:9',exact:true}).click();
+    const option=dialog.getByRole('combobox',{name:'Briefing slide',exact:true}).locator('option').filter({hasText:'National three-ring response'});
+    await dialog.getByRole('combobox',{name:'Briefing slide',exact:true}).selectOption(await option.getAttribute('value'));
+  }
+  await openRings();
+  const slide=dialog.getByRole('img',{name:'National three-ring response slide',exact:true});
+  await expect(slide).toContainText('2 loaded provinces');
+  await expect(slide.getByLabel('Red · Active transmission',{exact:true})).toContainText('1 provinces');
+  await expect(slide.getByLabel('Orange · High risk',{exact:true})).toContainText('1 provinces');
+  await expect(slide).toContainText('SDB, RCCE, MHPSS and WASH');await expect(slide).toContainText('simulation exercises');
+  await slide.screenshot({path:testInfo.outputPath('national-rings.png')});
+  const pending=page.waitForEvent('download');await dialog.getByRole('button',{name:'Download PNG · 1920 × 1080',exact:true}).click();
+  const file=await pending;await file.saveAs(testInfo.outputPath('national-rings-export.png'));
+  const bytes=require('node:fs').readFileSync(testInfo.outputPath('national-rings-export.png'));expect(bytes.readUInt32BE(16)).toBe(1920);expect(bytes.readUInt32BE(20)).toBe(1080);
+  await dialog.getByText('Ring criteria and coordinator assignments',{exact:true}).click();
+  await dialog.getByRole('combobox',{name:'Ring evidence window',exact:true}).selectOption('7');
+  await expect(slide).toContainText('2026-09-14–2026-09-21');
+  await dialog.getByRole('combobox',{name:'Ring province',exact:true}).selectOption('Province Two');
+  await dialog.getByRole('combobox',{name:'Province ring',exact:true}).selectOption('yellow');
+  await dialog.getByLabel('Assignment source / rationale',{exact:true}).fill('MoH assessment 21 September');
+  await dialog.getByRole('button',{name:'Apply from 2026-09-21',exact:true}).click();
+  await expect(slide.getByLabel('Yellow · Prevention',{exact:true})).toContainText('1 provinces');
+  await dialog.getByText('Ring criteria and coordinator assignments',{exact:true}).click();
+  await dialog.getByRole('button',{name:'Next',exact:true}).click();
+  await expect(dialog.getByLabel('Ring evidence for Province Two',{exact:true})).toContainText('MoH assessment 21 September');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button',{name:/Save snapshot/}).click();
+  await page.getByText('Report settings & saved versions',{exact:true}).click();
+  await expect(page.getByLabel('Saved snapshots').locator('option')).toHaveCount(2);
+  await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-14');
+  await openRings();await expect(slide).toContainText('0 coordinator assignments');await page.keyboard.press('Escape');
+  page.on('dialog',d=>d.accept());await page.getByLabel('Saved snapshots').selectOption({index:1});
+  await openRings();await expect(slide).toContainText('1 coordinator assignments');await expect(slide).toContainText('2026-09-14–2026-09-21');
+  await expect(slide.getByLabel('Yellow · Prevention',{exact:true})).toContainText('1 provinces');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button',{name:'Full-screen dashboard',exact:true}).click();
+  await page.getByRole('dialog',{name:'Decision dashboard',exact:true}).getByRole('button',{name:'Slide view · 16:9',exact:true}).click();
+  const option=dialog.getByRole('combobox',{name:'Briefing slide',exact:true}).locator('option').filter({hasText:'National three-ring response'});
+  await dialog.getByRole('combobox',{name:'Briefing slide',exact:true}).selectOption(await option.getAttribute('value'));
+  await expect(slide).toContainText('1 coordinator assignments');
+  expect(errors).toEqual([]);
+});
+
+test('overview weekly figures follow the latest source date and disclose reporting lag',async({page},testInfo)=>{
+  await page.setViewportSize({width:1440,height:900});
+  await openMonitoring(page);
+  await page.getByLabel('Reporting cut-off',{exact:true}).fill('2026-09-29');
+  await page.getByRole('button',{name:'Slide view · 16:9',exact:true}).click();
+  const slide=page.getByRole('img',{name:'Situation at a glance slide',exact:true});
+  const cases=slide.getByLabel('Confirmed cases · latest reported week',{exact:true});
+  const deaths=slide.getByLabel('Confirmed deaths · latest reported week',{exact:true});
+  await expect(cases).toContainText('+131');await expect(deaths).toContainText('+16');
+  for(const card of [cases,deaths]){
+    await expect(card).toContainText('2026-09-14–2026-09-21');
+    await expect(card).toContainText('8d before cut-off');
+  }
+  await expect(slide).toContainText('Source data available through 2026-09-21; dashboard cut-off 2026-09-29.');
+  await slide.screenshot({path:testInfo.outputPath('latest-reported-week.png')});
+  const pending=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Download PNG · 1920 × 1080',exact:true}).click();
+  await (await pending).saveAs(testInfo.outputPath('latest-reported-week-export.png'));
+});
+
+test('coordination PowerPoint defaults to a concise deck with optional detailed appendices',async({page},testInfo)=>{
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.setViewportSize({width:1440,height:1000});await openMonitoring(page);
+  await page.getByRole('button',{name:'Export PowerPoint',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'Export coordination PowerPoint',exact:true});
+  await expect(dialog).toBeVisible();await expect(dialog).toContainText('cases 2026-09-21; deaths 2026-09-21');
+  await expect(dialog.getByRole('checkbox')).toHaveCount(1);
+  await expect(dialog).toContainText('10 slides total · concise briefing');
+  await expect(dialog.getByRole('checkbox',{name:'Add detailed appendix (optional)',exact:true})).not.toBeChecked();
+  await dialog.getByLabel('Prepared by (optional)',{exact:true}).fill('Coordination epidemiology team');
+  await dialog.getByLabel('Key message (optional)',{exact:true}).fill('Verify reporting gaps with provincial teams.');
+  await dialog.getByLabel('Coordination requests (optional)',{exact:true}).fill('Confirm the latest available situation reports.');
+  await dialog.screenshot({path:testInfo.outputPath('powerpoint-export-dialog.png')});
+  const pending=page.waitForEvent('download');
+  await dialog.getByRole('button',{name:'Download PowerPoint',exact:true}).click();
+  const file=await pending;expect(file.suggestedFilename()).toBe('outbreak-coordination_2026-09-21.pptx');
+  const path=testInfo.outputPath(file.suggestedFilename());await file.saveAs(path);
+  const zip=await require('jszip').loadAsync(require('fs').readFileSync(path));
+  const slidePaths=Object.keys(zip.files).filter(p=>/^ppt\/slides\/slide\d+\.xml$/.test(p));
+  const notePaths=Object.keys(zip.files).filter(p=>/^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(p));
+  expect(slidePaths.length).toBe(11);expect(notePaths.length).toBe(slidePaths.length);
+  const slides=(await Promise.all(slidePaths.map(p=>zip.file(p).async('string')))).join('\n');
+  expect(slides).toContain('Verify reporting gaps with provincial teams.');
+  expect(slides).toContain('131 reported during 2026-09-14–2026-09-21');
+  expect(slides).toContain('16 reported during 2026-09-14–2026-09-21');
+  expect(slides).toContain('Coordination requests');
+
+  const notes=(await Promise.all(notePaths.map(p=>zip.file(p).async('string')))).join('\n');
+  expect(notes).toContain('Test province');expect(notes).toContain('SDB');expect(notes).toContain('Source data available through');
+  expect(notes).toContain('Rising');expect(notes).toContain('Quiet');
+  expect(notes).toContain('Surveillance gaps by province');expect(notes).toContain('Priority verification follow-up');
+  expect(notes).toContain('Interpretation and methods');
+  const media=Object.keys(zip.files).filter(p=>/^ppt\/media\/.*\.png$/.test(p));expect(media.length).toBe(7);
+  const png=await zip.file(media[0]).async('nodebuffer');expect(png.readUInt32BE(16)).toBe(1920);expect(png.readUInt32BE(20)).toBe(1080);
+  require('fs').writeFileSync(testInfo.outputPath('powerpoint-first-evidence.png'),png);
+  await expect(dialog).toContainText('PowerPoint downloaded');
+  await dialog.getByRole('checkbox',{name:'Add detailed appendix (optional)',exact:true}).check();
+  await expect(dialog.getByRole('group',{name:'Appendix sections'}).getByRole('checkbox')).toHaveCount(6);
+  await expect(dialog).not.toContainText('11 slides total');
+  await dialog.getByRole('checkbox',{name:'Add detailed appendix (optional)',exact:true}).uncheck();
+  await expect(dialog).toContainText('11 slides total · concise briefing');
+  await dialog.getByRole('button',{name:'Close',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Export PowerPoint',exact:true})).toBeFocused();
   expect(errors).toEqual([]);
 });

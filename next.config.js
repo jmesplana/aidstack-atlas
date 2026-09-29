@@ -7,6 +7,11 @@ const nextConfig = {
   turbopack: {
     root: path.resolve(__dirname)
   },
+  experimental: {
+    // Disk-cache compaction stalls local compiles on this workspace's storage.
+    // Turbopack still keeps its in-memory development cache.
+    turbopackFileSystemCacheForDev: false,
+  },
   serverExternalPackages: ['@google/earthengine'],
   async rewrites() {
     return [

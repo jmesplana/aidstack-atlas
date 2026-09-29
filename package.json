@@ -59,6 +59,7 @@
     "papaparse": "^5.4.1",
     "pdf-parse": "^2.4.5",
     "pdfjs-dist": "5.4.296",
+    "pptxgenjs": "^4.0.1",
     "proj4": "^2.20.3",
     "react": "^18.2.0",
     "react-chartjs-2": "^5.3.1",

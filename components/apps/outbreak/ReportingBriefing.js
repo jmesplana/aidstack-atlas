@@ -144,6 +144,11 @@ function ProvinceSummary({svgRef,summaries,deck,mode,model,source,scope,page}) {
   </svg>;
 }
 
+export function ReportingSlide({svgRef,entry,deck,mode,model,geometry,source,scope,page,total=deck.pages.length}) {
+  const rows=(entry.rows||[]).map(r=>mode==='availability'?r:{...r,lastSignal:{...r.lastTrend.observations.at(-1),rising:true}});
+  return entry.kind==='summary'?<ProvinceSummary svgRef={svgRef} summaries={entry.summaries} deck={{...deck,pages:{length:total}}} mode={mode} model={model} source={source} scope={scope} page={page}/>:<Slide svgRef={svgRef} rows={rows} total={entry.total} model={model} geometry={geometry} source={source} scope={entry.province||scope} page={page} pages={total} mode={mode} start={entry.start}/>;
+}
+
 export default function ReportingBriefing({rows,provinceRows=rows,provinceScope='All provinces',model,geometry,source,selected,scope}) {
   const [open,setOpen]=useState(false),[page,setPage]=useState(0),[exporting,setExporting]=useState(false),[error,setError]=useState('');
   const [mode,setMode]=useState('availability'),[grouped,setGrouped]=useState(false),[slideProvince,setSlideProvince]=useState('');

@@ -367,3 +367,17 @@
 .decisionHeader .dashboardViewToolbar{margin:0;width:100%}
 @media(max-width:650px){.dashboardViewToolbar>.monitorNavigation{flex-basis:100%}.decisionHeaderRight{min-width:0;flex-shrink:1}.decisionHeader .dashboardViewToolbar>.decisionViewTabs{flex-basis:100%}}
 @media(max-width:650px){.dashboardSlideDialog .reportingSlide{width:100%}.app .dashboardSlideDialog .reportingSlideFilters select{max-width:250px}}
+
+.responseRingControls { padding: 10px 18px; background: #f1f5f9; color: #18334b; max-height: 32vh; overflow: auto; flex-shrink: 0; }
+.responseRingControls summary { cursor: pointer; font-weight: 600; }
+.responseRingControls p { font-size: 13px; line-height: 1.5; max-width: 1200px; }
+.responseRingControls input { min-width: 240px; }
+.powerPointDialog{width:min(800px,calc(100vw - 32px));background:white;padding:24px}
+.powerPointDialog fieldset{border:0;padding:0;display:grid;gap:12px}
+.powerPointDialog label{display:grid;gap:5px;font-size:14px}
+.powerPointDialog input,.powerPointDialog select,.powerPointDialog textarea{padding:8px;border:1px solid #bacdd8;border-radius:5px;font:inherit}
+.powerPointDialog p{font-size:14px;line-height:1.5}
+.powerPointSections{display:grid;gap:10px;margin-bottom:8px}
+.app .powerPointSections label{display:flex;flex-direction:row;align-items:center;gap:8px}
+.app .powerPointSections input[type=checkbox]{align-self:center;flex-shrink:0;margin:0}
+.powerPointDialog progress{width:100%}
