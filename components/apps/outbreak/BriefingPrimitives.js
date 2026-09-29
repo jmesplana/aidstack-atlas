@@ -1,6 +1,9 @@
 import { useId, useMemo } from 'react';
-import { zoneName, formatValue } from '../../../lib/outbreak/data';
+import { formatValue } from '../../../lib/outbreak/data';
 import { placeLabels } from '../../../lib/outbreak/mapInteraction';
+import { slideMapGeography } from '../../../lib/outbreak/slideMapGeography';
+import countries from '../../../lib/outbreak/countries.json';
+import admin1 from '../../../lib/outbreak/admin1.json';
 import { download } from './Visuals';
 import styles from './outbreak.module.css';
 
@@ -31,32 +34,27 @@ export function SlideFrame({svgRef,title,subtitle,asOf,page,total,source,note,ch
     </g>
   </svg>;
 }
-export function SlideMap({geometry,rows,valueKey='value',categories=null,numberOffset=0,x=45,y=230,width=625,height=480}) {
+export function SlideMap({geometry,rows,valueKey='value',categories=null,numberOffset=0,x=45,y=230,width=625,height=480,fitCountry=null}) {
   const id=useId().replace(/:/g,''),lookup=new Map(rows.map((r,i)=>[r.location,{...r,index:i+1+numberOffset}]));
-  const shapes=useMemo(()=>{
-    const features=(geometry?.features||[]).filter(f=>['Polygon','MultiPolygon'].includes(f.geometry?.type));
-    const rings=f=>f.geometry.type==='Polygon'?f.geometry.coordinates:f.geometry.coordinates.flat();
-    const relevant=features.filter(f=>rows.some(r=>r.location===zoneName(f)));
-    const points=(relevant.length?relevant:features).flatMap(f=>rings(f).flat());if(!points.length)return [];
-    let west=Infinity,east=-Infinity,south=Infinity,north=-Infinity;
-    for(const [a,b] of points){west=Math.min(west,a);east=Math.max(east,a);south=Math.min(south,b);north=Math.max(north,b);}
-    const cos=Math.max(.1,Math.cos((south+north)/2*Math.PI/180)),scale=Math.min((width-60)/Math.max(.01,(east-west)*cos),(height-60)/Math.max(.01,north-south));
-    const project=([a,b])=>[x+width/2+(a-(west+east)/2)*cos*scale,y+height/2-(b-(south+north)/2)*scale];
-    return features.map(f=>{
-      const polygon=rings(f),points=polygon.flat().map(project);let left=Infinity,right=-Infinity,top=Infinity,bottom=-Infinity;
-      for(const [a,b] of points){left=Math.min(left,a);right=Math.max(right,a);top=Math.min(top,b);bottom=Math.max(bottom,b);}
-      return {name:zoneName(f),labelWidth:28,center:[(left+right)/2,(top+bottom)/2],path:polygon.map(r=>r.map((p,i)=>`${i?'L':'M'}${project(p).join(',')}`).join(' ')+'Z').join(' ')};
-    });
-  },[geometry,rows,x,y,width,height]);
+  const mapHeight=height-24;
+  const geography=useMemo(()=>slideMapGeography({geometry,rows,x,y,width,height:mapHeight,countries:countries.features,admin1:admin1.features,fitCountry}),[geometry,rows,x,y,width,mapHeight,fitCountry]);
+  const {shapes,contextLabels}=geography;
   const max=Math.max(1,...rows.map(r=>Math.max(0,r[valueKey]??0)));
-  const labels=placeLabels(shapes,[x,y,width,height],'',new Set(rows.map(r=>r.location)),1,[width,height]);
+  const candidates=[...shapes.filter(f=>lookup.has(f.name)),...contextLabels];
+  const labels=placeLabels(candidates,[x,y,width,mapHeight],'',new Set(candidates.map(f=>f.name)),1,[width,mapHeight]);
   return <g aria-label="Map linking numbered areas to evidence">
-    <defs><clipPath id={id}><rect x={x} y={y} width={width} height={height} rx="8"/></clipPath></defs>
-    <rect x={x} y={y} width={width} height={height} rx="8" fill="#f1f5f7"/>
+    <defs><clipPath id={id}><rect x={x} y={y} width={width} height={mapHeight} rx="8"/></clipPath></defs>
+    <rect x={x} y={y} width={width} height={height} rx="8" fill="#c4d9e8"/>
     <g clipPath={`url(#${id})`}>
+      <g aria-label="Country and neighbouring province basemap">
+        {geography.countries.map(f=><path key={f.name} data-country={f.name} d={f.path} fill={f.focused?'#ffffff':fitCountry?'#e8ece9':'#f3f1e9'} fillRule="evenodd" stroke={f.focused?'#33483f':'#8c9991'} strokeWidth={f.focused?1.8:1}/>) }
+        {geography.provinces.map(f=><path key={f.id} data-context-province={f.name} d={f.path} fill="none" stroke="#a5aaa1" strokeWidth=".65"/>)}
+      </g>
       {shapes.map(f=>{const row=lookup.get(f.name);return <path key={f.name} d={f.path} fill={row?(categories?categories[row.status]?.color||'#e3e8ed':row[valueKey]===null?'#e3e8ed':`hsl(18 72% ${90-42*Math.sqrt(Math.max(0,row[valueKey]||0)/max)}%)`):'#e8eef1'} fillRule="evenodd" opacity={row?1:.45} stroke="#9aaeba"><title>{f.name}{row?`: ${categories?categories[row.status]?.label:number(row[valueKey])}`:''}</title></path>;})}
-      {labels.map(f=><g key={f.name}><line x1={f.center[0]} y1={f.center[1]} y2={f.labelY-6} x2={f.labelX} stroke="#526b7b"/><text x={f.labelX} y={f.labelY} fontSize="19" textAnchor="middle" fontWeight="700" stroke="white" strokeWidth="4" paintOrder="stroke">{lookup.get(f.name).index}</text></g>)}
+      {labels.filter(f=>!f.kind).map(f=><g key={f.name}><line x1={f.center[0]} y1={f.center[1]} y2={f.labelY-6} x2={f.labelX} stroke="#526b7b"/><text x={f.labelX} y={f.labelY} fontSize="19" textAnchor="middle" fontWeight="700" stroke="white" strokeWidth="4" paintOrder="stroke">{lookup.get(f.name).index}</text></g>)}
+      {labels.filter(f=>f.kind).map(f=><text key={f.name} data-context-label={f.kind} x={f.labelX} y={f.labelY} fontSize={f.focused?17:f.kind==='country'&&!fitCountry?15:12} textAnchor="middle" fontWeight={f.kind==='country'?700:400} fill={f.kind==='country'?'#33483f':'#5b625b'} stroke="#fff" strokeWidth="3" paintOrder="stroke"><title>{f.fullName}</title>{f.text}</text>)}
     </g>
+    {!!shapes.length&&<g aria-label="Basemap attribution"><rect x={x} y={y+mapHeight} width={width} height="24" fill="#f5f7f8"/><text x={x+8} y={y+height-8} fontSize="10" fill="#52616b">Context: Natural Earth · generalized country / admin-1 boundaries</text></g>}
     {!shapes.length&&<text x={x+width/2} y={y+height/2} textAnchor="middle" fontSize="19">Administrative boundaries unavailable</text>}
   </g>;
 }

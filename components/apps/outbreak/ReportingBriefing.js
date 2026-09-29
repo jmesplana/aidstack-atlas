@@ -112,6 +112,7 @@ function IntervalRow({row,index}) {
 }
 
 function ProvinceSummary({svgRef,summaries,deck,mode,model,source,scope,page}) {
+  const availability=mode==='availability',gap=MONITORING_CONFIG.maximumReportGapDays;
   return <svg ref={svgRef} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" className={styles.reportingSlide} role="img" aria-label="Province surveillance summary slide">
     <title>Province summary — {BRIEFING_MODES[mode].title} — {model.asOf}</title>
     <rect width="1600" height="900" fill="white"/>
@@ -121,25 +122,25 @@ function ProvinceSummary({svgRef,summaries,deck,mode,model,source,scope,page}) {
       <text x="1555" y="62" textAnchor="end" fontSize="20">As of {model.asOf} · {page+1}/{deck.pages.length}</text>
       <text x="45" y="102" fontSize="21">{BRIEFING_MODES[mode].title} · {short(scope,90)}</text>
       <rect x="45" y="125" width="1510" height="52" rx="8" fill="#edf4f6"/>
-      <text x="65" y="158" fontSize="20">{deck.matching} qualifying zone{deck.matching===1?'':'s'} / {deck.total} in scope · {deck.provinces.length} province group{deck.provinces.length===1?'':'s'} · Zone counts, not province-wide epidemic trends</text>
+      <text x="65" y="158" fontSize="20">{availability?`${deck.total} zones in scope`:`${deck.matching} qualifying zones / ${deck.total} in scope`} · {deck.provinces.length} province groups · {availability?'Includes zones without available reports':'Zone counts, not province-wide epidemic trends'}</text>
       <text x="65" y="219" fontSize="20" fontWeight="700">Province</text>
       <text x="860" y="219" textAnchor="end" fontSize="18">Zones in scope</text>
-      <text x="1110" y="219" textAnchor="end" fontSize="18">Sustained increases</text>
-      <text x="1310" y="219" textAnchor="end" fontSize="18">Visibility lost</text>
+      <text x="1110" y="219" textAnchor="end" fontSize="18">{availability?`Report ≤${gap} days`:'Sustained increases'}</text>
+      <text x="1310" y="219" textAnchor="end" fontSize="18">{availability?`Report >${gap} days`:'Visibility lost'}</text>
       <text x="1525" y="219" textAnchor="end" fontSize="18">No available report</text>
       {summaries.map((p,i)=><g key={p.province} aria-label={`Province summary for ${p.province}`}>
         <rect x="45" y={240+i*54} width="1510" height="48" rx="5" fill={i%2?'#f7f9fa':'#edf3f6'}/>
         <text x="65" y={271+i*54} fontSize="21"><title>{p.province}</title>{short(p.province,48)}</text>
         <text x="860" y={271+i*54} textAnchor="end" fontSize="21">{p.total}</text>
-        <text x="1110" y={271+i*54} textAnchor="end" fontSize="23" fontWeight="700" fill="#17576b">{p.sustained}</text>
-        <text x="1310" y={271+i*54} textAnchor="end" fontSize="23" fontWeight="700" fill="#975814">{p.lost}</text>
+        <text x="1110" y={271+i*54} textAnchor="end" fontSize="23" fontWeight="700" fill="#17576b">{availability?p.recent:p.sustained}</text>
+        <text x="1310" y={271+i*54} textAnchor="end" fontSize="23" fontWeight="700" fill="#975814">{availability?p.older:p.lost}</text>
         <text x="1525" y={271+i*54} textAnchor="end" fontSize="21">{p.unavailable}</text>
       </g>)}
-      <text x="45" y="710" fontSize="18">Sustained: {briefingCriteria('sustained')}</text>
-      <text x="45" y="742" fontSize="18">Visibility lost: {briefingCriteria('lost')}</text>
+      <text x="45" y="710" fontSize="18">{availability?'Each zone appears once: recent report, older report, or no available report.':`Sustained: ${briefingCriteria('sustained')}`}</text>
+      <text x="45" y="742" fontSize="18">{availability?'Zones without observations remain in the counts. No report does not mean zero cases.':`Visibility lost: ${briefingCriteria('lost')}`}</text>
       <text x="45" y="780" fontSize="18">The {MONITORING_CONFIG.maximumReportGapDays}-day threshold is a freshness rule, not an expected submission deadline. Zero qualifying zones does not mean no transmission.</text>
       <text x="45" y="817" fontSize="18" fontWeight="700">Reported signals require verification. Case totals are not combined across zones with different observation dates.</text>
-      <TextLines x="45" y="853" fontSize="15" width={180} text={`Source: ${source||'Loaded case dataset'}. Detail slides follow for qualifying zones, one province per slide.`}/>
+      <TextLines x="45" y="853" fontSize="15" width={180} text={`Source: ${source||'Loaded case dataset'}. ${deck.summaryOnly?'Province summaries only; individual zone histories are available in the dashboard.':'Detail slides follow for qualifying zones, grouped by province.'}`}/>
     </g>
   </svg>;
 }

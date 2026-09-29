@@ -19,8 +19,8 @@ export function ResponseRingSlide({model,entry}) {
     <text x="45" y="152" fontSize="22" fontWeight="700">National three-ring response · {model.rows.length} loaded provinces</text>
     {!model.rows.length&&<text x="45" y="745" fontSize="17">Load province boundaries or health-zone boundaries with province names to classify areas.</text>}
     <text x="45" y="184" fontSize="17">Suggested from reports: {model.start}–{model.asOf} · {model.rows.filter(r=>r.override).length} coordinator assignments</text>
-    <SlideMap geometry={model.geometry} rows={model.rows} categories={RESPONSE_RINGS} x={45} y={211} width={640} height={450}/>
-    <SvgText x="45" y="692" text={`${model.counts.unknown} unclassified provinces · ${model.unmatched} unmatched case locations · ${model.excluded} ambiguous / unassigned boundary names`} width={65} maxLines={3} fontSize="17"/>
+    <SlideMap geometry={model.geometry} rows={model.rows} categories={RESPONSE_RINGS} fitCountry="Democratic Republic of the Congo" x={45} y={211} width={640} height={525}/>
+    <SvgText x="45" y="758" text={`${model.counts.unknown} unclassified · ${model.unmatched} unmatched case locations · ${model.excluded} ambiguous / unassigned boundaries`} width={92} maxLines={1} fontSize="13"/>
     {['red','orange','yellow'].map((ring,i)=>{const r=RESPONSE_RINGS[ring],y=211+i*174;return <g key={ring} aria-label={r.label}>
       <rect x="715" y={y} width="840" height="162" rx="8" fill="#f1f5f9"/>
       <rect x="715" y={y} width="9" height="162" rx="3" fill={r.color}/>

@@ -17,7 +17,8 @@ test('full coordination deck includes every monitoring row and all sections with
   const appendix=b.chapters.filter(c=>c.appendix);
   assert.deepEqual(appendix.map(c=>c.id),COORDINATION_SECTIONS.map(([id])=>id));
   assert.equal(appendix.find(c=>c.id==='trends').deck.pages.filter(p=>p.kind==='trend-detail').flatMap(p=>p.rows).length,12);
-  assert.equal(appendix.find(c=>c.id==='availability').deck.pages.filter(p=>p.kind==='detail').flatMap(p=>p.rows).length,12);
+  assert.equal(appendix.find(c=>c.id==='availability').deck.pages.length,1);
+  assert.equal(appendix.find(c=>c.id==='availability').deck.provinces.reduce((n,p)=>n+p.total,0),12);
   assert.match(b.availability,/cases 2026-09-21/);
   assert.match(b.findings[0],/2026-09-14–2026-09-21/);
   assert.equal(b.sourceRegister[0].source,dataset.url);
@@ -60,7 +61,10 @@ test('default stays at ten slides for 519 zones while summary counts retain the 
   assert.ok(b.chapters.every(c=>!c.appendix));
   const detailed=coordinationBriefing(large,{includeAppendix:true,sections:['availability']});
   assert.equal(detailed.chapters.filter(c=>c.appendix).length,1);
-  assert.equal(detailed.chapters.at(-1).deck.pages.filter(p=>p.kind==='detail').flatMap(p=>p.rows).length,519);
+  assert.equal(detailed.chapters.at(-1).deck.pages.length,4);
+  assert.ok(detailed.chapters.at(-1).deck.pages.every(p=>p.kind==='summary'));
+  assert.equal(detailed.chapters.at(-1).deck.provinces.reduce((n,p)=>n+p.total,0),519);
+  assert.equal(powerPointSlideCount(detailed),15);
   assert.deepEqual(detailed.findings,b.findings);
   const scoped=coordinationBriefing(large,{province:'Province 1'});
   assert.equal(scoped.surveillance.total,rows.filter(r=>r.province==='Province 1').length);
@@ -76,4 +80,19 @@ test('optional appendices follow sources with correct slide totals and numbering
   assert.match(await zip.file('ppt/slides/slide11.xml').async('string'),/Appendix/);
   assert.equal(seen.find(r=>r.chapter.appendix).page,11);
   assert.match(await zip.file('ppt/notesSlides/notesSlide10.xml').async('string'),/Interpretation and methods/);
+});
+
+test('surveillance appendix retains missing-report counts without creating empty zone detail slides',()=>{
+  const rows=Array.from({length:519},(_,i)=>({location:`Zone ${i}`,province:`Province ${i%26}`,matched:true,hasHistory:i<12,lastReport:i<12?'2026-09-21':null,age:i<6?0:i<12?20:null}));
+  const b=coordinationBriefing({...input,model:{...input.model,rows}},{includeAppendix:true,sections:['availability']});
+  const deck=b.chapters.at(-1).deck;
+  assert.equal(deck.pages.length,4);
+  assert.ok(deck.pages.every(p=>p.kind==='summary'));
+  assert.equal(deck.provinces.reduce((n,p)=>n+p.recent,0),6);
+  assert.equal(deck.provinces.reduce((n,p)=>n+p.older,0),6);
+  assert.equal(deck.provinces.reduce((n,p)=>n+p.unavailable,0),507);
+  assert.ok(deck.provinces.every(p=>p.recent+p.older+p.unavailable===p.total));
+  const missing=coordinationBriefing({...input,model:{...input.model,rows:rows.map(r=>({...r,hasHistory:false,lastReport:null,age:null}))}},{includeAppendix:true,sections:['availability']});
+  assert.equal(missing.chapters.at(-1).deck.pages.length,4);
+  assert.equal(missing.chapters.at(-1).deck.provinces.reduce((n,p)=>n+p.unavailable,0),519);
 });

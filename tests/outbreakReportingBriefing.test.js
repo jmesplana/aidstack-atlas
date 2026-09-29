@@ -6,7 +6,7 @@ const rows=Array.from({length:9},(_,i)=>({location:`Zone ${i}`,province:i<5?'Eas
 test('grouped decks summarize both criteria and never mix provinces on detail pages',()=>{
   const deck=reportingSlideDeck(rows,{mode:'sustained',grouped:true});
   assert.equal(deck.total,9);assert.equal(deck.matching,7);assert.equal(deck.pages.length,4);
-  assert.deepEqual(deck.provinces,[{province:'East',total:5,sustained:5,lost:0,unavailable:0},{province:'West',total:4,sustained:2,lost:2,unavailable:0}]);
+  assert.deepEqual(deck.provinces,[{province:'East',total:5,sustained:5,lost:0,unavailable:0,recent:5,older:0},{province:'West',total:4,sustained:2,lost:2,unavailable:0,recent:2,older:2}]);
   assert.equal(deck.pages[0].kind,'summary');
   for(const page of deck.pages.slice(1)){
     assert.ok(page.rows.length<=4);assert.ok(page.rows.every(r=>r.province===page.province));

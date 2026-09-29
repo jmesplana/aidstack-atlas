@@ -594,8 +594,12 @@ in the default deck. Methods are included in speaker notes.
 **Add detailed appendix** is off by default. When enabled, choose supporting
 sections from overview/ring details, burden/movement, trends, source availability,
 sustained increases and visibility lost. Detail pages follow the main briefing and
-sources, with labelled appendix dividers. The original detailed pages remain
-available without truncating eligible rows. Burden appendix pages use the dashboard
+sources, with labelled appendix dividers. Surveillance visibility uses province
+summaries only: eight provinces per slide (four slides plus a divider for 26 DRC
+provinces). Recent, older and unavailable-report counts include every zone in scope;
+zones without reports do not produce individual detail slides. Full zone histories
+remain available in the dashboard. Other appendix sections retain their eligible
+detail rows. Burden appendix pages use the dashboard
 ranking size; the main briefing always shows up to five areas. Choose all loaded
 provinces or a province; national rings always cover all loaded provinces.
 Temporary tab filters and a single selected zone do not restrict summary counts.
@@ -609,3 +613,16 @@ maps are 1920 × 1080 images with evidence transcripts in speaker notes. Cancell
 discards the unfinished file. Export libraries load only on request. The download
 is a static briefing for review and circulation; regenerate it after new data
 arrive. Exporting does not send the file to other people.
+
+Slide maps include embedded Natural Earth country context and first-level
+administrative boundaries, with country and neighbouring province/district names.
+Evidence maps fit the selected areas with a narrow contextual margin. The national
+three-ring slide fits the entire DRC outline in a taller map panel, even when the
+loaded province boundaries cover only part of the country. Country names are
+positioned within the visible part of the country, including on border-area maps;
+smaller administrative labels are reduced when space is limited. Numbered evidence
+labels take priority. PowerPoint and PNG exports retain the context and attribution
+without external map tiles or network access. Context boundaries are generalized
+reference geography, not current operational boundaries; loaded outbreak boundaries
+remain the evidence overlay. Source versions and regeneration instructions are in
+`lib/outbreak/admin1-source.txt` and `lib/outbreak/countries-source.txt`.

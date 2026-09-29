@@ -941,6 +941,9 @@ test('national response rings update, export and retain dated coordinator assign
   await openRings();
   const slide=dialog.getByRole('img',{name:'National three-ring response slide',exact:true});
   await expect(slide).toContainText('2 loaded provinces');
+  await expect(slide.locator('[data-country="Democratic Republic of the Congo"]')).toHaveCount(1);
+  await expect(slide.locator('[data-context-label="country"]').filter({hasText:'Democratic Republic of the Congo'})).toBeVisible();
+  await expect(slide.getByLabel('Basemap attribution')).toContainText('Natural Earth');
   await expect(slide.getByLabel('Red · Active transmission',{exact:true})).toContainText('1 provinces');
   await expect(slide.getByLabel('Orange · High risk',{exact:true})).toContainText('1 provinces');
   await expect(slide).toContainText('SDB, RCCE, MHPSS and WASH');await expect(slide).toContainText('simulation exercises');
@@ -1029,6 +1032,8 @@ test('coordination PowerPoint defaults to a concise deck with optional detailed 
   expect(notes).toContain('Rising');expect(notes).toContain('Quiet');
   expect(notes).toContain('Surveillance gaps by province');expect(notes).toContain('Priority verification follow-up');
   expect(notes).toContain('Interpretation and methods');
+  expect(notes).toContain('Natural Earth');
+  expect(notes).toContain('Democratic Republic of the Congo');
   const media=Object.keys(zip.files).filter(p=>/^ppt\/media\/.*\.png$/.test(p));expect(media.length).toBe(7);
   const png=await zip.file(media[0]).async('nodebuffer');expect(png.readUInt32BE(16)).toBe(1920);expect(png.readUInt32BE(20)).toBe(1080);
   require('fs').writeFileSync(testInfo.outputPath('powerpoint-first-evidence.png'),png);
@@ -1036,6 +1041,21 @@ test('coordination PowerPoint defaults to a concise deck with optional detailed 
   await dialog.getByRole('checkbox',{name:'Add detailed appendix (optional)',exact:true}).check();
   await expect(dialog.getByRole('group',{name:'Appendix sections'}).getByRole('checkbox')).toHaveCount(6);
   await expect(dialog).not.toContainText('11 slides total');
+  for(const checkbox of await dialog.getByRole('group',{name:'Appendix sections'}).getByRole('checkbox').all()){
+    if(!(await checkbox.locator('..').textContent()).includes('Surveillance visibility'))await checkbox.uncheck();
+  }
+  await expect(dialog).toContainText('13 slides total');
+  const appendixDownload=page.waitForEvent('download');
+  await dialog.getByRole('button',{name:'Download PowerPoint',exact:true}).click();
+  const appendixFile=await appendixDownload,appendixPath=testInfo.outputPath('surveillance-summary-appendix.pptx');
+  await appendixFile.saveAs(appendixPath);
+  const appendixZip=await require('jszip').loadAsync(require('fs').readFileSync(appendixPath));
+  const appendixNotes=await appendixZip.file('ppt/notesSlides/notesSlide13.xml').async('string');
+  expect(appendixNotes).toContain('Province surveillance summary');
+  expect(appendixNotes).toContain('No available report');
+  expect(appendixNotes).toContain('Province summaries only');
+  const appendixMedia=Object.keys(appendixZip.files).filter(p=>/^ppt\/media\/.*\.png$/.test(p));
+  require('fs').writeFileSync(testInfo.outputPath('surveillance-summary-appendix.png'),await appendixZip.file(appendixMedia.at(-1)).async('nodebuffer'));
   await dialog.getByRole('checkbox',{name:'Add detailed appendix (optional)',exact:true}).uncheck();
   await expect(dialog).toContainText('11 slides total · concise briefing');
   await dialog.getByRole('button',{name:'Close',exact:true}).click();

@@ -1,0 +1,10 @@
+Administrative context: Natural Earth Admin 1 States and Provinces, 1:10m, v5.1.2. Public domain.
+
+Source: https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_admin_1_states_provinces.geojson
+Documentation: https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-1-states-provinces/
+
+Generated with scripts/build-briefing-geography.mjs. Douglas-Peucker simplification
+at 0.025 degrees, coordinates rounded to four decimal places. Retained source IDs,
+English names, country names, label points and bounding boxes. Global coverage.
+Generalized geographic context; not current operational administrative boundaries.
+Loaded outbreak boundaries remain authoritative for the evidence overlay.
