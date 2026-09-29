@@ -7,10 +7,11 @@ import { ProvinceHorizon } from './AreaHistory';
 import { formatValue } from '../../../lib/outbreak/data';
 import styles from './outbreak.module.css';
 import { MONITORING_PAGES } from './MonitoringPages';
+import { SlideViewProvider, SlideViewSlot } from './SlideViewActions';
 
 const number=value=>Number.isFinite(value)?formatValue(value):'Unknown';
 
-export default function DecisionView({ screenRef, title, epi, geometry, boundaryLevel, message, coverage, horizon, alerts, alertDays, asOf, location, province, focus, callout, onSelect, onProvince, onClear, onClose, onAnalysis, freshness, mobilityProps, view='overview',onView,pageContent,actionRail }) {
+export default function DecisionView({ screenRef, title, epi, geometry, boundaryLevel, message, coverage, horizon, alerts, alertDays, asOf, location, province, focus, callout, onSelect, onProvince, onClear, onClose, onAnalysis, freshness, mobilityProps, view='overview',onView,pageContent,actionRail,overviewSlides }) {
   const [actionsExpanded,setActionsExpanded]=useState(false);
   const dialogRef=useRef(null);
   const closeRef=useRef(onClose);closeRef.current=onClose;
@@ -24,7 +25,7 @@ export default function DecisionView({ screenRef, title, epi, geometry, boundary
     let entered=!!document.fullscreenElement;
     const fullscreen=()=>{if(document.fullscreenElement===screenRef.current)entered=true;else if(entered)closeRef.current();};
     const keyboard=e=>{
-      if(e.target.closest?.('[data-section-focus="true"]'))return;
+      if(e.target.closest?.('[data-section-focus="true"]')||screenRef.current?.querySelector('dialog[open][data-section-focus="true"]'))return;
       if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();closeRef.current();return;}
       if(e.key!=='Tab')return;
       const nodes=[...screenRef.current.querySelectorAll('button, input, select, a[href], [tabindex="0"]')].filter(n=>!n.disabled&&n.getClientRects().length);
@@ -86,7 +87,7 @@ export default function DecisionView({ screenRef, title, epi, geometry, boundary
     ['Health zones reporting',coverage?`${coverage.rows.reduce((n,r)=>n+r.reported,0)} / ${coverage.rows.reduce((n,r)=>n+r.total,0)}`:'Unknown',null],
   ];
 
-  return createPortal(<dialog ref={dialogRef} aria-label="Decision dashboard" className={styles.decisionDialog} onCancel={e=>{e.preventDefault();closeRef.current();}}><div ref={screenRef} className={`${styles.app} ${styles.decisionScreen} ${pageContent?styles.decisionPages:actionRail&&actionsExpanded?styles.decisionWithRail:''}`}>
+  return createPortal(<SlideViewProvider><dialog ref={dialogRef} aria-label="Decision dashboard" className={styles.decisionDialog} onCancel={e=>{e.preventDefault();closeRef.current();}}><div ref={screenRef} className={`${styles.app} ${styles.decisionScreen} ${pageContent?styles.decisionPages:actionRail&&actionsExpanded?styles.decisionWithRail:''}`}>
     <header className={styles.decisionHeader}>
       <div>
         <h1>{title==='Outbreak operation'?'Outbreak situation':title}</h1>
@@ -96,14 +97,15 @@ export default function DecisionView({ screenRef, title, epi, geometry, boundary
         </p>
       </div>
       <div className={styles.decisionHeaderRight}>
-        {onView&&<nav className={styles.decisionViewTabs} aria-label="Dashboard views">
+        <div className={styles.dashboardViewToolbar}>{onView&&<nav className={styles.decisionViewTabs} aria-label="Dashboard views">
           {MONITORING_PAGES.map(([id,label])=><button key={id} type="button" aria-pressed={view===id} onClick={()=>onView(id)}>{label}</button>)}
-        </nav>}
+        </nav>}<SlideViewSlot/></div>
         <div className={styles.decisionHeaderActions}>
           <div className={styles.decisionFilter} aria-label="Dashboard area filter">
             <span role="status">{[province,location].filter(Boolean).join(' / ')||'All areas'}</span>
             <button onClick={onClear} disabled={!province&&!location}>Clear filters</button>
           </div>
+          {!pageContent&&overviewSlides}
           {actionRail&&!pageContent&&<button type="button" aria-expanded={actionsExpanded} onClick={()=>setActionsExpanded(value=>!value)}>{actionsExpanded?'Hide recommended actions':'Recommended actions'}</button>}
           <button onClick={onAnalysis}>Deep analysis</button>
           <button onClick={onClose} aria-label="Exit full-screen dashboard">Exit</button>
@@ -154,5 +156,5 @@ export default function DecisionView({ screenRef, title, epi, geometry, boundary
     </div>
     </>}
     <footer className={styles.decisionFooter}>Reported totals may be partial; cumulative cases are not current caseload. {epi?.dataset.label||'Case data unavailable'} · Cut-off {asOf}{coverage?.unmapped>0?` · ${coverage.unmapped} case locations unmatched`:''}</footer>
-  </div></dialog>,document.body);
+  </div></dialog></SlideViewProvider>,document.body);
 }

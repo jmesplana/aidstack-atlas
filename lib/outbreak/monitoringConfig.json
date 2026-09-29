@@ -16,10 +16,10 @@
     "unknown": {"label": "Insufficient data", "color": "#e3e8ed"}
   },
   "gapCategories": {
-    "gap6": {"label": "No valid report for ≥6 weeks", "color": "#ad6816"},
-    "gap3": {"label": "No valid report for 3–6 weeks", "color": "#edb653"},
-    "recent": {"label": "Valid report within 3 weeks", "color": "#689baa"},
-    "unknown": {"label": "No valid report in loaded history", "color": "#e3e8ed"}
+    "gap6": {"label": "Last available ≥42 days ago", "color": "#ad6816"},
+    "gap3": {"label": "Last available 21–41 days ago", "color": "#edb653"},
+    "recent": {"label": "Last available 0–20 days ago", "color": "#dce7e9"},
+    "unknown": {"label": "No report in loaded history", "color": "#e3e8ed"}
   },
   "quietCategories": {
     "quiet6": {"label": "No reported increase for ≥6 weeks", "color": "#3b677a"},

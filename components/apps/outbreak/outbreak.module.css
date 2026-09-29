@@ -332,3 +332,38 @@
 .reportingTimelinePanel[data-section-focus=true]>.monitorTimeline{flex:1;min-height:100px;max-height:none}
 .reportingTimelinePanel[data-section-focus=true]>:not(.monitorTimeline){flex-shrink:0}
 @media(max-width:650px){.reportingTimelinePanel[data-section-focus=true]{width:calc(100vw - 16px);overflow:auto}}
+
+/* Reporting availability and portable widescreen briefings. */
+.signalLegend{font-size:11px;line-height:1.5;color:#3b596b;display:flex;flex-direction:column;gap:3px}
+.reportingPriorities{border-top:1px solid #d7e2e8;margin-top:14px;padding-top:14px}
+.reportingPriorities>p{font-size:12px;color:#526b7b}.reportingPriorities h3{margin:0 0 8px}
+.reportingPriorities article{padding:9px 0;border-bottom:1px solid #e4ebef}.reportingPriorities article>strong{float:right;font-size:14px;color:#8c5414}
+.app .reportingPriorities article>button{border:0;background:transparent;padding:0;color:#17576b;font-weight:700;text-align:left;max-width:75%}
+.reportingPriorities article>p{font-size:12px;line-height:1.5;margin:5px 0 0}
+.historyGroupControls,.reportingBriefingActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;font-size:12px;color:#526b7b}
+.app .historyGroupControls button{font-size:12px;padding:5px 8px}
+.reportingSlideDialog{box-sizing:border-box;position:fixed;inset:0;margin:auto;border:1px solid #bacdd8;border-radius:10px;background:#e7edf1;color:#18334b;padding:12px;width:min(1640px,calc(100vw - 32px));max-width:none;max-height:calc(100dvh - 24px);overflow:auto}
+.reportingSlideDialog::backdrop{background:#102d46b3;backdrop-filter:blur(3px)}
+.reportingSlideToolbar{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-bottom:12px;font-size:13px}
+.reportingSlideToolbar>strong{margin-right:auto}
+.reportingSlide{display:block;width:min(100%,calc((100dvh - 115px) * 1.777778));height:auto;margin:auto;aspect-ratio:16/9;background:white}
+@media(min-width:1101px){.reportingLayout{align-items:start}.reportingLayout>.reportingTimelinePanel{position:sticky;top:16px}.reportingLayout>.reportingTimelinePanel[data-section-focus=true]{position:fixed;top:0}}
+@media(max-width:650px){.reportingSlideDialog{width:calc(100vw - 16px);padding:8px}.reportingSlideToolbar{font-size:11px}.app .reportingSlideToolbar button{font-size:11px;padding:6px}.reportingSlideToolbar>strong{width:100%}}
+.reportingSlideFilters{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px;margin-bottom:8px}
+.reportingSlideFilters>div{display:flex;gap:4px;flex-wrap:wrap}.app .reportingSlideFilters button{padding:6px 9px;font-size:12px}
+.app .reportingSlideFilters button[aria-pressed=true]{background:#17576b;color:white;border-color:#17576b}
+.app .reportingSlideFilters label{display:flex;align-items:center;flex-direction:row;gap:6px;margin:0;font-size:12px}.app .reportingSlideFilters input{width:auto;margin:0}
+.app .reportingSlideFilters select{width:auto;max-width:220px;padding:5px;font-size:12px}
+.reportingSlideExplanation{margin:6px 0 10px!important;font-size:12px!important;color:#3b596b;line-height:1.4}
+.reportingSlideDialog .reportingSlide{width:min(100%,calc((100dvh - 225px) * 1.777778))}
+@media(max-width:650px){.reportingSlideDialog .reportingSlide{width:100%}.reportingSlideFilters{gap:8px}}
+.dashboardSlideDialog .reportingSlide{width:min(100%,calc((100dvh - 165px) * 1.777778))}
+.app .dashboardSlideDialog .reportingSlideFilters select{max-width:480px}
+.dashboardViewToolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 16px;margin:18px 0}
+.dashboardViewToolbar>.monitorNavigation{margin:0;flex:1}
+.slideViewSlot{margin-left:auto;flex-shrink:0}.slideViewSlot:empty{display:none}
+.slideViewSlot>.reportingBriefingActions{margin:0}
+.slideViewSlot>.reportingBriefingActions>button{white-space:nowrap}
+.decisionHeader .dashboardViewToolbar{margin:0;width:100%}
+@media(max-width:650px){.dashboardViewToolbar>.monitorNavigation{flex-basis:100%}.decisionHeaderRight{min-width:0;flex-shrink:1}.decisionHeader .dashboardViewToolbar>.decisionViewTabs{flex-basis:100%}}
+@media(max-width:650px){.dashboardSlideDialog .reportingSlide{width:100%}.app .dashboardSlideDialog .reportingSlideFilters select{max-width:250px}}

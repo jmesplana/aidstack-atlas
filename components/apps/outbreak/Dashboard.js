@@ -6,6 +6,8 @@ import { actionEvidence, fallbackActions } from '../../../lib/outbreak/actionPla
 import { recommendations } from '../../../lib/outbreak/overview';
 import { actionFollowUp } from '../../../lib/outbreak/briefing';
 import DashboardMobility from './DashboardMobility';
+import DashboardBriefing from './DashboardBriefing';
+import { SlideViewProvider, SlideViewSlot } from './SlideViewActions';
 import FocusSection from './FocusSection';
 import { provinceCoverage, provinceHorizon, areaActivity } from '../../../lib/outbreak/areaHistory';
 import { shiftDate } from '../../../lib/outbreak/insights';
@@ -19,7 +21,7 @@ import styles from './outbreak.module.css';
 
 const number = value => Number.isFinite(value) ? formatValue(value) : 'Unknown';
 
-export default function Dashboard({ monitoring, monitorOptions, onMonitorOptions, epi, geometry, boundaryLevel, message, asOf, location, onSelect, onAnalysis, onData, reviewed, province, setProvince, title, freshness, routeData, movementDirection, onMovementDirection, movementOverlays, defaultMovementLocation, onLoadMovement, movementLoading, movementError, security, mining, response, actions=[], onAddAction, isActionAdded, onOpenPlan }) {
+export default function Dashboard({ datasets=[], monitoring, monitorOptions, onMonitorOptions, epi, geometry, boundaryLevel, message, asOf, location, onSelect, onAnalysis, onData, reviewed, province, setProvince, title, freshness, routeData, movementDirection, onMovementDirection, movementOverlays, defaultMovementLocation, onLoadMovement, movementLoading, movementError, security, mining, response, actions=[], onAddAction, isActionAdded, onOpenPlan }) {
   const [presenting,setPresenting]=useState(false);
   const screenRef=useRef(null);
   function present(){flushSync(()=>setPresenting(true));screenRef.current?.requestFullscreen?.().catch(()=>{});}
@@ -49,7 +51,9 @@ export default function Dashboard({ monitoring, monitorOptions, onMonitorOptions
   ]:null;
   const view=monitorOptions.view;
   const onView=view=>onMonitorOptions({...monitorOptions,view});
-  const pageContent=presentation=><MonitoringPages settings={monitorOptions} onSettings={onMonitorOptions} model={monitoring} epi={epi} geometry={geometry} boundaryLevel={boundaryLevel} asOf={asOf} location={location} province={activeProvince} focus={focus} onSelect={chooseZone} mobilityProps={mobilityProps} presentation={presentation}/>;
+  const pageContent=presentation=><MonitoringPages settings={monitorOptions} onSettings={onMonitorOptions} model={monitoring} epi={epi} geometry={geometry} boundaryLevel={boundaryLevel} asOf={asOf} location={location} province={activeProvince} focus={focus} onSelect={chooseZone} mobilityProps={mobilityProps} presentation={presentation} operationTitle={title}/>;
+
+  const overviewSlides=<DashboardBriefing view="overview" datasets={datasets} epi={epi} geometry={geometry} boundaryLevel={boundaryLevel} model={monitoring} asOf={asOf} province={activeProvince} location={location} settings={monitorOptions} alertDays={alertDays} operationTitle={title}/>;
 
   // Derived decision data
   const growthZones=useMemo(()=>epi?.growth?.filter(z=>z.delta>0).length||0,[epi]);
@@ -134,15 +138,16 @@ export default function Dashboard({ monitoring, monitorOptions, onMonitorOptions
   const ruleActions=useMemo(()=>presenting&&epi?fallbackActions(recommendations(epi,security,mining,routeData,asOf)):[],[presenting,epi,security,mining,routeData,asOf]);
   const actionRail=onAddAction&&<ActionRail evidence={evidence} fallback={ruleActions} isAdded={isActionAdded} onAdd={onAddAction} onSelect={chooseZone} followUp={actionFollowUp(actions,asOf)} planCount={actions.length} onOpenPlan={()=>{closePresentation();onOpenPlan();}}/>;
 
-  return <div className={styles.dashboard}>
-    {presenting&&<DecisionView view={view} onView={onView} pageContent={view!=='overview'?pageContent(true):null} mobilityProps={mobilityProps} screenRef={screenRef} title={title} freshness={freshness} epi={epi} geometry={geometry} boundaryLevel={boundaryLevel} message={message} coverage={coverage} horizon={filteredHorizon} alerts={alerts} alertDays={alertDays} asOf={asOf} location={location} province={activeProvince} focus={focus} callout={callout} onSelect={chooseZone} onProvince={p=>{setProvince(p);onSelect('');}} onClear={()=>{setProvince('');onSelect('');}} onClose={closePresentation} onAnalysis={()=>{closePresentation();onAnalysis();}} actionRail={actionRail}/>}
+  return <SlideViewProvider><div className={styles.dashboard}>
+    {presenting&&<DecisionView overviewSlides={epi?overviewSlides:null} view={view} onView={onView} pageContent={view!=='overview'?pageContent(true):null} mobilityProps={mobilityProps} screenRef={screenRef} title={title} freshness={freshness} epi={epi} geometry={geometry} boundaryLevel={boundaryLevel} message={message} coverage={coverage} horizon={filteredHorizon} alerts={alerts} alertDays={alertDays} asOf={asOf} location={location} province={activeProvince} focus={focus} callout={callout} onSelect={chooseZone} onProvince={p=>{setProvince(p);onSelect('');}} onClear={()=>{setProvince('');onSelect('');}} onClose={closePresentation} onAnalysis={()=>{closePresentation();onAnalysis();}} actionRail={actionRail}/>}
     <div className={styles.workspaceHeading}><div><span className={styles.eyebrow}>OUTBREAK MONITOR</span><h3>Situation dashboard</h3><p>Case reporting date: {epi?.date||'Unavailable'} · Cut-off: {asOf}</p></div><div className={styles.toolbar}><button className={styles.primaryAction} onClick={present}>Full-screen dashboard</button><button onClick={onAnalysis}>Deep analysis → Sitrep</button></div></div>
     <KeyMessage compact onView={onView} message={message} asOf={asOf} reviewed={reviewed} onBriefing={onAnalysis}/>
     {!epi&&<div className={styles.panel}><p>Connect the DRC feeds or import cumulative health-zone case data to populate the dashboard.</p><button onClick={onData}>Connect or import data</button></div>}
-    <MonitoringNavigation view={view} onView={onView}/>
+    <div className={styles.dashboardViewToolbar}><MonitoringNavigation view={view} onView={onView}/><SlideViewSlot/></div>
     {epi&&<><div className={styles.controls}><label>Province filter<select aria-label="Province filter" value={activeProvince} onChange={e=>{setProvince(e.target.value);onSelect('');}}><option value="">All provinces</option>{coverage?.rows.map(r=><option key={r.province}>{r.province}</option>)}</select></label><label>Health zone<select aria-label="Health zone" value={location} onChange={e=>chooseZone(e.target.value)}><option value="">All health zones</option>{[...new Set([...(group?.locations||coverage?.rows.flatMap(r=>r.locations)||epi.zones.map(r=>r.location)),...(location?[location]:[])])].sort().map(n=><option key={n}>{n}</option>)}</select></label>{(activeProvince||location)&&<button onClick={()=>{setProvince('');onSelect('');}}>Clear selection</button>}</div></>}
     {epi&&view!=='overview'&&pageContent(false)}
     {epi&&view==='overview'&&<>
+      {overviewSlides}
 
       {/* Situation status banner */}
       {situationStatus&&<div className={`${styles.situationBanner} ${styles[`situation_${situationStatus}`]}`} role="status" aria-label="Situation status">
@@ -237,5 +242,5 @@ export default function Dashboard({ monitoring, monitorOptions, onMonitorOptions
       <p className={styles.helperText}>Totals cover available reports on {epi.date}; they may be partial. Cumulative cases do not represent current caseload. {epi.missing+epi.absent} case-series locations have missing or absent reports.</p>
       <LocationMatching dataset={epi.dataset}/>
     </>}
-  </div>;
+  </div></SlideViewProvider>;
 }

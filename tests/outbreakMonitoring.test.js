@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { areaMonitoring, monitoringSettings, monitoringHighlights, highBurdenMovements, reportingHeatBand, matchesReportingTrend, reportingMapDetail, reportingWeekDescription } from '../lib/outbreak/monitoring.js';
+import { areaMonitoring, monitoringSettings, monitoringHighlights, highBurdenMovements, reportingHeatBand, matchesReportingTrend, reportingMapDetail, reportingWeekDescription, reportingPriorities, reportingSignalDescription } from '../lib/outbreak/monitoring.js';
 import { keyMessage } from '../lib/outbreak/keyMessage.js';
 
 const end='2026-09-21';
@@ -161,5 +161,80 @@ test('reporting map explains day-based runs and uses the exact visible weekly de
   for(const week of row.timeline)assert.ok(detail.includes(reportingWeekDescription(row,week)));
   const six=model(rows,{historyWeeks:6,reportingMode:'quiet'},'2026-09-14');
   assert.match(reportingMapDetail(six.rows[0],six.settings),/6 epi weeks/);
-  assert.match(reportingMapDetail(six.rows[0],six.settings),/No valid report/);
+  assert.match(reportingMapDetail(six.rows[0],six.settings),/No report available/);
+});
+
+
+test('last observed signal survives publication lag and preserves its dated interval',()=>{
+  const oldDates=['2026-07-20','2026-07-27','2026-08-03','2026-08-10'];
+  const row=model(records('A',[0,10,30,70],oldDates)).rows[0];
+  assert.equal(row.age,42);
+  assert.equal(row.status,'stale');
+  assert.deepEqual(row.lastSignal,{start:'2026-08-03',end:'2026-08-10',days:7,delta:40,rising:true});
+  assert.ok(row.timeline.every(w=>w.status==='missing'));
+  assert.match(reportingSignalDescription(row),/2026-08-03–2026-08-10/);
+  assert.match(reportingSignalDescription(row),/at that time/);
+});
+
+test('last signal does not bridge missing observations, long gaps or future dates',()=>{
+  assert.equal(model(records('A',[0,10,null,40])).rows[0].lastSignal,null);
+  assert.equal(model(records('A',[0,40],['2026-08-31',end])).rows[0].lastSignal,null);
+  const revision=model(records('A',[0,10,30,20])).rows[0];
+  assert.equal(revision.lastSignal.delta,-10);
+  assert.equal(revision.lastSignal.rising,false);
+  assert.match(reportingSignalDescription(revision),/Downward revision/);
+  const future=model([...records('A',[0,10,30,40]),{location:'A',date:'2026-09-28',value:1000}]).rows[0];
+  assert.equal(future.lastSignal.end,end);assert.equal(future.lastSignal.delta,10);
+  assert.match(reportingSignalDescription(model(records('A',[0,0,0,0])).rows[0]),/not confirmed zero/);
+});
+
+test('follow-up ordering keeps unavailable ages distinct and defaults to compact history',()=>{
+  const rows=[{location:'Unknown',age:null},{location:'Recent',age:0},{location:'Older',age:42,lastSignal:{delta:10}},{location:'Older with increase',age:42,lastSignal:{delta:20}}];
+  assert.deepEqual(reportingPriorities(rows).map(r=>r.location),['Older with increase','Older','Recent','Unknown']);
+  assert.equal(rows[0].location,'Unknown');
+  assert.equal(monitoringSettings().historyLayout,'heatmap');
+  assert.equal(monitoringSettings({historyLayout:'cards'}).historyLayout,'cards');
+});
+
+test('sustained increases require two rises, three valid intervals and fresh observations',()=>{
+  const rising=records('A',[0,10,30,70]);
+  assert.equal(model(rising).rows[0].sustainedIncrease,true);
+  assert.equal(model(records('A',[0,30,40,60])).rows[0].sustainedIncrease,false);
+  assert.equal(model(rising,{},'2026-09-29').rows[0].sustainedIncrease,true);
+  const old=model(rising,{},'2026-09-30').rows[0];
+  assert.equal(old.sustainedIncrease,false);assert.equal(old.visibilityLost,true);
+  assert.deepEqual(old.lastTrend.observations.map(o=>o.delta),[10,20,40]);
+  for(const invalid of [
+    records('A',[0,10,null,70]),
+    records('A',[0,10,30,70],['2026-08-30','2026-09-06','2026-09-14','2026-09-23']),
+    [...rising,{location:'A',date:'2026-09-10',value:40}],
+    [...rising,{location:'A',date:'2026-09-10',value:null}],
+    [...rising,{location:'A',date:'2026-09-22',value:null}]
+  ])assert.equal(model(invalid,{},'2026-09-23').rows[0].sustainedIncrease,false);
+  const unavailable=model([],{},end,['Unknown']).rows[0];
+  assert.equal(unavailable.sustainedIncrease,false);assert.equal(unavailable.visibilityLost,false);
+});
+
+test('province evidence uses each zone’s actual dated rates, including daily records and zero baselines',()=>{
+  const row=model(records('A',[0,8,22,46],['2026-08-31','2026-09-08','2026-09-15','2026-09-21'])).rows[0];
+  assert.equal(row.sustainedIncrease,true);
+  assert.deepEqual(row.lastTrend.observations.map(o=>o.days),[8,7,6]);
+  assert.deepEqual(row.lastTrend.observations.map(o=>o.rate),[1,2,4]);
+  assert.deepEqual(row.lastTrend.changes,[100,100]);
+  const zero=model(records('A',[0,0,10,30])).rows[0];
+  assert.equal(zero.sustainedIncrease,true);assert.equal(zero.lastTrend.changes[0],null);
+  const daily=Array.from({length:22},(_,i)=>({location:'A',date:new Date(Date.parse('2026-08-31')+i*86400000).toISOString().slice(0,10),value:i*i}));
+  const dailyRow=model(daily).rows[0];
+  assert.equal(dailyRow.lastSignal,null);assert.equal(dailyRow.sustainedIncrease,true);
+  assert.deepEqual(dailyRow.lastTrend.observations.map(o=>o.delta),[49,147,245]);
+});
+
+test('historical rising watch list is separate from fresh sustained increases and current global trend',()=>{
+  const old=records('Old',[0,30,40,60],['2026-07-20','2026-07-27','2026-08-03','2026-08-10']);
+  const rows=model([...old,...records('Fresh',[0,10,30,70])]).rows;
+  assert.equal(rows[0].status,'stale');assert.equal(rows[0].visibilityLost,true);assert.equal(rows[0].sustainedIncrease,false);
+  assert.equal(rows[1].visibilityLost,false);assert.equal(rows[1].sustainedIncrease,true);
+  const refreshed=model([...old,...records('Old',[60,80,120,180])]).rows[0];
+  assert.equal(refreshed.visibilityLost,false);assert.equal(refreshed.sustainedIncrease,true);
+  assert.equal(model(records('Declining',[0,40,60,70]),{},'2026-10-01').rows[0].visibilityLost,false);
 });

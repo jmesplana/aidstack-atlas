@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {zoomView,placeLabels} from '../../../lib/outbreak/mapInteraction';
 import { zoneName, formatValue, epiWeek } from '../../../lib/outbreak/data';
 import styles from './outbreak.module.css';
+import { reportingSignalDescription } from '../../../lib/outbreak/monitoring';
 import countries from '../../../lib/outbreak/countries.json';
 import {themeColor} from '../../../lib/outbreak/documentInsights';
 
@@ -32,7 +33,7 @@ function exportSVG(ref,name) {
   copy.setAttribute('xmlns','http://www.w3.org/2000/svg');
   download(name,new XMLSerializer().serializeToString(copy),'image/svg+xml');
 }
-export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, mines=[], events=[], hazards=[], sites=[], selected, onSelect, label, asOf, source, focusNames=[], routes=[], routeDirection='outflow', routeUnit, documentSignals=[], overlayCaption='', highlightNames=[], groupLabels=false, callout=null, presentation=false, fillContainer=false, categoryStyles=null, filterNames=null }) {
+export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, mines=[], events=[], hazards=[], sites=[], selected, onSelect, label, asOf, source, focusNames=[], routes=[], routeDirection='outflow', routeUnit, documentSignals=[], overlayCaption='', highlightNames=[], groupLabels=false, callout=null, presentation=false, fillContainer=false, categoryStyles=null, filterNames=null, reportingSignals=false }) {
   const fill=fillContainer||presentation;
   const [frameHeight,setFrameHeight]=useState(440);
   const plotHeight=fill?frameHeight:440,plotTop=fill?0:66;
@@ -41,7 +42,7 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
   const routeColor=routeDirection==='inflow'?'#c96a37':'#176f89';
   const ref=useRef(null),mapRef=useRef(null),drag=useRef(null),pointers=useRef(new Map()),liveView=useRef(null);
   const arrowId=useId().replace(/:/g, "");
-  const [viewport,setViewport]=useState(null),[labels,setLabels]=useState('all'),[basemap,setBasemap]=useState(true),[renderScale,setRenderScale]=useState(1);
+  const [viewport,setViewport]=useState(null),[labels,setLabels]=useState(reportingSignals?'priority':'all'),[basemap,setBasemap]=useState(true),[renderScale,setRenderScale]=useState(1);
   const shapes=useMemo(()=> {
     if(!geometry?.features.length) return null;
     const features=geometry.features;
@@ -119,7 +120,8 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
   const known=[...values.values()].filter(r=>r.value!==null&&mappedNames.has(r.location));
   const max=Math.max(0,...known.map(r=>Math.abs(r.value)));
   const areaFill=r=>categoryStyles?(categoryStyles[r?.category]?.color||'#e3e8ed'):!r||r.value===null?'#e3e8ed':r.value===0?'#fff':r.value<0?'#3283b4':`hsl(12 76% ${88-46*Math.sqrt(r.value/Math.max(.000001,max))}%)`;
-  const priority=new Set([...known].sort((a,b)=>Math.abs(b.value)-Math.abs(a.value)).slice(0,8).map(r=>r.location));
+  const signalMax=Math.max(0,...rows.filter(r=>mappedNames.has(r.location)&&(!filterNames||filterNames.includes(r.location))).map(r=>Math.max(0,r.lastSignal?.delta||0)));
+  const priority=reportingSignals?new Set(highlightNames):new Set([...known].sort((a,b)=>Math.abs(b.value)-Math.abs(a.value)).slice(0,8).map(r=>r.location));
   if(selected)priority.add(selected);
   const allowed=labels==='none'?new Set():labels==='all'?new Set(shapes.features.map(f=>f.name)):priority;
   if(filterNames)for(const name of allowed)if(!filterNames.includes(name))allowed.delete(name);
@@ -166,6 +168,7 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
     </div>}
     <svg ref={ref} viewBox={`0 0 900 ${mapHeight}`} role="img" aria-label={`${label} map`} style={{width:'100%',maxHeight:fill?'none':'65vh',userSelect:'none',background:waterColor,border:'1px solid #dce5ed',borderRadius:8}}>
       <title>{label} — reporting cut-off {asOf}</title><rect width="900" height={mapHeight} fill={landColor}/>
+      {reportingSignals&&<defs><pattern id={`unknown-${arrowId}`} width="7" height="7" patternUnits="userSpaceOnUse"><rect width="7" height="7" fill="#e3e8ed"/><path d="M-1 1L1 -1M0 7L7 0M6 8L8 6" stroke="#a6b4bf" strokeWidth="1"/></pattern></defs>}
       {!fill&&<><text x="22" y="28" fontSize="19" fontWeight="bold" fontFamily="sans-serif" fill="#18334b">{label.slice(0,78)}</text>
       <text x="22" y="50" fontSize="12" fontFamily="sans-serif" fill="#536c81">{presentation?'Cumulative confirmed cases · amber outlines: first positive reports':`${boundaryLevel} · ${kind} · ${unit} · cut-off ${asOf}; observation dates may differ`}</text></>}
       <svg ref={mapRef} role="group" tabIndex="0" aria-label={`Pan and zoom ${label}`} x="0" y={plotTop} width="900" height={plotHeight} viewBox={view.join(' ')} data-map-viewport="true" style={{touchAction:'none',cursor:'grab'}}
@@ -174,7 +177,12 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
         onKeyDown={e=>{const shift={ArrowLeft:[-.12,0],ArrowRight:[.12,0],ArrowUp:[0,-.12],ArrowDown:[0,.12]}[e.key];if(shift){e.preventDefault();setViewport([view[0]+shift[0]*view[2],view[1]+shift[1]*view[3],view[2],view[3]]);}else if(['+','=','-','Home'].includes(e.key)){e.preventDefault();if(e.key==='Home')setViewport(null);else zoomBy(e.key==='-'?1.25:.8);}}}>
         <rect x="-10000" y="-10000" width="20000" height="20000" fill={basemap||presentation?waterColor:'#f3f6f9'}/>
         {basemap&&<g aria-label="Country basemap" pointerEvents="none">{shapes.countries.map(f=><path key={f.name} data-country={f.name} d={f.path} fill="#edf0e5" fillRule="evenodd" stroke="#82958d" strokeWidth="1" vectorEffect="non-scaling-stroke"/>)}</g>}
-        {shapes.features.map(f=><path key={f.name} data-admin={f.name} data-filtered-out={filterNames&&!filterNames.includes(f.name)?'true':undefined} opacity={filterNames&&!filterNames.includes(f.name) ? 0.15 : 1} data-category={categoryStyles?values.get(f.name)?.category:undefined} d={f.path} fill={areaFill(values.get(f.name))} fillRule="evenodd" stroke={selected===f.name?'#113d64':highlightNames.includes(f.name)?'#c88700':'#9aaaba'} strokeWidth={selected===f.name?2:highlightNames.includes(f.name)?2.5:.65} vectorEffect="non-scaling-stroke"><title>{f.name}: {categoryStyles?(values.get(f.name)?.detail||categoryStyles[values.get(f.name)?.category]?.label||'No matched observation'):values.has(f.name)?`${values.get(f.name).value??'No data'} ${unit||''} (${values.get(f.name).date})`:'No matched observation'}</title></path>)}
+        {shapes.features.map(f=><path key={f.name} data-admin={f.name} data-filtered-out={filterNames&&!filterNames.includes(f.name)?'true':undefined} opacity={filterNames&&!filterNames.includes(f.name) ? 0.15 : 1} data-category={categoryStyles?values.get(f.name)?.category:undefined} d={f.path} fill={reportingSignals&&values.get(f.name)?.category==='unknown'?`url(#unknown-${arrowId})`:areaFill(values.get(f.name))} fillRule="evenodd" stroke={selected===f.name?'#113d64':!reportingSignals&&highlightNames.includes(f.name)?'#c88700':'#9aaaba'} strokeWidth={selected===f.name?2:!reportingSignals&&highlightNames.includes(f.name)?2.5:.65} vectorEffect="non-scaling-stroke"><title>{f.name}: {categoryStyles?(values.get(f.name)?.detail||categoryStyles[values.get(f.name)?.category]?.label||'No matched observation'):values.has(f.name)?`${values.get(f.name).value??'No data'} ${unit||''} (${values.get(f.name).date})`:'No matched observation'}</title></path>)}
+        {reportingSignals&&shapes.features.map(f=>{
+          const row=values.get(f.name),signal=row?.lastSignal;
+          if(!signal||signal.delta<=0||(filterNames&&!filterNames.includes(f.name)))return null;
+          return <circle key={f.name} data-reporting-signal={f.name} data-admin={f.name} cx={f.center[0]} cy={f.center[1]} r={18*Math.sqrt(signal.delta/signalMax)/zoom} fill="#17576b" fillOpacity=".55" stroke={signal.rising?'#9e3150':'white'} strokeWidth={signal.rising?3:1} vectorEffect="non-scaling-stroke"><title>{f.name}: {reportingSignalDescription(row)} Historical observation, not current cases.</title></circle>;
+        })}
         <defs><marker id={arrowId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill={routeColor}/></marker></defs>
         {routes.map((r,i)=>{
           const a=shapes.features.find(f=>f.name===r.origin)?.center,b=shapes.features.find(f=>f.name===r.destination)?.center;
@@ -213,6 +221,7 @@ export function OutbreakMap({ geometry, rows, level, kind, unit, boundaryLevel, 
     </svg>
     {basemap&&<small className={styles.basemapAttribution}>Country context: <a href="https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/" target="_blank" rel="noreferrer">Natural Earth</a> · 1:110m</small>}
     {fill&&(categoryStyles?<div className={styles.mapLegend} aria-label="Map categories">{Object.entries(categoryStyles).map(([key,c])=><span key={key}><i style={{background:c.color}}/>{c.label}</span>)}</div>:<div className={styles.mapLegend}><span><i style={{background:'#e3e8ed'}}/>No data</span><span><i style={{background:'white'}}/>Zero</span><span><i style={{background:'hsl(12 76% 42%)'}}/>Darker: {kind==='directed mobility'?unit:'more cases'} · max {known.length?formatValue(max):'unknown'}</span>{kind==='directed mobility'?<span style={{color:routeColor}}>→ {routeDirection==='inflow'?'Inflow':'Outflow'} · origin to destination</span>:<span>Amber: first positive report</span>}</div>)}
+    {reportingSignals&&<div className={styles.signalLegend}><span>● Circle area: last observed increase (6–8 day interval); largest +{formatValue(signalMax)}.</span><span>Berry outline: rate rising at that time. Hatching: no available history. No circle: zero, revision or no comparable pair; inspect the zone.</span></div>}
     {!presentation&&<p data-print-hide="true" style={{fontSize:12,color:"#536c81"}}>Labels are spaced to avoid overlap. Zoom in to reveal more; select an area to keep its label visible.</p>}
     {level!==boundaryLevel&&<p>Map values hidden: dataset level ({level||'none'}) differs from boundary level ({boundaryLevel}).</p>}
     {!presentation&&<button type="button" onClick={()=>exportSVG(ref,'outbreak-map.svg')}>Export map SVG</button>}
