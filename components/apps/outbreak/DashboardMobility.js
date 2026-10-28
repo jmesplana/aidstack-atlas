@@ -4,11 +4,11 @@ import { formatValue, validDate } from '../../../lib/outbreak/data';
 import MobilityMap from './MobilityMap';
 import styles from './outbreak.module.css';
 
-export default function DashboardMobility({ data, direction='outflow', onDirection, location, defaultLocation, focus=[], onSelect, geometry, boundaryLevel, asOf, overlays, onLoad, loading, error }) {
+export default function DashboardMobility({ data, direction='outflow', onDirection, limit='10', onLimit, location, defaultLocation, focus=[], onSelect, geometry, boundaryLevel, asOf, overlays, onLoad, loading, error }) {
   const areas=useMemo(()=>[...new Set((data?.routes||[]).flatMap(route=>[route.origin,route.destination]))].sort(),[data]);
   const area=location||(focus.length?(focus.includes(defaultLocation)?defaultLocation:focus.find(name=>areas.includes(name))||focus[0]):defaultLocation||areas[0])||'';
   const routes=useMemo(()=>districtRoutes(data,area,direction,asOf),[data,area,direction,asOf]);
-  const positive=routes.filter(route=>Number.isFinite(route.value)&&route.value>0),shown=positive.slice(0,10);
+  const positive=routes.filter(route=>Number.isFinite(route.value)&&route.value>0),shown=positive.slice(0,Number(limit));
   const names=new Set(geometry?.features.map(feature=>feature.properties.nom)||[]);
   const unmatched=shown.filter(route=>!names.has(route.origin)||!names.has(route.destination)).length;
   const dated=validDate(data?.end),eligible=dated&&data.end<=asOf;
@@ -22,6 +22,7 @@ export default function DashboardMobility({ data, direction='outflow', onDirecti
       <div className={styles.controls}>
         <label>Movement direction<select aria-label="Movement direction" value={direction} onChange={event=>onDirection(event.target.value)}><option value="outflow">Outflow — destinations</option><option value="inflow">Inflow — origins</option></select></label>
         <label>Movement focus<select aria-label="Movement focus" value={area} onChange={event=>onSelect(event.target.value)}>{[...new Set([area,...areas])].filter(Boolean).map(name=><option key={name}>{name}</option>)}</select></label>
+        <label>Connections shown<select aria-label="Connections shown" value={limit} onChange={event=>onLimit(event.target.value)}><option value="10">Top 10</option><option value="25">Top 25</option><option value="1000000">All reported connections</option></select></label>
       </div>
       <p className={styles.movementPeriod}>{data.start}–{data.end} · {data.unit}</p>
       {shown.length?<>

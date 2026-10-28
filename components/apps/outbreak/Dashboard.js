@@ -22,7 +22,7 @@ import styles from './outbreak.module.css';
 
 const number = value => Number.isFinite(value) ? formatValue(value) : 'Unknown';
 
-export default function Dashboard({ ringSettings, onRingSettings, datasets=[], monitoring, monitorOptions, onMonitorOptions, epi, geometry, boundaryLevel, message, asOf, location, onSelect, onAnalysis, onData, reviewed, province, setProvince, title, freshness, routeData, movementDirection, onMovementDirection, movementOverlays, defaultMovementLocation, onLoadMovement, movementLoading, movementError, security, mining, response, actions=[], onAddAction, isActionAdded, onOpenPlan }) {
+export default function Dashboard({ ringSettings, onRingSettings, datasets=[], monitoring, monitorOptions, onMonitorOptions, epi, geometry, boundaryLevel, message, asOf, location, onSelect, onAnalysis, onData, reviewed, province, setProvince, title, freshness, routeData, movementDirection, onMovementDirection, movementLimit, onMovementLimit, movementOverlays, defaultMovementLocation, onLoadMovement, movementLoading, movementError, security, mining, response, actions=[], onAddAction, isActionAdded, onOpenPlan }) {
   const [presenting,setPresenting]=useState(false);
   const screenRef=useRef(null);
   function present(){flushSync(()=>setPresenting(true));screenRef.current?.requestFullscreen?.().catch(()=>{});}
@@ -40,7 +40,7 @@ export default function Dashboard({ ringSettings, onRingSettings, datasets=[], m
   const district=feature?.properties.district||feature?.properties.ADM2_EN||feature?.properties.NAME_2;
   const focus=group?.locations||[];
   const filteredHorizon=horizon?{...horizon,comparisonsOnly:true,groups:horizon.groups.filter(g=>!activeProvince||g.province===activeProvince).map(g=>({...g,rows:g.rows.filter(r=>(!location||r.location===location)&&r.values.some(Number.isFinite))})).filter(g=>g.rows.length)}:null;
-  const mobilityProps={data:routeData,direction:movementDirection,onDirection:onMovementDirection,location,defaultLocation:defaultMovementLocation,focus,onSelect:chooseZone,geometry,boundaryLevel,asOf,overlays:movementOverlays,onLoad:onLoadMovement,loading:movementLoading,error:movementError};
+  const mobilityProps={data:routeData,direction:movementDirection,onDirection:onMovementDirection,limit:movementLimit,onLimit:onMovementLimit,location,defaultLocation:defaultMovementLocation,focus,onSelect:chooseZone,geometry,boundaryLevel,asOf,overlays:movementOverlays,onLoad:onLoadMovement,loading:movementLoading,error:movementError};
   function chooseZone(name){onSelect(name);const p=coverage?.rows.find(r=>r.locations.includes(name));if(p)setProvince(p.province);}
   const callout=location?[
     location,
