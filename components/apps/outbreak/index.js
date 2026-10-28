@@ -71,6 +71,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   const [restoredGeometry,setRestoredGeometry]=useState(null);
   const [routeDirection,setRouteDirection]=useState('outflow'),[routeLimit,setRouteLimit]=useState('10');
   const [routeData,setRouteData]=useState(null),[routeLoading,setRouteLoading]=useState(false),[routeError,setRouteError]=useState('');
+  const routeGeneration=useRef(0);
   const [flowCatalogue,setFlowCatalogue]=useState(null),[flowCatalogueError,setFlowCatalogueError]=useState('');
   const [useWorkspaceContext,setUseWorkspaceContext]=useState(true);
   const [provinceField,setProvinceField]=useState('auto'),[epiSource,setEpiSource]=useState('');
@@ -163,9 +164,21 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
     fetch('/api/outbreak-data?kind=mobility',{signal:controller.signal}).then(async response=>{const data=await response.json();if(!response.ok||!Array.isArray(data.products))throw new Error(data.error||'Source definitions unavailable.');return data;}).then(data=>{setFlowCatalogue(data);setReviewed(false);setFactIds([]);setDirty(true);}).catch(e=>{if(e.name!=='AbortError')setFlowCatalogueError(e.message);});
     return()=>controller.abort();
   },[hasRegisteredMobility,flowCatalogue,flowCatalogueError]);
+  function invalidateRouteRequest() {
+    routeGeneration.current++;
+    setRouteLoading(false);setRouteError('');
+  }
   async function fetchRoutes() {
+    const generation=++routeGeneration.current;
     setRouteLoading(true);setRouteError('');
-    try{const response=await fetch('/api/outbreak-data?kind=relocations');const data=await response.json();if(!response.ok||!Array.isArray(data.routes))throw new Error(data.error||'Invalid mobility response');change();setRouteData(data);}catch(e){setRouteError(e.message);}finally{setRouteLoading(false);}
+    try{
+      const response=await fetch('/api/outbreak-data?kind=relocations',{signal:AbortSignal.timeout(90000)});
+      const data=await response.json();
+      if(generation!==routeGeneration.current)return;
+      if(!response.ok||!Array.isArray(data.routes))throw new Error(data.error||'Invalid mobility response');
+      change();setRouteData(data);
+    }catch(e){if(generation===routeGeneration.current)setRouteError(e.message);}
+    finally{if(generation===routeGeneration.current)setRouteLoading(false);}
   }
   async function refreshConnected(connection=preset, indicatorsOnly=false) {
     if(refreshLock.current)return;
@@ -175,6 +188,9 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
     setRefreshing(true);setRefreshStatus('Checking connected sources…');
     const uploadedMobility=routeData&&(routeData.origin==='upload'||routeData.origin!=='public'&&!routeData.source?.startsWith('https://raw.githubusercontent.com/INRB-UMIE/'));
     const kinds=indicatorsOnly?['indicators']:['indicators',...(!uploadedMobility?['relocations']:[]),'mobility',...(mines?.origin==='upload'?[]:['mines'])];
+    // Both loaders share a sequence: only the latest mobility request may apply.
+    if(kinds.includes('relocations'))invalidateRouteRequest();
+    const mobilityGeneration=routeGeneration.current;
     const results=await Promise.allSettled(kinds.map(async kind=>{
       const response=await fetch(`/api/outbreak-data?kind=${kind}`,{signal:AbortSignal.timeout(90000)});
       const data=await response.json();
@@ -195,7 +211,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
         // Keep previously loaded values on failure and visibly identify them as unrefreshed.
         setDatasets(old=>mergePublicDatasets(old,data.datasets));
       }
-      if(kind==='relocations')setRouteData(data);
+      if(kind==='relocations'&&mobilityGeneration===routeGeneration.current)setRouteData(data);
       if(kind==='mobility')setFlowCatalogue(data);
       if(kind==='mines')setMines(old=>old?.origin==='upload'?old:data);
     });
@@ -223,6 +239,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
     autoConnection.current='drc';setPreset('drc');setName(current=>current===INITIAL_NAME?'DRC Ebola (BVD) outbreak':current);refreshConnected('drc');
   },[registeredEpi,connectionKey]);
   function connectSource(value){
+    invalidateRouteRequest();
     setLiveDashboard(true);
     refreshGeneration.current++;setRefreshing(false);autoConnection.current='manual';change();setPreset(value);if(value==='drc'&&name===INITIAL_NAME)setName('DRC Ebola (BVD) outbreak');
     try{localStorage.setItem(connectionKey,value);}catch{}
@@ -248,6 +265,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   }
   async function restore(id) {
     if(!id||dirty&&!window.confirm('Replace unsaved work with this snapshot?'))return;
+    invalidateRouteRequest();
     refreshGeneration.current++;autoConnection.current='snapshot';setLiveDashboard(false);setRefreshing(false);setRefreshStatus('Saved snapshot — showing the recorded data. Refresh data to update it.');setLastChecked('');setLastSuccessfulCheck('');
     setBusy('Opening snapshot');setError('');
     try{const s=await storage.loadPlan(id);if(![1,2].includes(s?.schemaVersion))throw new Error('Unsupported snapshot version');
@@ -263,6 +281,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   }
   function newOutbreak() {
     if(dirty&&!window.confirm('Start another outbreak without saving current changes?'))return;
+    invalidateRouteRequest();
     setLiveDashboard(true);
     setMonitorOptions(monitoringSettings());
     setRingSettings(responseRingSettings());
@@ -281,6 +300,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
   const draft=useOutbreakDraft(storage,snapshot(),dirty&&!busy&&!refreshing&&!compareLoading);
   draftSaved.current=draft.saved;
   function resumeDraft(){
+    invalidateRouteRequest();
     refreshGeneration.current++;autoConnection.current='snapshot';setLiveDashboard(false);setRefreshing(false);setLastChecked('');setLastSuccessfulCheck('');
     applySnapshot(draft.candidate);setRecord(null);setDirty(true);draft.useCurrent();
     setRefreshStatus('Recovered draft — showing its recorded data. Refresh data to update it.');
@@ -364,7 +384,7 @@ export default function Outbreak({ storage, districts=[], facilities=[], acledDa
         </>}
         context={<>
       <MineUpload current={mines} asOf={asOf} index={index} onImport={d=>{refreshGeneration.current++;setRefreshing(false);setRefreshStatus('Uploaded data selected. Public refresh preserves uploaded sources.');change();setMines(d);setShowMines(true);setNotice('Uploaded mining data is active across maps and briefing. Public refresh will preserve it.');}}/>
-      <RouteUpload current={routeData} onImport={d=>{refreshGeneration.current++;setRefreshing(false);setRefreshStatus('Uploaded data selected. Public refresh preserves uploaded sources.');change();setRouteData(d);setNotice("Mobility routes imported. Open Situation to explore district connections.");}}/>
+      <RouteUpload current={routeData} onImport={d=>{invalidateRouteRequest();refreshGeneration.current++;setRefreshing(false);setRefreshStatus('Uploaded data selected. Public refresh preserves uploaded sources.');change();setRouteData(d);setNotice("Mobility routes imported. Open Situation to explore district connections.");}}/>
       <details className={styles.panel}><summary>Concurrent hazards (GDACS) <span className={styles.countBadge}>{hazards.events.length} recent alerts</span></summary><p>Recent means alerts published in the 28 days ending {asOf}. A centre inside a boundary does not describe the full affected footprint. {hazards.excluded} records excluded by date, identifier or spatial match.</p>{hazards.events.map(h=><p key={h.id}><strong>{h.location}</strong> · {h.title} · published {h.date} {h.source&&<a href={h.source}>GDACS report</a>}</p>)}</details>
       <details className={styles.panel}><summary>Security analysis from the main app <span className={styles.countBadge}>{securityInput.length} records</span></summary><p>{securityInput.length} ACLED records available. The default window ends at the latest valid event on or before the briefing cut-off and spans 28 days. This does not establish reporting completeness.</p><div className={styles.controls}><label>Security window start<input type="date" value={securityStart} onChange={e=>{if(validDate(e.target.value)){change();setSecurityFrom(e.target.value);}}}/></label><label>Security window end<input type="date" value={securityEnd} onChange={e=>{if(validDate(e.target.value)){change();setSecurityTo(e.target.value);}}}/></label><button onClick={()=>{change();setSecurityFrom('');setSecurityTo('');}}>Use latest recorded event window</button></div>{securityRangeError&&<p role="alert">Security dates must be ordered and must not extend beyond the briefing cut-off.</p>}{restoredSecurity&&<button onClick={()=>{change();setRestoredSecurity(null);}}>Use current main-app security records</button>}{security?.issues.length>0&&<details><summary>{security.issues.length} security validation issues</summary><ul>{security.issues.map((e,i)=><li key={i}>{e.id||`Row ${e.row}`}: {e.message}</li>)}</ul></details>}</details>
       {mobilityLayers.length>0&&<details className={styles.panel}><summary>Available Flowminder products <span className={styles.countBadge}>Product catalogue</span></summary>{flowCatalogueError&&<p role="status">{flowCatalogueError} Values retain source units until definitions can be verified. <button onClick={()=>setFlowCatalogueError('')}>Retry source definitions</button></p>}{!flowCatalogue&&!flowCatalogueError&&<p>Loading source definitions…</p>}{flowCatalogue&&<><p>Definitions retrieved {flowCatalogue.fetchedAt}. GeoJSON destination indicators are separate from relocation matrices.</p><table><thead><tr><th>Available product</th><th>Format</th><th>Units</th><th>Source</th></tr></thead><tbody>{flowCatalogue.products.filter(p=>p.type==='vector'||p.product==='relocations').map(p=><tr key={p.id}><td>{p.metric}</td><td>{p.inGeoJSON?'Embedded vector':'Separate matrix — load in district connections'}</td><td>{p.unit}</td><td>{p.url&&<a href={p.url} target="_blank" rel="noreferrer">Data file</a>} · <a href={p.documentation} target="_blank" rel="noreferrer">Definitions</a></td></tr>)}</tbody></table></>}</details>}

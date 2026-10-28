@@ -33,6 +33,88 @@ async function openOutbreak(page, boundaries=[], sourceHandler=null, acledData=[
 const boundaries=['A','B','C'].map((nom,i)=>({id:nom,name:nom,properties:{nom,flowminder:{_date:'2026-09-20',_unit:'source indicator units',outflow:i===0?12:i===1?0:null,inflow:i===0?8:i===1?2:null},province:i<2?'Province One':'Province Two',district:i<2?'District One':'District Two',insp_sitrep:{cumulative_confirmed_cases:{_date:'2026-09-21',cumulative_confirmed_cases:i===0?4:0}}},geometry:{type:'Polygon',coordinates:[[[29+i,1],[30+i,1],[30+i,2],[29+i,2],[29+i,1]]]}}));
 function dataset(value=4){return {id:'insp:cumulative_confirmed_cases',metricId:'cumulative_confirmed_cases',purpose:'cases',origin:'public',status:'ready',level:'health_zone',kind:'cumulative',label:'Confirmed cases',unit:'people',records:[{location:'A',date:'2026-09-14',value:0},{location:'B',date:'2026-09-14',value:0},{location:'A',date:'2026-09-21',value},{location:'B',date:'2026-09-21',value:0},{location:'C',date:'2026-09-21',value:null}]};}
 const movement={start:'2026-04-01',end:'2026-04-30',unit:'estimated relocations',source:'Fixture movement matrix',routes:[{origin:'A',destination:'B',value:25},{origin:'B',destination:'A',value:12},{origin:'A',destination:'C',value:0},{origin:'C',destination:'A',value:null},{origin:'A',destination:'Unmatched',value:5},{origin:'A',destination:'A',value:100}]};
+
+test('mobility ignores a delayed matrix response after restoring a snapshot',async({page})=>{
+  let pending;
+  await openOutbreak(page,boundaries,route=>{
+    const kind=new URL(route.request().url()).searchParams.get('kind');
+    return route.fulfill({json:kind==='indicators'?{datasets:[dataset()]}:kind==='mines'?{data:[]}:kind==='relocations'?movement:{products:[]}});
+  });
+  await expect(page.getByRole('button',{name:'Refresh data',exact:true})).toBeEnabled();
+  const mobility=page.getByRole('region',{name:'Dashboard mobility',exact:true});
+  await mobility.getByLabel('Movement direction',{exact:true}).selectOption('inflow');
+  await expect(mobility.locator('[data-mobility-route]')).toHaveAttribute('data-mobility-route','B → A');
+  await page.getByRole('button',{name:/Save snapshot/}).click();
+  await page.getByText('Report settings & saved versions',{exact:true}).click();
+  await expect(page.getByLabel('Saved snapshots').locator('option')).toHaveCount(2);
+  await page.route('**/api/outbreak-data?kind=relocations',route=>{pending=route;});
+  await page.getByRole('navigation',{name:'Outbreak sections'}).getByRole('button',{name:'Situation',exact:true}).click();
+  await page.getByRole('button',{name:'Refresh Flowminder relocation matrix',exact:true}).click();
+  await expect.poll(()=>!!pending).toBe(true);
+  page.on('dialog',dialog=>dialog.accept());
+  await page.getByLabel('Saved snapshots').selectOption({index:1});
+  await expect(page.getByText('Saved snapshot opened. Sources were not refreshed.',{exact:true})).toBeVisible();
+  const response=page.waitForResponse('**/api/outbreak-data?kind=relocations');
+  await pending.fulfill({json:{...movement,routes:[{origin:'C',destination:'A',value:99}]}});
+  await response;
+  await page.getByRole('navigation',{name:'Outbreak sections'}).getByRole('button',{name:'Dashboard',exact:true}).click();
+  await expect(mobility.getByLabel('Movement direction',{exact:true})).toHaveValue('inflow');
+  await expect(mobility.locator('[data-mobility-route]')).toHaveAttribute('data-mobility-route','B → A');
+});
+
+for(const first of ['matrix','connected'])test(`mobility keeps the newer response when ${first} refresh finishes last`,async({page})=>{
+  let pending,requests=0;
+  await openOutbreak(page,boundaries,route=>{
+    const kind=new URL(route.request().url()).searchParams.get('kind');
+    return route.fulfill({json:kind==='indicators'?{datasets:[dataset()]}:kind==='mines'?{data:[]}:kind==='relocations'?{...movement,origin:'public'}:{products:[]}});
+  });
+  await expect(page.getByRole('button',{name:'Refresh data',exact:true})).toBeEnabled();
+  await page.getByRole('navigation',{name:'Outbreak sections'}).getByRole('button',{name:'Situation',exact:true}).click();
+  const panel=page.getByRole('region',{name:'District mobility and focus',exact:true});
+  await panel.getByRole('button',{name:'Inflow map',exact:true}).click();
+  await page.route('**/api/outbreak-data?kind=relocations',route=>{
+    requests++;
+    if(requests===1){pending=route;return;}
+    return route.fulfill({json:{...movement,origin:'public',routes:[{origin:'C',destination:'A',value:99}]}});
+  });
+  const matrix=page.getByRole('button',{name:'Refresh Flowminder relocation matrix',exact:true});
+  const connected=page.getByRole('button',{name:'Refresh data',exact:true});
+  await (first==='matrix'?matrix:connected).click();
+  await expect.poll(()=>!!pending).toBe(true);
+  await (first==='matrix'?connected:matrix).click();
+  await expect(panel.locator('[data-mobility-route]')).toHaveAttribute('data-mobility-route','C → A');
+  const response=page.waitForResponse('**/api/outbreak-data?kind=relocations');
+  await pending.fulfill({json:{...movement,origin:'public'}});
+  await (await response).finished();
+  await expect(connected).toBeEnabled();
+  await expect(matrix).toBeEnabled();
+  await panel.getByRole('button',{name:'Outflow map',exact:true}).click();
+  await panel.getByRole('button',{name:'Inflow map',exact:true}).click();
+  await expect(panel.locator('[data-mobility-route]')).toHaveAttribute('data-mobility-route','C → A');
+});
+
+test('mobility connections remain identical when revisiting an area and resizing the map',async({page})=>{
+  const areas=Array.from({length:9},(_,i)=>({...boundaries[0],id:String(i),name:String(i),properties:{...boundaries[0].properties,nom:String(i)},geometry:{type:'Polygon',coordinates:[[[29+i*.2,1],[29+i*.2+.15,1],[29+i*.2+.15,1.15],[29+i*.2,1.15],[29+i*.2,1]]]}}));
+  const routes=areas.slice(1).map((area,i)=>({origin:area.name,destination:'0',value:100-i}));
+  await openOutbreak(page,areas,route=>{
+    const kind=new URL(route.request().url()).searchParams.get('kind');
+    return route.fulfill({json:kind==='indicators'?{datasets:[{...dataset(),records:[{location:'0',date:'2026-09-21',value:4}]}]}:kind==='mines'?{data:[]}:kind==='relocations'?{...movement,routes}:{products:[]}});
+  });
+  const mobility=page.getByRole('region',{name:'Dashboard mobility',exact:true});
+  await mobility.getByLabel('Movement direction',{exact:true}).selectOption('inflow');
+  const expected=routes.map(r=>`${r.origin} → ${r.destination}`);
+  const connections=()=>mobility.locator('[data-mobility-route]').evaluateAll(nodes=>nodes.map(n=>n.dataset.mobilityRoute));
+  await expect.poll(connections).toEqual(expected);
+  for(const width of [1920,800,1280]){
+    await mobility.getByLabel('Movement focus',{exact:true}).selectOption('1');
+    await mobility.getByLabel('Movement focus',{exact:true}).selectOption('0');
+    await page.setViewportSize({width,height:900});
+    await page.getByRole('navigation',{name:'Outbreak sections'}).getByRole('button',{name:'Situation',exact:true}).click();
+    await page.getByRole('navigation',{name:'Outbreak sections'}).getByRole('button',{name:'Dashboard',exact:true}).click();
+    await expect.poll(connections).toEqual(expected);
+    await expect(mobility).toContainText('Inflow to 0 · 8 of 8 connections');
+  }
+});
 test('source aliases restore Kisangani map values, province totals and continuous trends',async({page})=>{
   const geo=['Makiso Kisangani','Lubunga (Tshopo)','Lubunga (Kasaï-Central)'].map((nom,i)=>({...boundaries[i],id:nom,name:nom,properties:{...boundaries[i].properties,nom,province:i<2?'Tshopo':'Kasaï-Central'}}));
   const cases={...dataset(),records:[
