@@ -3,7 +3,7 @@ import { formatValue } from '../../../lib/outbreak/data';
 import { placeLabels } from '../../../lib/outbreak/mapInteraction';
 import { slideMapGeography } from '../../../lib/outbreak/slideMapGeography';
 import countries from '../../../lib/outbreak/countries.json';
-import admin1 from '../../../lib/outbreak/admin1.json';
+import { useRegionalBasemap } from './RegionalBasemap';
 import { download } from './Visuals';
 import styles from './outbreak.module.css';
 
@@ -37,12 +37,15 @@ export function SlideFrame({svgRef,title,subtitle,asOf,page,total,source,note,ch
 export function SlideMap({geometry,rows,valueKey='value',categories=null,numberOffset=0,x=45,y=230,width=625,height=480,fitCountry=null}) {
   const id=useId().replace(/:/g,''),lookup=new Map(rows.map((r,i)=>[r.location,{...r,index:i+1+numberOffset}]));
   const mapHeight=height-24;
-  const geography=useMemo(()=>slideMapGeography({geometry,rows,x,y,width,height:mapHeight,countries:countries.features,admin1:admin1.features,fitCountry}),[geometry,rows,x,y,width,mapHeight,fitCountry]);
+  const base=useMemo(()=>slideMapGeography({geometry,rows,x,y,width,height:mapHeight,countries:countries.features,fitCountry}),[geometry,rows,x,y,width,mapHeight,fitCountry]);
+  const regional=useRegionalBasemap(base.geoView);
+  const geography=useMemo(()=>slideMapGeography({geometry,rows,x,y,width,height:mapHeight,countries:countries.features,admin1:regional.features,fitCountry}),[geometry,rows,x,y,width,mapHeight,fitCountry,regional.features]);
   const {shapes,contextLabels}=geography;
   const max=Math.max(1,...rows.map(r=>Math.max(0,r[valueKey]??0)));
   const candidates=[...shapes.filter(f=>lookup.has(f.name)),...contextLabels];
   const labels=placeLabels(candidates,[x,y,width,mapHeight],'',new Set(candidates.map(f=>f.name)),1,[width,mapHeight]);
-  return <g aria-label="Map linking numbered areas to evidence">
+  return <g aria-label="Map linking numbered areas to evidence" data-basemap-bounds={JSON.stringify(base.geoView || [])} data-basemap-state={regional.status}>
+    {regional.status !== 'ready' && <text x={x+8} y={y-8} fontSize="12">{regional.status === 'error' ? 'Regional context unavailable' : 'Loading regional context…'}</text>}
     <defs><clipPath id={id}><rect x={x} y={y} width={width} height={mapHeight} rx="8"/></clipPath></defs>
     <rect x={x} y={y} width={width} height={height} rx="8" fill="#c4d9e8"/>
     <g clipPath={`url(#${id})`}>
@@ -60,6 +63,9 @@ export function SlideMap({geometry,rows,valueKey='value',categories=null,numberO
 }
 export async function downloadSlidePNG(element,name) {
   if(!element)throw new Error('The slide is not ready to export.');
+  const deadline=Date.now()+16000;
+  while(element.querySelector('[data-basemap-state=loading]') && Date.now()<deadline) await new Promise(resolve=>setTimeout(resolve,50));
+  if(element.querySelector('[data-basemap-state=loading]')) throw new Error('Regional context is still loading. Try exporting again shortly.');
   const copy=element.cloneNode(true);copy.removeAttribute('class');copy.setAttribute('width','1920');copy.setAttribute('height','1080');
   const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(copy)],{type:'image/svg+xml;charset=utf-8'}));
   try {

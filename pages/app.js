@@ -11,6 +11,7 @@
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { createLatestTaskRunner } from '../lib/latestTask';
 import Head from 'next/head';
 import dynamic from 'next/dynamic';
 import Papa from 'papaparse';
@@ -26,6 +27,7 @@ import {
   filterOsmDataToDistricts
 } from '../lib/analysisScope';
 import { getFacilityIdentityKey } from '../lib/facilityIdentity';
+import { resultMatchesDistricts } from '../lib/platform/resultContext';
 import {
   saveWorkspace,
   loadWorkspace,
@@ -500,7 +502,7 @@ export default function Home() {
     });
   };
 
-  const runImpactAssessmentLocally = async (requestPayload, facilityData, disastersToAssess) => {
+  const runImpactAssessmentLocally = async (requestPayload, facilityData, disastersToAssess, isCurrent = () => true) => {
     console.log('Impact assessment: running in a worker to avoid blocking the UI');
     setImpactProgress({
       phase: 'starting',
@@ -517,6 +519,7 @@ export default function Home() {
       data = await runImpactAssessmentOnMainThread(requestPayload);
     }
 
+    if (!isCurrent()) return;
     lastImpactPayloadRef.current = JSON.stringify(requestPayload);
     lastImpactResultRef.current = data;
     applyImpactAssessmentResult(facilityData, data, disastersToAssess);
@@ -565,6 +568,7 @@ export default function Home() {
   const [fetchError, setFetchError] = useState(null);
   const [showHelp, setShowHelp] = useState(false); // Help panel visibility
   const [showAppHub, setShowAppHub] = useState(false);
+  const [accessPublication, setAccessPublication] = useState(null);
   const [showChatDrawer, setShowChatDrawer] = useState(false); // Chat drawer visibility
   const [showPredictions, setShowPredictions] = useState(false); // Prediction dashboard visibility
   const [showOperationalOutlook, setShowOperationalOutlook] = useState(false); // Operational outlook dashboard visibility
@@ -589,6 +593,7 @@ export default function Home() {
 
   // District boundaries from shapefile upload
   const [districts, setDistricts] = useState([]);
+  const visibleAccessPublication = resultMatchesDistricts(accessPublication, districts) ? accessPublication : null;
   const [districtAvailableFields, setDistrictAvailableFields] = useState([]);
   const [districtLabelField, setDistrictLabelField] = useState(null);
   const [districtRawData, setDistrictRawData] = useState([]); // Store original district data for remapping
@@ -614,6 +619,7 @@ export default function Home() {
   useEffect(() => {
     return () => {
       impactWorkerRunIdRef.current += 1;
+      impactRunner.current?.invalidate();
       impactWorkerRef.current?.terminate();
       impactWorkerRef.current = null;
       if (workspaceSaveTimeoutRef.current) {
@@ -1059,7 +1065,7 @@ export default function Home() {
       });
       assessImpact(facilities);
     }
-  }, [acledData, acledEnabled]);
+  }, [filteredAcledData, selectedAnalysisDistricts]);
 
   // Initialize with disaster data on mount.
   // GDACS is required for baseline context; outbreaks are gated behind the
@@ -1754,7 +1760,8 @@ export default function Home() {
   };
 
   // Assess the impact of disasters on facilities
-  const assessImpactRef = useRef(false); // Prevent concurrent calls
+  const impactRunner = useRef(null);
+  if (!impactRunner.current) impactRunner.current = createLatestTaskRunner();
   const lastImpactPayloadRef = useRef('');
   const lastImpactResultRef = useRef(null);
 
@@ -1793,20 +1800,13 @@ export default function Home() {
     setRecommendations(null);
   };
 
-  const assessImpact = async (facilityData, options = {}) => {
-    // Prevent multiple simultaneous assessments
-    if (assessImpactRef.current) {
-      console.log('Impact assessment already running, skipping...');
-      return;
-    }
-
+  const assessImpact = (facilityData, options = {}) => impactRunner.current.run(async (isCurrent) => {
     try {
-      assessImpactRef.current = true;
       setLoading(prev => ({ ...prev, impact: true }));
       setImpactProgress(null);
 
       // Use filtered disasters instead of all disasters
-      const disastersToAssess = options.disastersOverride || (filteredDisasters.length > 0 ? filteredDisasters : disasters);
+      const disastersToAssess = options.disastersOverride ?? filterDisastersByDate(dateFilter, disasters, false);
 
       // Include ACLED events only if enabled and available
       const acledToAssess = options.acledOverride || filteredAcledData;
@@ -1859,7 +1859,7 @@ export default function Home() {
       }
 
       if (payloadJson.length > IMPACT_ASSESSMENT_REMOTE_PAYLOAD_LIMIT_BYTES) {
-        await runImpactAssessmentLocally(requestPayload, scopedFacilities, disastersToAssess);
+        await runImpactAssessmentLocally(requestPayload, scopedFacilities, disastersToAssess, isCurrent);
         return;
       }
 
@@ -1875,31 +1875,33 @@ export default function Home() {
         });
 
         if (response.status === 413) {
-          await runImpactAssessmentLocally(requestPayload, scopedFacilities, disastersToAssess);
+          await runImpactAssessmentLocally(requestPayload, scopedFacilities, disastersToAssess, isCurrent);
           return;
         }
 
         data = await parseApiResponse(response, 'Impact assessment');
       } catch (error) {
         if (String(error?.message || '').includes('status 413')) {
-          await runImpactAssessmentLocally(requestPayload, scopedFacilities, disastersToAssess);
+          await runImpactAssessmentLocally(requestPayload, scopedFacilities, disastersToAssess, isCurrent);
           return;
         }
         throw error;
       }
 
+      if (!isCurrent()) return;
       lastImpactPayloadRef.current = payloadJson;
       lastImpactResultRef.current = data;
       applyImpactAssessmentResult(scopedFacilities, data, disastersToAssess);
     } catch (error) {
       console.error('Error assessing impact:', error);
-      addToast('Failed to assess site impact. Please try again.', 'error');
+      if (isCurrent()) addToast('Failed to assess site impact. Please try again.', 'error');
     } finally {
-      assessImpactRef.current = false;
-      setImpactProgress(null);
-      setLoading(prev => ({ ...prev, impact: false }));
+      if (isCurrent()) {
+        setImpactProgress(null);
+        setLoading(prev => ({ ...prev, impact: false }));
+      }
     }
-  };
+  });
 
   // Generate recommendations for a selected facility
   const generateRecommendations = async (facility, impacts, useAI = true) => {
@@ -3573,7 +3575,7 @@ export default function Home() {
           </div>
           </div>
         </div>
-        {showAppHub && <AppHub districts={districts} facilities={facilities} acledData={acledData} disasters={disasters} onClose={() => setShowAppHub(false)} />}
+        {showAppHub && <AppHub worldPopData={worldPopData} worldPopLastFetch={worldPopLastFetch} osmData={osmData} districts={districts} selectedDistricts={selectedAnalysisDistricts} facilities={facilities} acledData={acledData} disasters={disasters} onShowResult={setAccessPublication} onClose={() => setShowAppHub(false)} />}
         <OperationalContextBar
           selectedAnalysisDistricts={selectedAnalysisDistricts}
           districts={districts}
@@ -3591,7 +3593,9 @@ export default function Home() {
           canOpenSitrep={canOpenSitrep}
         />
 
+        {visibleAccessPublication && <div role="status" style={{ padding: '10px 16px', background: '#f0fdf4', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}><span>Access Gaps: {visibleAccessPublication.metadata.name} · computed {visibleAccessPublication.result.computedAt.slice(0, 10)} · modeled access snapshot, available to chat</span><button onClick={() => setAccessPublication(null)}>Clear access result</button></div>}
         <MapComponent
+          accessPublication={visibleAccessPublication}
           onOpenApps={() => setShowAppHub(true)}
           disasters={filteredDisasters}
           outbreaks={filteredOutbreaks}

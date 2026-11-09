@@ -1,0 +1,10 @@
+.root { position: relative; max-width: 760px; margin: 10px 0 20px; }
+.root button.trigger { width: 100%; justify-content: space-between; text-align: left; }
+.menu { position: absolute; top: 40px; left: 0; right: 0; z-index: 1200; padding: 12px; background: white; border: 1px solid #bccfc7; border-radius: 8px; box-shadow: 0 8px 28px #16362c26; }
+.options { max-height: 210px; overflow: auto; margin: 8px 0; }
+.options label { display: flex; flex-direction: row; align-items: center; gap: 10px; padding: 9px 4px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow: auto; margin-top: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 20px; background: #e9f5ef; color: #175841; border: 1px solid #c3ddcf; padding: 3px 4px 3px 11px; font-size: 12px; max-width: 100%; }
+.chip > span { overflow-wrap: anywhere; }
+.root .chip button { min-height: 28px; width: 28px; padding: 0; border: 0; border-radius: 50%; background: transparent; }

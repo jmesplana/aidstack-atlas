@@ -37,6 +37,7 @@ This keeps global disaster and outbreak signals useful for awareness while letti
 - Street, satellite, and terrain base maps
 
 ### Operational analysis
+- Access Gaps workspace app for road-network travel-time coverage and candidate outreach-site comparison, with explicit saved-result handoffs to Immunization Planning
 - Facility impact assessment against GDACS disasters and optional ACLED events
 - District-level risk scoring from disaster and conflict context
 - Facility-level AI analysis and recommendations
@@ -180,6 +181,23 @@ When those layers are missing, the board shows lower-confidence / missing-signal
 - Loaded only for selected admin areas
 - Categories include hospitals, schools, roads, bridges, water, power, fuel, pharmacies, and airports
 - Used in logistics assessment and other operational context layers
+
+### Building footprints
+- Enable **Building footprints** in the main map's **Map Layers** drawer or the Access Gaps map control, then zoom to neighborhood level (zoom 14 or closer).
+- Outlines load automatically for the visible portion of selected administrative areas. Bounded, cached OSM requests subdivide dense sections; loading errors offer a retry.
+- Buildings stay below population hexagons, service points, and popups. The control shows source, data date, and coverage information.
+- Coverage depends on OpenStreetMap mapping. This layer includes closed building ways; complex building relations and occupancy are not included. Outlines provide site-review context and do not change modeled population or travel-time accuracy.
+
+### Assessment and briefing performance
+- Access Gaps defaults to the latest population year at or before the current year. Future projections remain an explicit choice. Age/sex selection extracts the selected WorldPop bands in each demand cell, with cohort-specific cache keys and saved evidence; it does not estimate vaccination status or split age bands into unsupported month ranges.
+- Set **Maximum outreach sites** to compare a complementary option. Automatic search moves to population still unreached by earlier tested sites. The decision brief then chooses the largest remaining gain among evaluated candidates, counting each cell once and reporting overlap, cumulative reach, remaining gaps, and unknown baseline access separately. This is a bounded greedy comparison, not a global optimum or a capacity model.
+- The brief records the decision owner, review date and delivery constraints, is included in saved/published immunization evidence, and can be exported as a plain-text decision brief. The proposed option is separate from the user-selected scenario; **Use recommended sites in combined scenario** applies and recalculates it.
+- Surface-mode facility discovery checks current OSM alongside the Healthsites snapshot, including health-centre tags. Source failures are explicit; neither source establishes completeness or vaccination availability. Review the coordinates and sources, supplement the list with workspace sites or a verified roster, and mark the service review only after it is completed. Zero included facilities is never presented as proof that no facilities exist. **Reload platform data** bypasses prior extracts and rechecks sources; old surface assessments require the updated discovery data before recalculation.
+- Access Gaps reuses complete travel times within the current assessment when only the threshold or candidate selection changes. Changing origins, site coordinates, travel mode, or travel-surface version invalidates the affected cache.
+- Population results have search, sorting, access filters, and 50-row pages; exports retain every row. Map hexagons are limited to the visible extent, and long travel times display in hours and minutes.
+- Impact calculations queue the latest inputs and discard obsolete results. OSM categories retain their layers when hidden, and external popup labels are rendered as text.
+- Workspace saves reuse unchanged large datasets; existing saved workspaces and published assessments remain readable. AI caching uses bounded Redis timeouts and a limited local fallback.
+- Briefing maps load regional administrative geometry on demand, including during PNG and PowerPoint export. After updating `lib/outbreak/admin1.json`, regenerate the display assets with `node scripts/split-briefing-basemap.mjs` and include both `public/basemap/admin1/` and `lib/outbreak/basemapIndex.json` in the change.
 
 ### Earth Engine context layers
 - Includes nighttime lights, Sentinel imagery, radar change context, flood context, drought context, and accessibility context
@@ -357,6 +375,7 @@ District B Warehouse,2.345,33.678,30000,60,12,warehouse,MoH
 
 ## Related Documentation
 
+- [OSM loading, retries, caching, and provider configuration](docs/osm-loading.md)
 - [OPERATIONAL_OUTLOOK.md](OPERATIONAL_OUTLOOK.md)
 - [WORLDPOP_INTEGRATION_PLAN.md](WORLDPOP_INTEGRATION_PLAN.md)
 - [OSM_SELECTIVE_LOADING_IMPLEMENTATION.md](OSM_SELECTIVE_LOADING_IMPLEMENTATION.md)

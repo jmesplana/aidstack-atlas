@@ -17,8 +17,8 @@ as report versions. Pending uploads are not saved until confirmed, and unsaved
 changes still trigger the leave guard. Draft storage is local to this browser.
 
 **Sitrep → Edit report** opens publication details, coordinator wording and notes
-for each section. The default A4 report follows
-`docs/2026_W37_DRC_Ebola_BVD_Sitrep_11_09_2026.pdf`:
+for each section. The default A4 report follows the structure of the DRC Ebola
+week 37 Sitrep dated 11 September 2026 (reference PDF retained locally):
 
 1. Epidemiological situation and weekly trend.
 2. Population mobility (choose direction and up to three focus-area maps).

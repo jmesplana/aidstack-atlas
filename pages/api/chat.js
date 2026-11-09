@@ -5,6 +5,7 @@ import { formatWorldPopForAI } from '../../utils/worldpopHelpers';
 import { formatOSMForAI } from '../../lib/osmHelpers';
 import { buildChatContextualAnalysis, formatContextualAnalysisForPrompt } from '../../lib/contextualAnalysis';
 import { summarizeDistrictAttributes } from '../../lib/adminProperties';
+import { formatAccessChatContext } from '../../lib/platform/resultContext';
 
 export const config = {
   api: {
@@ -84,7 +85,7 @@ function shouldUseWebSearch(message = '', context = {}) {
     (context?.acledData?.length || 0) > 0 ||
     Boolean(context?.weatherForecast) ||
     Boolean(context?.worldPopData && Object.keys(context.worldPopData).length > 0) ||
-    Boolean(context?.prioritizationBoard?.districtRows?.length);
+    Boolean(context?.prioritizationBoard?.districtRows?.length) || Boolean(context?.accessAssessment);
 
   return asksForFreshInfo || !hasLoadedOperationalData;
 }
@@ -158,6 +159,7 @@ async function handler(req, res) {
     const contextSummary = [
       contextualAnalysisSummary,
       deepContextSummary,
+      formatAccessChatContext(context?.accessAssessment),
       buildContextSummary(context)
     ].filter(Boolean).join('\n\n');
 

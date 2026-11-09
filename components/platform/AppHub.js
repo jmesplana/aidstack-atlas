@@ -9,6 +9,7 @@ import { geographyKey } from '../../lib/planning/geography';
 import styles from './Planning.module.css';
 import { readAppPackage, listAppPackages, installAppPackage, setPackageEnabled } from '../../lib/platform/appPackages';
 import InstalledAppFrame from './InstalledAppFrame';
+import { createWorkspaceResults } from '../../lib/platform/workspaceResults';
 
 const accessLabels = { 'read:boundaries': 'Read administrative boundaries', 'read:sites': 'Read facilities', 'read:security': 'Read workspace security events', 'write:plans': 'Read and save this app’s plans', 'export:plans': 'Export plans (not supported by uploaded apps yet)' };
 
@@ -20,7 +21,7 @@ class AppBoundary extends Component {
   }
 }
 
-export default function AppHub({ districts, facilities, acledData = [], disasters = [], onClose }) {
+export default function AppHub({ districts, selectedDistricts = [], facilities, acledData = [], disasters = [], worldPopData = {}, worldPopLastFetch = null, osmData = null, onShowResult, onClose }) {
   const dialog = useRef(null);
   const workspaceId = useMemo(() => geographyKey(districts), [districts]);
   const [installed, setInstalled] = useState([]);
@@ -34,6 +35,9 @@ export default function AppHub({ districts, facilities, acledData = [], disaster
   const activePackage = packages.find((pkg) => pkg.manifest.id === active);
   const ActiveApp = activeApp && APP_COMPONENTS[activeApp.id];
   const storage = useMemo(() => active ? createModuleStorage({ workspaceId, moduleId: active }) : null, [workspaceId, active]);
+  const sharedResults = useMemo(() => active && !activePackage ? createWorkspaceResults({ workspaceId, moduleId: active }) : undefined, [workspaceId, active, activePackage]);
+  const resultCatalog = useMemo(() => createWorkspaceResults({ workspaceId, moduleId: 'atlas' }), [workspaceId]);
+  const [publishedResults, setPublishedResults] = useState([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -41,6 +45,13 @@ export default function AppHub({ districts, facilities, acledData = [], disaster
   const requestLeave = (action) => {
     if (!leaveGuard.current || leaveGuard.current()) action();
   };
+  useEffect(() => {
+    let mounted = true;
+    setPublishedResults([]);
+    if (!active) resultCatalog.list().then((rows) => { if (mounted) setPublishedResults(rows); }).catch(() => { if (mounted) setError('Published results could not be loaded.'); });
+    return () => { mounted = false; };
+  }, [active, resultCatalog]);
+  function showResult(record) { requestLeave(() => { onShowResult?.(record); onClose(); }); }
   useEffect(() => {
     dialog.current.showModal();
     return () => dialog.current?.close();
@@ -111,7 +122,8 @@ export default function AppHub({ districts, facilities, acledData = [], disaster
           <a href="/apps/activity-planner.zip" download>Download example app</a>
           <input ref={upload} hidden type="file" accept=".zip" aria-label="App ZIP package" onChange={previewPackage} />
         </div>
-        <p className={styles.muted}>Upload an app ZIP. Apps and saved plans stay in this browser and workspace.</p>
+        <p className={styles.muted}>Add a contributed module by uploading its app ZIP. Each module runs in its own browser sandbox with the data access you approve. Apps and saved plans stay in this browser and workspace.</p>
+        {!!publishedResults.length && <section className={styles.appCard} aria-label="Workspace results"><h2>Published workspace results</h2><p>Saved snapshots available to compatible apps. Importing a result does not run its source app.</p>{publishedResults.map((item) => <div className={styles.actions} key={item.id}><span>{item.name} · {item.source.moduleId} v{item.source.revision}</span><button onClick={async () => { try { const record = await resultCatalog.load(item.id); if (!record) throw new Error('This publication has been withdrawn.'); showResult(record); } catch (e) { setError(e.message); } }}>Show on map</button></div>)}</section>}
         {pendingPackage && <section className={styles.appCard} aria-label="Review app installation">
           <h2>{pendingPackage.manifest.name}</h2>
           <p>{pendingPackage.manifest.description}</p>
@@ -145,7 +157,7 @@ export default function AppHub({ districts, facilities, acledData = [], disaster
         </article>; })}
         </div>
       </div> : <AppBoundary key={`${workspaceId}:${active}`}>
-        {activePackage ? <InstalledAppFrame pkg={activePackage} workspaceId={workspaceId} districts={districts} facilities={facilities} acledData={acledData} disasters={disasters} storage={storage} leaveGuard={leaveGuard} /> : ActiveApp ? <ActiveApp onOpenWorkspace={()=>requestLeave(onClose)} disasters={activeApp.capabilities.includes('read:disasters')?disasters:[]} storage={activeApp.capabilities.includes('write:plans') ? storage : undefined} workspaceId={workspaceId} districts={activeApp.capabilities.includes('read:boundaries') ? districts : []} facilities={activeApp.capabilities.includes('read:sites') ? facilities : []} acledData={activeApp.capabilities.includes('read:security') ? acledData : []} leaveGuard={leaveGuard} /> : <p role="alert">This app is unavailable. Return to Apps.</p>}
+        {activePackage ? <InstalledAppFrame pkg={activePackage} workspaceId={workspaceId} districts={districts} facilities={facilities} acledData={acledData} disasters={disasters} storage={storage} leaveGuard={leaveGuard} /> : ActiveApp ? <ActiveApp accessContext={activeApp.id === 'access-gaps' ? { worldPopData, worldPopLastFetch, osmData } : undefined} sharedResults={sharedResults} onShowResult={showResult} selectedDistricts={activeApp.capabilities.includes('read:boundaries') ? selectedDistricts : []} onOpenWorkspace={()=>requestLeave(onClose)} disasters={activeApp.capabilities.includes('read:disasters')?disasters:[]} storage={activeApp.capabilities.includes('write:plans') ? storage : undefined} workspaceId={workspaceId} districts={activeApp.capabilities.includes('read:boundaries') ? districts : []} facilities={activeApp.capabilities.includes('read:sites') ? facilities : []} acledData={activeApp.capabilities.includes('read:security') ? acledData : []} leaveGuard={leaveGuard} /> : <p role="alert">This app is unavailable. Return to Apps.</p>}
       </AppBoundary>}
     </div>
   </dialog>;

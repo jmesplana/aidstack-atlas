@@ -4,6 +4,12 @@ import { readFileSync } from 'node:fs';
 import { defineAppRegistry, validateAppManifest, missingAppData } from '../lib/platform/appManifest.js';
 
 const app = JSON.parse(readFileSync(new URL('../components/apps/immunization/manifest.json', import.meta.url)));
+test('Access Gaps registers as a bundled app using existing permissions', () => {
+  const access = JSON.parse(readFileSync(new URL('../components/apps/access-gaps/manifest.json', import.meta.url)));
+  assert.deepEqual(validateAppManifest(access), []);
+  assert.deepEqual(missingAppData(access, {}), ['administrative-boundaries']);
+  assert.deepEqual(defineAppRegistry([app, access]).map((item) => item.id), ['immunization', 'access-gaps']);
+});
 test('validates supported apps and rejects incompatible or ambiguous registrations', () => {
   assert.deepEqual(validateAppManifest(app), []);
   assert.throws(() => defineAppRegistry([app, app]), /Duplicate/);

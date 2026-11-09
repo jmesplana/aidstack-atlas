@@ -1,321 +1,95 @@
-/**
- * OSM Infrastructure Layer Component
- * Renders OSM infrastructure features on the map with marker clustering
- * Follows the pattern of DisasterMarkers.js
- */
-
 import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { infrastructurePopup } from '../../../lib/osm/popup';
+import { MAP_PANES } from '../../../lib/geo/mapPanes';
 
-const FACILITY_MARKER_CATEGORIES = new Set([
-  'hospital',
-  'clinic',
-  'school',
-  'water',
-  'power',
-  'fuel',
-  'pharmacy',
-  'airport'
-]);
+const symbols = { hospital: '🏥', clinic: '⚕️', school: '🏫', water: '💧', power: '⚡', fuel: '⛽', pharmacy: '💊', airport: '✈️', road: '🛣️', bridge: '🌉' };
+const facilities = new Set(['hospital', 'clinic', 'school', 'water', 'power', 'fuel', 'pharmacy', 'airport']);
+const pane = 'osmInfrastructurePane';
 
-const getIconSymbol = (category) => {
-  const symbols = {
-    hospital: '🏥',
-    clinic: '⚕️',
-    school: '🏫',
-    road: '🛣️',
-    bridge: '🌉',
-    water: '💧',
-    power: '⚡',
-    fuel: '⛽',
-    pharmacy: '💊',
-    airport: '✈️',
-  };
-
-  return symbols[category] || '📍';
-};
-
-const OSMInfrastructureLayer = ({ osmData, layerVisibility, showOSMLayer, showClusterCounts = true }) => {
-  const map = useMap();
-  const clusterGroupRef = useRef(null);
-  const lineLayerGroupRef = useRef(null); // For LineString/Polygon features
+export default function OSMInfrastructureLayer({ osmData, layerVisibility = {}, showOSMLayer, showClusterCounts = true }) {
+  const map = useMap(), groups = useRef(new Map()), counts = useRef(showClusterCounts), renderer = useRef(null);
+  counts.current = showClusterCounts;
+  useEffect(() => {
+    const element = map.getPane(pane) || map.createPane(pane);
+    element.style.zIndex = String(MAP_PANES.infrastructure);
+    renderer.current = L.svg({ pane });
+    return () => {
+      for (const group of groups.current.values()) { map.removeLayer(group.markers); map.removeLayer(group.shapes); }
+      groups.current.clear();
+      map.removeLayer(renderer.current);
+    };
+  }, [map]);
 
   useEffect(() => {
-    if (!osmData || !osmData.features || !showOSMLayer) {
-      // Clear all layers if no data or layer hidden
-      if (clusterGroupRef.current) {
-        map.removeLayer(clusterGroupRef.current);
-        clusterGroupRef.current = null;
+    function groupFor(category) {
+      if (!groups.current.has(category)) {
+        const markers = L.markerClusterGroup({
+          chunkedLoading: true, chunkInterval: 30, chunkDelay: 20,
+          spiderfyOnMaxZoom: true, showCoverageOnHover: false, maxClusterRadius: 40,
+          iconCreateFunction(cluster) {
+            const icon = document.createElement('div'), size = counts.current ? 34 : 14;
+            icon.textContent = counts.current ? String(cluster.getChildCount()) : '';
+            Object.assign(icon.style, { background: '#2563eb', width: `${size}px`, height: `${size}px`, display: 'grid', placeItems: 'center', borderRadius: '50%', color: 'white', border: '2px solid white', fontWeight: 'bold' });
+            return L.divIcon({ html: icon, className: 'osm-cluster', iconSize: [size, size] });
+          },
+        });
+        groups.current.set(category, { markers, shapes: L.layerGroup(), records: new Map() });
       }
-      if (lineLayerGroupRef.current) {
-        map.removeLayer(lineLayerGroupRef.current);
-        lineLayerGroupRef.current = null;
-      }
-      return;
+      return groups.current.get(category);
     }
-
-    console.log(`Rendering ${osmData.features.length} OSM infrastructure features`);
-
-    // Create cluster group if it doesn't exist
-    if (!clusterGroupRef.current) {
-      clusterGroupRef.current = L.markerClusterGroup({
-        chunkedLoading: true,
-        spiderfyOnMaxZoom: true,
-        showCoverageOnHover: false,
-        zoomToBoundsOnClick: true,
-        maxClusterRadius: showClusterCounts ? 50 : 20,
-        iconCreateFunction: (cluster) => {
-          const childCount = cluster.getChildCount();
-
-          // Determine size based on cluster count
-          const size = childCount < 10 ? 'small' : childCount < 50 ? 'medium' : 'large';
-          const dimension = showClusterCounts
-            ? (size === 'small' ? '32px' : size === 'medium' ? '42px' : '52px')
-            : '14px';
-          const fontSize = size === 'small' ? '12px' : size === 'medium' ? '14px' : '17px';
-
-          // OSM cluster icon (blue theme for infrastructure)
-          return L.divIcon({
-            html: `<div style="
-              background: rgba(37, 99, 235, 0.9);
-              width: ${dimension};
-              height: ${dimension};
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              border-radius: 50%;
-              font-weight: bold;
-              color: white;
-              border: ${showClusterCounts ? '3px solid white' : '1.5px solid white'};
-              box-shadow: ${showClusterCounts ? '0 3px 8px rgba(0,0,0,0.3)' : '0 1px 4px rgba(0,0,0,0.2)'};
-              font-size: ${fontSize};
-            ">
-              ${showClusterCounts ? childCount : ''}
-            </div>`,
-            className: 'osm-cluster',
-            iconSize: L.point(parseInt(dimension), parseInt(dimension))
-          });
-        }
-      });
-      map.addLayer(clusterGroupRef.current);
-    } else {
-      // Clear previous markers
-      clusterGroupRef.current.clearLayers();
-    }
-
-    // Filter features by visibility settings
-    const visibleFeatures = osmData.features.filter(feature => {
-      const category = feature.properties.category;
-      return layerVisibility[category] !== false;
-    });
-
-    console.log(`Filtered to ${visibleFeatures.length} visible features`);
-
-    // Create or get OSM infrastructure pane with high z-index (above admin boundaries and GEE layers)
-    const osmPaneName = 'osmInfrastructurePane';
-    if (!map.getPane(osmPaneName)) {
-      const osmPane = map.createPane(osmPaneName);
-      osmPane.style.zIndex = '450'; // Above admin boundaries (400) and GEE evidence pane (300)
-      osmPane.style.pointerEvents = 'auto'; // Allow click interactions
-    }
-
-    // Create line layer group for non-Point geometries
-    if (!lineLayerGroupRef.current) {
-      lineLayerGroupRef.current = L.layerGroup({ pane: osmPaneName });
-      map.addLayer(lineLayerGroupRef.current);
-    } else {
-      lineLayerGroupRef.current.clearLayers();
-    }
-
-    // Count features by geometry type for debugging
-    let pointCount = 0;
-    let lineCount = 0;
-    let polygonCount = 0;
-    let centroidMarkerCount = 0;
-
-    const addInfrastructureMarker = (lat, lng, feature, popupContent, isCentroid = false) => {
-      const { category, color } = feature.properties;
-
-      if (isNaN(lat) || isNaN(lng)) {
-        console.warn('Invalid coordinates for OSM feature:', feature);
-        return;
-      }
-
-      const size = isCentroid ? 28 : 32;
-      const iconHtml = `
-        <div style="
-          position: relative;
-          width: ${size}px;
-          height: ${size}px;
-          background-color: ${color};
-          border-radius: 50%;
-          border: 2px solid white;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: ${isCentroid ? 14 : 16}px;
-        ">
-          ${getIconSymbol(category)}
-        </div>
-      `;
-
-      const customIcon = L.divIcon({
-        html: iconHtml,
-        className: `osm-marker osm-${category}${isCentroid ? ' osm-area-marker' : ''}`,
-        iconSize: [size, size],
-        iconAnchor: [size / 2, size / 2],
-        popupAnchor: [0, -(size / 2)]
-      });
-
-      const marker = L.marker([lat, lng], {
-        icon: customIcon,
-        zIndexOffset: isCentroid ? 450 : 500,
-      });
-
-      marker.bindPopup(popupContent);
-      clusterGroupRef.current.addLayer(marker);
-    };
-
-    // Add features based on geometry type
-    visibleFeatures.forEach((feature, index) => {
-      const { name, category, tags, color } = feature.properties;
-      const geometryType = feature.geometry.type;
-
-      // Build popup content (shared for all geometry types)
-      const popupContent = `
-        <div style="max-width: 280px; font-family: 'Inter', sans-serif;">
-          <h3 style="
-            margin: 0 0 10px 0;
-            color: ${color};
-            font-size: 16px;
-            font-weight: 600;
-            border-bottom: 2px solid ${color};
-            padding-bottom: 6px;
-          ">
-            ${name}
-          </h3>
-          <div style="margin-bottom: 8px;">
-            <span style="
-              display: inline-block;
-              background: ${color};
-              color: white;
-              padding: 2px 8px;
-              border-radius: 4px;
-              font-size: 11px;
-              font-weight: 600;
-              text-transform: uppercase;
-            ">${category}</span>
-          </div>
-          ${tags.operator ? `
-            <div style="margin-bottom: 6px;">
-              <strong style="color: #64748b;">Operator:</strong> ${tags.operator}
-            </div>
-          ` : ''}
-          ${tags.capacity || tags.beds ? `
-            <div style="margin-bottom: 6px;">
-              <strong style="color: #64748b;">Capacity:</strong> ${tags.capacity || tags.beds} ${tags.beds ? 'beds' : ''}
-            </div>
-          ` : ''}
-          ${tags.emergency === 'yes' ? `
-            <div style="margin-bottom: 6px; color: #dc2626; font-weight: 600;">
-              ⚡ Emergency Services Available
-            </div>
-          ` : ''}
-          ${tags.amenity ? `
-            <div style="margin-bottom: 6px;">
-              <strong style="color: #64748b;">Type:</strong> ${tags.amenity}
-            </div>
-          ` : ''}
-          ${tags.highway ? `
-            <div style="margin-bottom: 6px;">
-              <strong style="color: #64748b;">Road Type:</strong> ${tags.highway}
-            </div>
-          ` : ''}
-          <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid #e2e8f0;">
-            <a
-              href="https://www.openstreetmap.org/${feature.properties.osmType}/${feature.properties.osmId}"
-              target="_blank"
-              rel="noopener noreferrer"
-              style="
-                color: #2563eb;
-                text-decoration: none;
-                font-size: 12px;
-                font-weight: 500;
-              "
-            >
-              📍 View on OpenStreetMap →
-            </a>
-          </div>
-        </div>
-      `;
-
-      if (geometryType === 'Point') {
-        pointCount++;
+    const wanted = new Map(), additions = new Map();
+    for (const feature of osmData?.features || []) {
+      if (!feature.geometry) continue;
+      const category = Object.hasOwn(symbols, feature.properties?.category) ? feature.properties.category : 'other';
+      const group = groupFor(category), signature = JSON.stringify(feature);
+      const id = String(feature.id ?? `${feature.properties?.osmType}/${feature.properties?.osmId ?? signature}`);
+      if (!wanted.has(category)) wanted.set(category, new Set());
+      wanted.get(category).add(id);
+      const prior = group.records.get(id);
+      if (prior?.signature === signature) continue;
+      if (prior) { group.markers.removeLayers(prior.markers); prior.shapes.forEach(shape => group.shapes.removeLayer(shape)); }
+      const rawColor = feature.properties?.color;
+      const color = /^#[0-9a-f]{3,8}$/i.test(rawColor || '') ? rawColor : '#2563eb';
+      const record = { signature, markers: [], shapes: [] };
+      const bind = layer => layer.bindPopup(() => infrastructurePopup(feature), { pane: 'popupPane' });
+      const addMarker = (latlng, isArea = false) => {
+        const icon = document.createElement('div'), size = isArea ? 28 : 32;
+        icon.textContent = symbols[category] || '📍';
+        Object.assign(icon.style, { width: `${size}px`, height: `${size}px`, backgroundColor: color, borderRadius: '50%', border: '2px solid white', display: 'grid', placeItems: 'center', fontSize: '16px' });
+        const marker = bind(L.marker(latlng, { icon: L.divIcon({ html: icon, className: `osm-marker osm-${category}${isArea ? ' osm-area-marker' : ''}`, iconSize: [size, size], iconAnchor: [size / 2, size / 2], popupAnchor: [0, -size / 2] }) }));
+        record.markers.push(marker);
+      };
+      if (feature.geometry.type === 'Point') {
         const [lng, lat] = feature.geometry.coordinates;
-        addInfrastructureMarker(lat, lng, feature, popupContent);
-
-      } else if (geometryType === 'LineString') {
-        lineCount++;
-        const coords = feature.geometry.coordinates.map(coord => [coord[1], coord[0]]);
-
-        // Create polyline
-        const polyline = L.polyline(coords, {
-          color: color,
-          weight: 4,
-          opacity: 0.8,
-          className: `osm-line osm-${category}`
-        });
-
-        polyline.bindPopup(popupContent);
-
-        // Add to line layer group
-        lineLayerGroupRef.current.addLayer(polyline);
-
-      } else if (geometryType === 'Polygon') {
-        polygonCount++;
-        const coords = feature.geometry.coordinates[0].map(coord => [coord[1], coord[0]]);
-
-        // Create polygon with subtle styling (building outlines)
-        const polygon = L.polygon(coords, {
-          color: color,
-          fillColor: color,
-          fillOpacity: 0.1,  // Very subtle fill
-          weight: 1.5,       // Thinner border
-          opacity: 0.4,      // More transparent border
-          className: `osm-polygon osm-${category}`
-        });
-
-        polygon.bindPopup(popupContent);
-
-        // Add to line layer group
-        lineLayerGroupRef.current.addLayer(polygon);
-
-        if (FACILITY_MARKER_CATEGORIES.has(category)) {
-          const center = polygon.getBounds().getCenter();
-          addInfrastructureMarker(center.lat, center.lng, feature, popupContent, true);
-          centroidMarkerCount++;
-        }
+        if (Number.isFinite(lng) && Number.isFinite(lat)) addMarker([lat, lng]);
+      } else {
+        const polygon = /Polygon/.test(feature.geometry.type);
+        const layer = L.geoJSON(feature, { pane, renderer: renderer.current, style: { color, fillColor: color, weight: polygon ? 1.5 : 4, opacity: polygon ? .4 : .8, fillOpacity: .1, className: `osm-${polygon ? 'polygon' : 'line'} osm-${category}` } });
+        layer.eachLayer(bind); group.shapes.addLayer(layer); record.shapes.push(layer);
+        if (polygon && facilities.has(category) && layer.getBounds().isValid()) addMarker(layer.getBounds().getCenter(), true);
       }
-    });
-
-    console.log(`Rendered ${pointCount} points, ${lineCount} lines, ${polygonCount} polygons, ${centroidMarkerCount} area markers`);
-
-    // Cleanup function
-    return () => {
-      if (clusterGroupRef.current) {
-        map.removeLayer(clusterGroupRef.current);
-        clusterGroupRef.current = null;
+      group.records.set(id, record);
+      if (!additions.has(category)) additions.set(category, []);
+      additions.get(category).push(...record.markers);
+    }
+    for (const [category, group] of groups.current) {
+      for (const [id, record] of group.records) if (!wanted.get(category)?.has(id)) {
+        group.markers.removeLayers(record.markers); record.shapes.forEach(shape => group.shapes.removeLayer(shape)); group.records.delete(id);
       }
-      if (lineLayerGroupRef.current) {
-        map.removeLayer(lineLayerGroupRef.current);
-        lineLayerGroupRef.current = null;
+      if (additions.get(category)?.length) group.markers.addLayers(additions.get(category));
+    }
+  }, [map, osmData]);
+
+  useEffect(() => {
+    for (const [category, group] of groups.current) {
+      for (const layer of [group.markers, group.shapes]) {
+        if (showOSMLayer && layerVisibility[category] !== false) { if (!map.hasLayer(layer)) map.addLayer(layer); }
+        else if (map.hasLayer(layer)) map.removeLayer(layer);
       }
-    };
-  }, [osmData, layerVisibility, showOSMLayer, showClusterCounts, map]);
-
-  return null; // This component doesn't render React elements
-};
-
-export default OSMInfrastructureLayer;
+      group.markers.refreshClusters();
+    }
+  }, [map, osmData, showOSMLayer, layerVisibility, showClusterCounts]);
+  return null;
+}

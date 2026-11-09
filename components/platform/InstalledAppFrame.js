@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import { appFrameDocument, handleAppRequest } from '../../lib/platform/appBridge';
 
 export default function InstalledAppFrame({ pkg, workspaceId, districts, facilities, acledData = [], disasters = [], storage, leaveGuard }) {
   const frame = useRef(null);
   const workspaceData = useRef({ districts, facilities, acledData, disasters });
   workspaceData.current = { districts, facilities, acledData, disasters };
-  const [document, setDocument] = useState('');
-  useEffect(() => {
+  // Render the actual srcdoc on the first commit. Navigating first to an empty
+  // srcdoc and replacing it in a passive effect can leave an opaque sandbox blank.
+  const document = useMemo(() => appFrameDocument(pkg.html), [pkg.html]);
+  useLayoutEffect(() => {
     let channel;
     let disposed = false;
     let dirty = false;
@@ -32,7 +34,6 @@ export default function InstalledAppFrame({ pkg, workspaceId, districts, facilit
     };
     window.addEventListener('message', connect);
     window.addEventListener('beforeunload', unload);
-    setDocument(appFrameDocument(pkg.html));
     return () => {
       disposed = true;
       channel?.port1.close();

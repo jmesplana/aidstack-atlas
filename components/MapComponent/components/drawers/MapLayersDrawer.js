@@ -1,5 +1,6 @@
 import React from 'react';
 import OSMInfrastructureSelector from './OSMInfrastructureSelector';
+import BuildingFootprintToggle from '../../../platform/BuildingFootprintToggle';
 
 function formatLayerDate(value) {
   if (!value) return null;
@@ -17,6 +18,7 @@ function formatMonthInputValue(value) {
 }
 
 const MapLayersDrawer = ({
+  showBuildingFootprints = false, setShowBuildingFootprints, buildingStatus, onRetryBuildings,
   isOpen,
   onClose,
   currentMapLayer,
@@ -441,6 +443,7 @@ const MapLayersDrawer = ({
 
         {/* OSM Infrastructure Section */}
         <div style={{borderTop: '1px solid #eee', margin: '15px 0', paddingTop: '15px'}}>
+          {setShowBuildingFootprints && <BuildingFootprintToggle enabled={showBuildingFootprints} onChange={setShowBuildingFootprints} status={buildingStatus} onRetry={onRetryBuildings} />}
           <OSMInfrastructureSelector
             districts={districts}
             selectedAnalysisDistricts={selectedAnalysisDistricts}

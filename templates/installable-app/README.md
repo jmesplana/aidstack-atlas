@@ -53,3 +53,17 @@ Plans survive updates and disabling. Keep IDs stable and migrate your own schema
 Clearing browser site data removes installed packages and plans. Installations do
 not sync across devices; no public marketplace or organization publishing service
 is involved. You can distribute the built ZIP directly to another user to install.
+
+## Isolation and module cooperation
+
+A ZIP module is an isolated browser application, not a Docker container. It can
+supply its own interface and calculations without rebuilding Atlas. Server-side
+Python, services and background jobs require a separately deployed backend and
+are not executed from uploaded ZIP files.
+
+Modules read approved workspace data through the bridge and keep private plans
+in their own module namespace. Running one module does not execute another module
+or expose its storage. Bundled Access Gaps and Immunization modules can exchange
+explicitly published result snapshots through a trusted host API. That API is not
+yet available to contributed ZIP modules; it requires a separately defined
+permission and result contract.

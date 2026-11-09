@@ -1,0 +1,10 @@
+{
+  "id": "access-gaps",
+  "name": "Access Gaps",
+  "description": "Measure travel-time coverage, identify underserved settlements, and compare outreach sites. Publish saved assessments for use in other workspace apps.",
+  "author": "Aidstack",
+  "version": "1.0.0",
+  "platformApiVersion": 1,
+  "requiredData": ["administrative-boundaries"],
+  "capabilities": ["read:boundaries", "read:sites", "write:plans", "export:plans"]
+}

@@ -3,6 +3,7 @@
  * Handles fetching, caching, and state management
  */
 
+import { loadInfrastructure } from '../../../lib/osm/loadInfrastructure';
 import { useState, useCallback, useEffect, useRef } from 'react';
 
 const OSM_RESULT_CATEGORIES = {
@@ -231,55 +232,10 @@ export function useOSMInfrastructure() {
       console.log('✅ Fetching OSM infrastructure for boundary:', cleanBoundary);
       console.log('✅ Categories to fetch:', layersToFetch);
 
-      // OSM requests may query several selected infrastructure layers in sequence.
-      const controller = new AbortController();
-      const { requestTimeoutMs: _requestTimeoutMs, ...serverOptions } = options;
-      const requestTimeoutMs = Number.isFinite(Number(_requestTimeoutMs))
-        ? Number(_requestTimeoutMs)
-        : 120000;
-      const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
-
-      const response = await fetch('/api/osm-infrastructure', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          boundary: cleanBoundary,
-          layers: layersToFetch,
-          options: {
-            maxFeatures: 5000,
-            includeMetadata: true,
-            ...serverOptions
-          }
-        }),
-        signal: controller.signal
+      const result = await loadInfrastructure(cleanBoundary, layersToFetch, options, (message) => {
+        setOsmWarning(message);
+        options.onProgress?.(message);
       });
-
-      clearTimeout(timeoutId);
-
-      console.log('📡 Response status:', response.status);
-
-      if (!response.ok) {
-        let errorMsg = `API error (${response.status})`;
-
-        try {
-          const errorPayload = await response.json();
-          const serverMessage = errorPayload.error?.message || errorPayload.message;
-          const serverDetails = errorPayload.error?.details;
-          errorMsg = serverDetails
-            ? `${errorMsg}: ${serverMessage} (${serverDetails})`
-            : `${errorMsg}: ${serverMessage || 'Unknown OSM API error'}`;
-        } catch (_) {
-          const errorText = await response.text().catch(() => '');
-          errorMsg = `${errorMsg}: ${errorText.substring(0, 300) || 'Unknown OSM API error'}`;
-        }
-
-        setOsmError(errorMsg);
-        console.error('❌ OSM API error:', errorMsg);
-        return null;
-      }
-
-      const result = await response.json();
-      console.log('📦 API response:', { success: result.success, hasData: !!result.data });
 
       if (result.success) {
         console.log('✅ OSM data loaded successfully:', result.data.metadata);
@@ -295,7 +251,7 @@ export function useOSMInfrastructure() {
         const currentBoundary = osmBoundaryRef.current;
         const incomingFeatureCount = result.data?.features?.length || 0;
         const shouldMergeWithExisting =
-          Boolean(options.mergeWithExisting) || (
+          Boolean(options.mergeWithExisting) || Boolean(result.data.metadata?.partialFailures && currentOsmData) || (
             selectedCategories &&
             Array.isArray(selectedCategories) &&
             selectedCategories.length > 0 &&
@@ -330,10 +286,10 @@ export function useOSMInfrastructure() {
         return null;
       }
     } catch (err) {
-      let errorMsg = 'Failed to fetch OSM infrastructure data';
+      let errorMsg = err.message || 'Failed to fetch OSM infrastructure data';
 
       if (err.name === 'AbortError') {
-        errorMsg = 'Request timeout - OSM data fetch took too long (>120s)';
+        errorMsg = 'OSM download timed out while waiting for a response. Previously loaded assets are retained.';
         console.error('⏱️ OSM fetch timeout');
       } else {
         console.error('❌ OSM fetch error:', err);

@@ -73,3 +73,11 @@
   .split { display: block; }
   .table { white-space: normal; }
 }
+
+.loadingPanel { display: flex; align-items: center; gap: 14px; padding: 16px; margin: 12px 0; border: 1px solid #a8cfc2; border-radius: 8px; background: #eef8f3; color: #174f3d; }
+.loadingText { min-width: 0; overflow-wrap: anywhere; }
+.loadingText p { margin: 6px 0; }
+.loadingText small { color: #486b5e; }
+.loadingSpinner { flex: 0 0 28px; height: 28px; border: 3px solid #bfdcd0; border-top-color: #087f6a; border-radius: 50%; animation: loadingSpin .8s linear infinite; }
+@keyframes loadingSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .loadingSpinner { animation: none; } }

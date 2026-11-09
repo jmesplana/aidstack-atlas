@@ -1144,6 +1144,7 @@ const FilterDrawer = ({
             <div style={{ marginBottom: '15px' }}>
               <select
                 value={dateFilter}
+                aria-label="Event time range"
                 onChange={handleDateFilterChange}
                 style={{
                   width: '100%',

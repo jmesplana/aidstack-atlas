@@ -11,6 +11,9 @@
  */
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import AccessResultLayer from './platform/AccessResultLayer';
+import BuildingFootprints from './platform/BuildingFootprints';
+import { summarizeAccessPublication } from '../lib/platform/resultContext';
 // GDACS Facilities Impact Assessment Tool
 // Developed by John Mark Esplana (https://github.com/jmesplana)
 import { MapContainer, TileLayer, WMSTileLayer, CircleMarker, Marker as ReactLeafletMarker, Popup, Tooltip } from 'react-leaflet';
@@ -1104,7 +1107,8 @@ const MapComponent = ({
   onEvidenceLayersChange,
   enabledEvidenceLayers = [],
   selectedAnalysisDistricts = [],
-  prioritizationBoard = null
+  prioritizationBoard = null,
+  accessPublication = null
 }) => {
   // Map refs - keep these in main component
   const mapRef = useRef(null);
@@ -1112,6 +1116,9 @@ const MapComponent = ({
   const nighttimeCompareDragRef = useRef(false);
   const hydratedEvidenceLayersRef = useRef(false);
   const [mapInstance, setMapInstance] = useState(null);
+  const [showBuildingFootprints, setShowBuildingFootprints] = useState(false);
+  const [buildingStatus, setBuildingStatus] = useState(null);
+  const [buildingRetry, setBuildingRetry] = useState(0);
   const [chatDrawerExpanded, setChatDrawerExpanded] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(
     typeof window !== 'undefined' ? window.innerWidth : 0
@@ -1971,13 +1978,14 @@ const MapComponent = ({
 
               console.log(`📍 Loading OSM ${category} for: ${districtName}`);
 
-              await fetchOSMInfrastructure(district.geometry, [category], {
+              const loaded = await fetchOSMInfrastructure(district.geometry, [category], {
                 mergeWithExisting: districtIndex > 0,
                 timeoutMs: 20000,
-                maxRetries: 0,
+                maxRetries: 1,
                 disableBboxFallback: true,
-                requestTimeoutMs: 28000
+                requestTimeoutMs: 60000
               });
+              if (!loaded) throw new Error(`OSM ${category} could not be loaded.`);
             }
 
             addToast(`${category} loaded successfully.`, 'success');
@@ -3310,6 +3318,10 @@ const MapComponent = ({
       />
 
       <MapLayersDrawer
+        showBuildingFootprints={showBuildingFootprints}
+        setShowBuildingFootprints={setShowBuildingFootprints}
+        buildingStatus={buildingStatus}
+        onRetryBuildings={() => setBuildingRetry(value => value + 1)}
         isOpen={mapLayersDrawerOpen}
         onClose={toggleMapLayersDrawer}
         currentMapLayer={currentMapLayer}
@@ -3367,6 +3379,7 @@ const MapComponent = ({
           const totalTasks = districtsWithGeometry.length * categoriesToLoad.length;
           let completedTasks = 0;
           let loadedFeatures = 0;
+          let failedTasks = 0;
 
           beginOSMBatch();
           progress.onProgress?.({
@@ -3392,6 +3405,8 @@ const MapComponent = ({
                   completedTasks,
                   totalTasks,
                   loadedFeatures,
+                  failedTasks,
+                  message: '',
                   districtName,
                   categoryId,
                   districtIndex,
@@ -3401,18 +3416,22 @@ const MapComponent = ({
                 const result = await fetchOSMInfrastructure(district.geometry, [categoryId], {
                   mergeWithExisting: completedTasks > 0,
                   timeoutMs: 20000,
-                  maxRetries: 0,
+                  maxRetries: 1,
                   disableBboxFallback: true,
-                  requestTimeoutMs: 28000
+                  requestTimeoutMs: 60000,
+                  onProgress: (message) => progress.onProgress?.({ message })
                 });
 
                 completedTasks += 1;
+                if (!result) failedTasks += 1;
                 loadedFeatures = result?.features?.length || loadedFeatures;
                 progress.onProgress?.({
                   status: 'running',
                   completedTasks,
                   totalTasks,
                   loadedFeatures,
+                  failedTasks,
+                  message: '',
                   districtName,
                   categoryId,
                   districtIndex,
@@ -3600,6 +3619,7 @@ const MapComponent = ({
         }}
         zoomControl={true}
       >
+        <AccessResultLayer result={accessPublication?.result} fit />
         {/* Base map layer */}
         {currentLayer.type === 'gee' ? (
           <>
@@ -3820,6 +3840,7 @@ const MapComponent = ({
           />
         )}
 
+        <BuildingFootprints districts={selectedAnalysisDistricts} enabled={showBuildingFootprints} onStatus={setBuildingStatus} retry={buildingRetry} />
         {/* OSM Infrastructure layer */}
         <OSMInfrastructureLayer
           osmData={osmData}
@@ -4209,7 +4230,8 @@ const MapComponent = ({
           districtsForWorldPop: districtsForWorldPopChat,
           // OpenStreetMap Infrastructure data
           osmData: osmData,
-          prioritizationBoard: prioritizationBoard
+          prioritizationBoard: prioritizationBoard,
+          accessAssessment: summarizeAccessPublication(accessPublication)
         }}
       />
 

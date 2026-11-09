@@ -34,10 +34,28 @@ Set leaveGuard.current to a synchronous function returning whether navigation
 may proceed, and clear it on unmount. Apps with unsaved data should also handle
 beforeunload. The host remounts apps on workspace changes and catches render errors.
 
+## Explicit shared results (bundled apps)
+
+Reviewed bundled apps can receive `sharedResults` from the host's
+`createWorkspaceResults` policy. Access Gaps can publish a saved assessment;
+Immunization Planning can list/load published snapshots and explicitly attach a
+copy to its own plan. No module reads or writes another module's private state.
+The host binds the workspace and publisher identity. Publication captures a
+saved revision and carries source dates, geometry versions, assumptions and
+limitations. New publications do not mutate attached snapshots. Withdrawal
+prevents new attachments and retains evidence already saved in other plans.
+
+This API is not available to uploaded iframe apps. Its internal storage namespace
+starts with `@`, which is prohibited in manifest IDs. Extend trusted publisher /
+reader policy deliberately when adding another supported bundled module; do not
+widen the iframe bridge to reuse this API. `selectedDistricts` is passed only to
+bundled modules declaring boundary access, and `onShowResult` displays a published
+snapshot on the host map.
+
 These declarations govern host props; they are not a security boundary. Bundled
-modules execute trusted JavaScript on the platform origin. External executable
-apps need an isolated runtime and enforced API access before upload/install can
-be offered. Module dependencies and backend extensions are not supported yet.
+modules execute trusted JavaScript on the platform origin. Uploaded apps instead use the isolated browser runtime and enforced bridge
+described in `templates/installable-app/README.md`. Module dependencies and
+backend extensions are not supported by ZIP packages.
 
 ## Storage
 

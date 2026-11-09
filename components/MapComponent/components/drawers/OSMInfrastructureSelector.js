@@ -124,6 +124,7 @@ export default function OSMInfrastructureSelector({
         elapsedSeconds,
         loadedBreakdown,
         totalFeatures: loadedBreakdown.reduce((sum, item) => sum + item.featureCount, 0),
+        failedTasks: loadProgress?.failedTasks || 0,
         completedAt: new Date().toISOString()
       });
 
@@ -132,7 +133,7 @@ export default function OSMInfrastructureSelector({
       setRequestStartedAt(null);
       setElapsedSeconds(0);
     }
-  }, [osmLoading, activeRequest, layerCounts, elapsedSeconds]);
+  }, [osmLoading, activeRequest, layerCounts, elapsedSeconds, loadProgress]);
 
   useEffect(() => {
     setSelectedDistricts([]);
@@ -159,9 +160,9 @@ export default function OSMInfrastructureSelector({
   }, [osmLoading, requestStartedAt]);
 
   const estimatedTimeLabel = useMemo(() => {
-    if (!activeRequest) return 'Usually 10-60 seconds depending on admin area size and selected layers.';
+    if (!activeRequest) return 'OSM can queue requests before processing them. Retry waits are shown here.';
     if (activeRequest.districtCount >= 10 || activeRequest.categoryCount >= 5) {
-      return 'This is a larger OSM request. Wait time can reach 30-60 seconds.';
+      return 'Larger selections load in stages. Queues and retries can extend the wait.';
     }
     return 'Most OSM requests complete in around 10-30 seconds.';
   }, [activeRequest]);
@@ -344,7 +345,8 @@ export default function OSMInfrastructureSelector({
           </div>
           {progressTotal > 0 && (
             <div style={{ marginTop: '8px', fontSize: '12px', color: '#9a3412', lineHeight: 1.55 }}>
-              {progressCompleted.toLocaleString()} of {progressTotal.toLocaleString()} requests complete
+              {progressCompleted.toLocaleString()} of {progressTotal.toLocaleString()} requests processed
+              {loadProgress?.failedTasks > 0 ? ` · ${loadProgress.failedTasks} failed` : ''}
               {loadProgress?.loadedFeatures !== undefined
                 ? ` · ${Number(loadProgress.loadedFeatures || 0).toLocaleString()} features available on the map`
                 : ''}
@@ -355,6 +357,7 @@ export default function OSMInfrastructureSelector({
               Current: {[loadProgress?.districtName, currentCategoryName].filter(Boolean).join(' · ')}
             </div>
           )}
+          {loadProgress?.message && <div role="status" style={{ marginTop: 8, fontSize: 12 }}>{loadProgress.message}</div>}
           {activeRequest?.categoryNames?.length > 0 && (
             <div style={{ marginTop: '8px', fontSize: '12px', color: '#9a3412', fontWeight: 600 }}>
               {activeRequest.categoryNames.join(', ')}
@@ -393,10 +396,11 @@ export default function OSMInfrastructureSelector({
           boxShadow: '0 8px 20px rgba(15, 23, 42, 0.05)'
         }}>
           <div style={{ fontSize: '14px', fontWeight: 700, color: '#065f46', marginBottom: '6px' }}>
-            OSM infrastructure loaded
+            {lastCompletedLoad.failedTasks ? 'OSM loading finished with errors' : 'OSM infrastructure loaded'}
           </div>
           <div style={{ fontSize: '13px', color: '#065f46', lineHeight: 1.55 }}>
-            Loaded {lastCompletedLoad.totalFeatures.toLocaleString()} features across {lastCompletedLoad.categoryCount} {lastCompletedLoad.categoryCount === 1 ? 'category' : 'categories'} for {lastCompletedLoad.districtCount} {lastCompletedLoad.districtCount === 1 ? 'admin area' : 'admin areas'}.
+            {lastCompletedLoad.failedTasks > 0 && <span>{lastCompletedLoad.failedTasks} requests failed. Previously loaded assets were retained. </span>}
+            Available: {lastCompletedLoad.totalFeatures.toLocaleString()} features across {lastCompletedLoad.categoryCount} {lastCompletedLoad.categoryCount === 1 ? 'category' : 'categories'} for {lastCompletedLoad.districtCount} {lastCompletedLoad.districtCount === 1 ? 'admin area' : 'admin areas'}.
           </div>
           <div style={{ marginTop: '8px', fontSize: '12px', color: '#047857' }}>
             Completed in {Math.max(lastCompletedLoad.elapsedSeconds, 1)}s
@@ -405,7 +409,7 @@ export default function OSMInfrastructureSelector({
             {lastCompletedLoad.loadedBreakdown
               .filter(item => item.featureCount > 0)
               .map(item => `${item.name}: ${item.featureCount}`)
-              .join(' | ') || 'Data loaded. Use the controls below to show or hide layers.'}
+              .join(' | ') || (lastCompletedLoad.failedTasks ? 'Retry the failed categories when the service is available.' : 'No matching assets were found.')}
           </div>
         </div>
       )}

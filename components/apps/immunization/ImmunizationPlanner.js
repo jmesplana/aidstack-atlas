@@ -3,6 +3,7 @@ import dynamic from 'next/dynamic';
 import { Download, Upload, Save, Plus, Copy, Trash2, Printer, X, ArrowLeft, ArrowRight } from 'lucide-react';
 import { OBSERVATION_FIELDS, REQUIRED_METADATA, calculatePlan, validateMetadata, validatePlan } from '../../../lib/planning/immunization';
 import styles from '../../platform/Planning.module.css';
+import AccessEvidence from './AccessEvidence';
 
 const PlanningMap = dynamic(() => import('./PlanningMap'), { ssr: false });
 const fieldLabels = { settlement_id: 'Settlement ID', settlement: 'Settlement name', area_code: 'Admin area code', target_population: 'Eligible children', children_vaccinated: 'Vaccinated children', latitude: 'Latitude (optional)', longitude: 'Longitude (optional)' };
@@ -21,7 +22,7 @@ function downloadBlob(content, name, type) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export default function ImmunizationPlanner({ storage, workspaceId, districts, facilities, leaveGuard }) {
+export default function ImmunizationPlanner({ storage, workspaceId, districts, facilities, leaveGuard, sharedResults }) {
   const [plan, setPlan] = useState(null);
   const [metadata, setMetadata] = useState(blankMetadata);
   const [savedPlans, setSavedPlans] = useState([]);
@@ -145,6 +146,11 @@ export default function ImmunizationPlanner({ storage, workspaceId, districts, f
       const meta = Object.entries({ ...plan.metadata, ...plan.assumptions, revision: plan.revision, savedAt: plan.savedAt || 'Unsaved draft', status: 'Planning estimate; operational review required', ...plan.importAudit }).map(([field, value]) => ({ field, value }));
       const namedSessions = plan.sessions.map((row) => ({ ...row, settlement: plan.observations.find((observation) => observation.id === row.observationId)?.name }));
       for (const [name, rows] of [['Plan', meta], ['Districts', result.areas], ['Settlements', result.rows], ['Sessions', namedSessions], ['Resources', [result.resources || { status: 'Invalid assumptions or allocations' }]]]) XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), name);
+      if (plan.accessEvidence) {
+        const evidence = plan.accessEvidence;
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([{ publication: evidence.publicationId, name: evidence.name, sourceRevision: evidence.source.revision, computedAt: evidence.result.computedAt, attachedAt: evidence.attachedAt, settings: JSON.stringify(evidence.result.settings), sources: JSON.stringify(evidence.result.sources), limitations: evidence.result.limitations.join('\n') }]), 'Access evidence');
+        XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(evidence.result.settlements), 'Access settlements');
+      }
       XLSX.writeFile(workbook, 'immunization-plan.xlsx');
     } catch (err) { setError(err.message); }
     finally { setBusy(''); }
@@ -179,7 +185,7 @@ export default function ImmunizationPlanner({ storage, workspaceId, districts, f
       {busy && worker.current && <button title="Cancel import" aria-label="Cancel import" onClick={() => { worker.current?.terminate(); rejectJob.current?.(new Error('Import cancelled')); worker.current = null; rejectJob.current = null; }}><X size={16} /></button>}
     </div>
     {error && <p role="alert" className={styles.error}>{error}</p>}
-    {plan && <div className={styles.tabs} role="tablist" aria-label="Planning views">{['Need', 'Sessions', 'Resources', 'Export'].map((name) => <button role="tab" aria-selected={tab === name} key={name} onClick={() => setTab(name)}>{name}</button>)}</div>}
+    {plan && <div className={styles.tabs} role="tablist" aria-label="Planning views">{['Need', 'Sessions', 'Resources', 'Access', 'Export'].map((name) => <button role="tab" aria-selected={tab === name} key={name} onClick={() => setTab(name)}>{name}</button>)}</div>}
     <div className={styles.body}>
       {!plan ? <>
         <h2>New immunization plan</h2>
@@ -207,6 +213,7 @@ export default function ImmunizationPlanner({ storage, workspaceId, districts, f
       </> : <>
         <h2>{plan.metadata.name}</h2>
         <p className={styles.muted}>{plan.metadata.vaccine} · Dose {plan.metadata.dose} · {plan.metadata.cohort} · {plan.metadata.period}</p>
+        {tab === 'Access' && <AccessEvidence plan={plan} districts={districts} sharedResults={sharedResults} onChange={(accessEvidence) => updatePlan({ accessEvidence })} />}
         {result.errors.length > 0 && <p className={styles.notice} role="alert">{result.errors.join('. ')}</p>}
         {plan.importAudit?.excluded > 0 && <p className={styles.notice}>{plan.importAudit.excluded} source rows were excluded. Totals cover accepted observations only.</p>}
         {tab === 'Need' && <>

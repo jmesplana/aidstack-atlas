@@ -96,6 +96,8 @@ temp/.codex
 *.md
 !README.md
 !**/README.md
+!docs/osm-loading.md
+/.atlas-data/
 
 # Licensing and governance documents must be public and tracked.
 !CLA.md
@@ -126,6 +128,12 @@ scripts/create-poster.sh
 public/videos/aidstack-demo.mp4
 public/videos/aidstack-demo-poster.jpg
 public/videos/README.md
+
+# Local explainer and reference documents; retained outside Git tracking
+/public/intro.html
+/docs/2026_W37_DRC_Ebola_BVD_Sitrep_11_09_2026.pdf
+/docs/Aidstack-Immunization-Planning-User-Guide.pdf
+/docs/ebola-sitrep-example-synthetic.pdf
 
 # Archived/orphaned code (kept locally, not tracked)
 /archive/

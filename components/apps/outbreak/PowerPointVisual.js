@@ -1,3 +1,5 @@
+import { RegionalBasemapContext } from './RegionalBasemap';
+import { loadRegionalBasemap } from '../../../lib/outbreak/regionalBasemap';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { DashboardSlide, dashboardSlideMetadata } from './DashboardBriefingDialog';
 import { ReportingSlide } from './ReportingBriefing';
@@ -11,7 +13,10 @@ export async function renderPowerPointVisual({chapter,entry,page,total,input,bri
   else if(entry.kind==='empty')element=<SlideFrame {...metadata} title={chapter.label} asOf={input.asOf} page={page} total={total}><SvgText x={65} y={245} text="No eligible observations are available for this section at the reporting cut-off." fontSize={25} width={96}/></SlideFrame>;
   else if(chapter.type==='reporting')element=<ReportingSlide entry={entry} deck={chapter.deck} mode={chapter.mode} model={input.model} geometry={input.geometry} source={metadata.source} scope={briefing.scope} page={page} total={total}/>;
   else element=<DashboardSlide {...input} {...metadata} entry={entry} deck={chapter.deck} ringModel={briefing.ringModel} trendRows={briefing.trendRows} scopeTotal={briefing.scopeTotal} page={page} total={total}/>;
-  const doc=new DOMParser().parseFromString(renderToStaticMarkup(element),'image/svg+xml'),svg=doc.documentElement;
+  const preview=new DOMParser().parseFromString(renderToStaticMarkup(element),'image/svg+xml');
+  const regions=await Promise.all([...preview.querySelectorAll('[data-basemap-bounds]')].map(node=>loadRegionalBasemap(JSON.parse(node.getAttribute('data-basemap-bounds')))));
+  const features=[...new Map(regions.flat().map(f=>[f.properties.id,f])).values()];
+  const doc=new DOMParser().parseFromString(renderToStaticMarkup(<RegionalBasemapContext.Provider value={features}>{element}</RegionalBasemapContext.Provider>),'image/svg+xml'),svg=doc.documentElement;
   if(doc.querySelector('parsererror'))throw new Error('Unable to prepare a briefing slide.');
   const notes=[...svg.querySelectorAll('text, title')].filter(node=>node.tagName==='text'||!node.closest('text')).map(node=>node.querySelector('title')?.textContent||[...node.childNodes].map(n=>n.textContent).join(' ')).join('\n');
   svg.removeAttribute('class');svg.setAttribute('width','1920');svg.setAttribute('height','1080');

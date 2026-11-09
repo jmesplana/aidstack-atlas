@@ -18,19 +18,12 @@ const {
   calculateBoundingBox,
 } = require('../../lib/osmHelpers');
 const { getCachedOSM, setCachedOSM } = require('../../lib/osmCache');
-
-const OVERPASS_ENDPOINTS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://overpass.openstreetmap.ru/api/interpreter',
-];
+const { requestOverpass, OverpassError } = require('../../lib/osm/overpassClient.cjs');
 
 const MAX_BOUNDARY_AREA_KM2 = 10000; // Subdivide if larger
 const CACHE_TTL_HOURS = 24;
-const OVERPASS_TIMEOUT_MS = 45000;
 const MAX_RETRIES = 1;
 const MIN_OVERPASS_TIMEOUT_MS = 5000;
-const MAX_OVERPASS_TIMEOUT_MS = 60000;
 
 function getBoundedNumber(value, fallback, min, max) {
   const parsed = Number(value);
@@ -122,7 +115,7 @@ module.exports = async function handler(req, res) {
       } catch (err) {
         console.error('Subdivision query failed:', err.message);
         failedSubdivisions += 1;
-        errors.push({ scope: 'subdivision', error: err.message });
+        errors.push({ scope: 'subdivision', error: err.message, cause: err });
       }
     }
 
@@ -138,6 +131,8 @@ module.exports = async function handler(req, res) {
         });
       }
 
+      const upstream = errors.find(item => item.cause instanceof OverpassError)?.cause;
+      if (upstream) throw upstream;
       const error = new Error(`All OSM queries failed: ${summarizeErrors(errors)}`);
       error.code = 'QUERY_FAILED';
       throw error;
@@ -184,7 +179,7 @@ module.exports = async function handler(req, res) {
 
       console.log(`OSM query complete: no matching features in ${Date.now() - startTime}ms`);
 
-      await setCachedOSM(cacheKey, emptyResponse, Math.min(CACHE_TTL_HOURS, 6));
+      if (!errors.length) await setCachedOSM(cacheKey, emptyResponse, Math.min(CACHE_TTL_HOURS, 6));
 
       return res.status(200).json({
         success: true,
@@ -229,7 +224,7 @@ module.exports = async function handler(req, res) {
     };
 
     // Cache result
-    await setCachedOSM(cacheKey, response, CACHE_TTL_HOURS);
+    if (!errors.length) await setCachedOSM(cacheKey, response, CACHE_TTL_HOURS);
 
     console.log(`OSM query complete: ${optimized.features.length} features in ${Date.now() - startTime}ms`);
 
@@ -252,11 +247,13 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    return res.status(500).json({
+    if (error.retryAfter) res.setHeader('Retry-After', String(error.retryAfter));
+    return res.status(error.status || 502).json({
       success: false,
       error: {
         code: error.code || 'QUERY_FAILED',
-        message: 'Failed to fetch OSM infrastructure data',
+        message: error instanceof OverpassError ? error.message : 'Failed to fetch OSM infrastructure data',
+        retryAfter: error.retryAfter || 0, retryable: error.retryable !== false,
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       }
     });
@@ -274,10 +271,7 @@ async function queryOverpassByLayer(boundary, layers, options) {
       return { features, errors: [] };
     } catch (error) {
       console.error(`OSM layer failed (${layers[0]}):`, error.message);
-      return {
-        features: [],
-        errors: [{ scope: 'layer', layer: layers[0], error: error.message }]
-      };
+      throw error;
     }
   }
 
@@ -312,7 +306,7 @@ async function queryLayerWithFallback(boundary, layer, options) {
   try {
     return await queryOverpassWithRetry(boundary, [layer], layerOptions);
   } catch (error) {
-    if (layerOptions.useBboxOnly || layerOptions.disableBboxFallback) throw error;
+    if (layerOptions.useBboxOnly || layerOptions.disableBboxFallback || error.retryAfter || error.retryable === false) throw error;
 
     console.warn(`Retrying OSM layer with bbox fallback (${layer}):`, error.message);
     return queryOverpassWithRetry(boundary, [layer], {
@@ -359,87 +353,16 @@ function summarizeErrors(errors = []) {
 /**
  * Query Overpass API with automatic retry and endpoint failover
  */
-async function queryOverpassWithRetry(boundary, layers, options, retries = 0) {
-  const endpoint = OVERPASS_ENDPOINTS[retries % OVERPASS_ENDPOINTS.length];
-  const query = buildOverpassQuery(boundary, layers, options);
-  const timeoutMs = getBoundedNumber(
-    options.timeoutMs,
-    OVERPASS_TIMEOUT_MS,
-    MIN_OVERPASS_TIMEOUT_MS,
-    MAX_OVERPASS_TIMEOUT_MS
-  );
-  const maxRetries = getBoundedNumber(options.maxRetries, MAX_RETRIES, 0, OVERPASS_ENDPOINTS.length - 1);
-
-  console.log(`Querying Overpass (attempt ${retries + 1}, timeout ${timeoutMs}ms): ${endpoint}`);
-
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      body: `data=${encodeURIComponent(query)}`,
-      signal: controller.signal,
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        'User-Agent': 'gdacs-facilities-ai/0.1'
-      }
-    });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        const retryAfter = response.headers.get('Retry-After') || 30;
-        const error = new Error('Rate limited');
-        error.code = 'RATE_LIMIT';
-        error.retryAfter = retryAfter;
-        throw error;
-      }
-      if (response.status === 504) {
-        const error = new Error('Overpass timeout');
-        error.code = 'OVERPASS_TIMEOUT';
-        throw error;
-      }
-
-      // Capture response body for better debugging
-      const responseText = await response.text().catch(() => 'Unable to read response body');
-      console.error(`Overpass HTTP ${response.status} error:`, responseText.slice(0, 200));
-      throw new Error(`HTTP ${response.status}: ${responseText.slice(0, 100)}`);
-    }
-
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
-      const responseText = await response.text();
-      throw new Error(`Unexpected Overpass response format (${contentType || 'unknown'}): ${responseText.slice(0, 80)}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.elements) {
-      console.warn('No elements in Overpass response');
-      return [];
-    }
-
-    console.log(`Overpass returned ${data.elements.length} elements`);
-    return convertToGeoJSON(data.elements);
-
-  } catch (error) {
-    console.error(`Overpass query error (attempt ${retries + 1}):`, error.message);
-
-    if (retries < maxRetries) {
-      // Wait before retry (exponential backoff)
-      const delay = 1000 * (retries + 1);
-      console.log(`Retrying in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return queryOverpassWithRetry(boundary, layers, options, retries + 1);
-    }
-
-    throw error;
-  }
+async function queryOverpassWithRetry(boundary, layers, options) {
+  const timeoutMs = getBoundedNumber(options.timeoutMs, 20000, MIN_OVERPASS_TIMEOUT_MS, 30000);
+  const data = await requestOverpass(buildOverpassQuery(boundary, layers, { ...options, timeoutMs }), {
+    timeoutMs, maxRetries: getBoundedNumber(options.maxRetries, MAX_RETRIES, 0, 1), forceRefresh: options.forceRefresh,
+    providerAttempt: getBoundedNumber(options.providerAttempt, 0, 0, 2)
+  });
+  return convertToGeoJSON(data.elements);
 }
 
+module.exports.maxDuration = 60;
 module.exports.config = {
   api: {
     bodyParser: {
