@@ -23,3 +23,97 @@
 .populationStatus [aria-hidden=true] { flex-basis: 18px; height: 18px; }
 .mapFrame:has(.populationLegend) { min-height: 520px; }
 @media (max-width: 760px) { .mapFrame:has(.populationLegend) { min-height: 540px; } }
+.stepper { display: flex; gap: 6px; padding: 10px 20px; border-bottom: 1px solid #dae2df; flex-shrink: 0; }
+.stepper button { flex: 1; font-size: 12px; }
+.stepper button[aria-current=step] { background: #e0f3eb; border-color: #087f6a; color: #075b4d; font-weight: 700; }
+.stepper button span { display: inline-grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; background: #e8efeb; }
+.selectionSummary { padding: 7px 20px; background: #f3f7f5; color: #52675e; font-size: 12px; flex-shrink: 0; }
+.flowFields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.flowBody { padding-top: 8px; }
+.flowBody h2:focus { outline: none; }
+.areaPreview { height: clamp(260px, 45dvh, 500px); margin-top: 14px; border: 1px solid #c6d1ce; border-radius: 8px; overflow: hidden; position: relative; z-index: 0; display: grid; place-items: center; background: #f3f7f5; }
+.populationPreview { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px; border: 1px solid #c8ded4; border-radius: 8px; background: #f3f9f6; }
+.populationPreview p { margin: 5px 0; }
+.populationPreview small { color: #52675e; }
+.advanced { margin-top: 12px; }
+.advanced summary, .recommendations summary { cursor: pointer; font-weight: 600; }
+.reviewCards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 18px 0; }
+.reviewCards > div { display: flex; flex-direction: column; gap: 8px; padding: 16px; border: 1px solid #d4e1db; border-radius: 8px; }
+.reviewCards strong { font-size: 20px; }
+.reviewCards span { color: #52675e; font-size: 12px; }
+.flowFooter { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; border-top: 1px solid #d4e1db; background: white; }
+.flowFooter span { color: #52675e; font-size: 12px; }
+.detailDialog { padding: 0; width: min(1000px, calc(100% - 40px)); height: calc(100% - 60px); max-height: none; border: 1px solid #b6cbbf; border-radius: 10px; color: #23332f; background: white; }
+.detailDialog[open] { display: flex; flex-direction: column; }
+.detailDialog::backdrop { background: #183c3066; }
+.drawerHeader { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 20px; border-bottom: 1px solid #d4e1db; }
+.drawerHeader h2 { margin: 0; }
+.drawerBody { padding: 20px; overflow: auto; flex: 1; min-height: 0; }
+.drawerActivity { position: sticky; bottom: -20px; display: flex; gap: 12px; align-items: center; padding: 14px; background: #eef8f3; border: 1px solid #c8ded4; margin-top: 12px; }
+.evidenceTabs { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 12px; }
+.evidenceTabs button[aria-pressed=true] { background: #e0f3eb; border-color: #087f6a; }
+.decisionHeadline { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.decisionHeadline strong { font-size: 17px; }
+.decisionHeadline span { color: #52675e; font-size: 12px; }
+.evidenceWarning { display: flex; gap: 10px; align-items: center; padding: 8px 12px; background: #fff8e7; border-left: 3px solid #d1a02e; font-size: 12px; }
+.evidenceWarning span { flex: 1; }
+.resultActions { display: flex; gap: 10px; align-items: end; margin: 10px 0; flex-wrap: wrap; }
+.resultsLayout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(230px, 1fr); gap: 12px; height: max(350px, calc(100dvh - 445px)); }
+.resultsLayout .mapFrame { height: 100%; min-height: 0; }
+.resultsLayout:has(.mapExpanded) { height: auto; }
+.resultsLayout .mapExpanded { height: 80dvh; min-height: 520px; }
+.recommendations { min-width: 0; overflow: auto; border: 1px solid #c8ded4; border-radius: 8px; padding: 12px; }
+.recommendations summary { position: sticky; top: -12px; background: white; padding: 8px 0; }
+.recommendations ol { padding-left: 20px; }
+.recommendations li { margin-bottom: 14px; }
+.recommendations li button { text-align: left; justify-content: flex-start; width: 100%; }
+.recommendations li button[aria-pressed=true] { background: #e0f3eb; border-color: #087f6a; }
+.recommendations p { font-size: 12px; line-height: 1.4; }
+.ageChart { display: grid; grid-template-columns: 70px 1fr 1fr; gap: 5px 12px; margin: 16px 0; }
+.ageChartRow { display: contents; }
+.ageChartRow > span { position: relative; padding: 5px; min-height: 28px; font-size: 12px; }
+.ageChartRow i { display: inline-block; height: 10px; margin-right: 5px; max-width: calc(100% - 50px); }
+@media (max-width: 760px) {
+  .stepper { padding: 8px; gap: 4px; }
+  .stepper button { flex-direction: column; font-size: 10px; padding: 5px; line-height: 1.2; }
+  .selectionSummary { padding: 7px 12px; }
+  .populationPreview { align-items: flex-start; flex-direction: column; }
+  .reviewCards { grid-template-columns: 1fr; }
+  .reviewCards > div { padding: 10px; flex-direction: row; align-items: center; }
+  .reviewCards strong { font-size: 16px; }
+  .flowFooter { padding: 8px 12px; }
+  .detailDialog { width: 100%; height: 100%; border: 0; border-radius: 0; }
+  .drawerHeader, .drawerBody { padding: 12px; }
+  .evidenceWarning { flex-wrap: wrap; }
+  .evidenceWarning span { flex-basis: 100%; }
+  .resultsLayout { display: flex; flex-direction: column; height: auto; }
+  .resultsLayout .mapFrame { height: 440px; min-height: 440px; }
+  .resultsLayout .mapFrame:has(.populationLegend) { height: 620px; }
+  .resultsLayout .mapExpanded { height: 85dvh; min-height: 520px; }
+  .recommendations { max-height: 300px; }
+}
+.flowWorkspace .stepper { padding: 6px 20px; }
+.flowWorkspace .stepper button { min-height: 32px; padding: 5px 8px; }
+.flowWorkspace .selectionSummary { padding-top: 5px; padding-bottom: 5px; }
+.flowWorkspace .flowFooter { padding-top: 6px; padding-bottom: 6px; }
+.flowWorkspace .resultStats { padding: 6px 0 10px; margin-bottom: 8px; gap: 12px; }
+.resultStats strong { font-size: 20px; }
+.resultStats div { gap: 4px; }
+.resultScreen .resultsLayout { height: max(280px, calc(100dvh - 460px)); }
+.resultScreen .resultsLayout:has(.mapExpanded) { height: auto; }
+@media (max-width: 760px) { .resultScreen .resultsLayout { height: auto; } .flowWorkspace .stepper { padding: 6px; } }
+.flowWorkspace .flowToolbar { padding-top: 5px; padding-bottom: 5px; }
+.screenReaderHeading { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.completedActivity { padding-top: 4px; padding-bottom: 4px; font-size: 12px; }
+.completedActivity .activityText { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+@media (min-width: 761px) {
+  .resultBody { display: flex; flex-direction: column; padding-bottom: 10px; }
+  .resultScreen { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .resultScreen .decisionHeadline { margin: 4px 0 8px; }
+  .resultScreen .evidenceWarning { padding: 4px 10px; }
+  .resultScreen .resultActions { margin: 4px 0 8px; }
+  .resultScreen .resultActions label { flex-direction: row; align-items: center; }
+  .resultScreen .resultsLayout { flex: 1; height: auto; min-height: 240px; }
+  .resultScreen .resultsLayout:has(.populationLegend) { min-height: 440px; }
+  .resultScreen .resultsLayout:has(.mapExpanded) { flex: none; }
+}

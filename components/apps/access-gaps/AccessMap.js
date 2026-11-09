@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import ux from './AccessGaps.module.css';
 import styles from '../../platform/Planning.module.css';
+import { accessMapView } from '../../../lib/planning/accessMapView';
+import { useMemo } from 'react';
 import usePopulationOverlay from './usePopulationOverlay';
 import BuildingFootprints from '../../platform/BuildingFootprints';
 import BuildingFootprintToggle from '../../platform/BuildingFootprintToggle';
@@ -13,7 +15,7 @@ function Fit({ result }) {
   useEffect(() => {
     const points = [...result.settlements, ...result.existingSites, ...result.candidates];
     if (points.length) map.fitBounds(points.map((p) => [p.latitude, p.longitude]), { padding: [24, 24], maxZoom: 13 });
-  }, [map, result]);
+  }, [map, result.computedAt]);
   return null;
 }
 function ResizeMap() {
@@ -25,10 +27,11 @@ function ResizeMap() {
   }, [map]);
   return null;
 }
-export default function AccessMap({ result, districts }) {
+export default function AccessMap({ result, districts, viewMode = 'baseline', focusedSiteId, onSiteSelect, onPopulationSelect }) {
   const [buildingsEnabled, setBuildingsEnabled] = useState(false), [buildingStatus, setBuildingStatus] = useState(null), [buildingRetry, setBuildingRetry] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [showWorldPop, setShowWorldPop] = useState(false), [showAccess, setShowAccess] = useState(true);
+  const displayed = useMemo(() => accessMapView(result, viewMode), [result, viewMode]);
   const population = usePopulationOverlay(result, districts, showWorldPop);
   const [opacity, setOpacity] = useState(.65);
   const frame = useRef(null), toggle = useRef(null);
@@ -39,7 +42,7 @@ export default function AccessMap({ result, districts }) {
   return <div ref={frame} className={`${ux.mapFrame} ${expanded ? ux.mapExpanded : ''}`} onKeyDown={event => {
     if (expanded && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); resize(false); }
   }}>
-    <div className={ux.mapToolbar}><strong>Map · current access</strong><button ref={toggle} type="button" aria-expanded={expanded} onClick={() => resize(!expanded)}>{expanded ? 'Restore map size' : 'Expand map'}</button></div>
+    <div className={ux.mapToolbar}><strong>Map · {displayed.viewLabel.toLowerCase()}</strong><button ref={toggle} type="button" aria-expanded={expanded} onClick={() => resize(!expanded)}>{expanded ? 'Restore map size' : 'Expand map'}</button></div>
     <div className={ux.mapLayers} aria-label="Access map layers">
       <label><input type="checkbox" checked={showWorldPop} disabled={!population.available} onChange={event => setShowWorldPop(event.target.checked)} />WorldPop population</label>
       <label><input type="checkbox" checked={showAccess} onChange={event => setShowAccess(event.target.checked)} />Access hexagons</label>
@@ -67,6 +70,6 @@ export default function AccessMap({ result, districts }) {
     {population.data && <TileLayer key={population.data.created} url={population.data.tileUrl} opacity={opacity} zIndex={250} className="access-worldpop-tiles" eventHandlers={population.events} attribution='&copy; WorldPop via Google Earth Engine' />}
     <GeoJSON key={result.scope.geographyKey} data={{ type: 'FeatureCollection', features: districts.map((d) => ({ type: 'Feature', properties: {}, geometry: d.geometry })) }} style={{ color: '#94a3b8', weight: 1, fillOpacity: 0.04 }} />
     <BuildingFootprints districts={districts} enabled={buildingsEnabled} onStatus={setBuildingStatus} retry={buildingRetry} />
-    <AccessResultLayer result={result} showPopulation={showAccess} /><Fit result={result} /><ResizeMap />
+    <AccessResultLayer result={displayed} showPopulation={showAccess} focusedSiteId={focusedSiteId} onSiteSelect={onSiteSelect} onPopulationSelect={onPopulationSelect} /><Fit result={result} /><ResizeMap />
   </MapContainer></div></div>;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CircleMarker, LayerGroup, Pane, Polygon, Popup, useMap, useMapEvents } from 'react-leaflet';
 import { svg } from 'leaflet';
 import { accessHexagons } from '../../lib/geo/accessHexagons';
@@ -10,20 +10,23 @@ const labels = { covered: 'Within threshold', unknown: 'Unknown access', 'beyond
 const format = value => value.toLocaleString(undefined, { maximumFractionDigits: 1 });
 const SERVICE_PANE = 'accessServicePoints';
 
-function ServicePoints({ result }) {
+function ServicePoints({ result, focusedSiteId, onSiteSelect }) {
+  const markers = useRef({});
+
   // SVG only captures clicks on the markers themselves. A separate full-map
   // canvas above the hexagons would also intercept clicks in its empty space.
   const renderer = useMemo(() => svg({ pane: SERVICE_PANE }), []);
   const map = useMap();
   useEffect(() => () => { map.removeLayer(renderer); }, [map, renderer]);
+  useEffect(() => { const marker = markers.current[focusedSiteId]; if (marker) { map.panTo(marker.getLatLng(), { animate: false }); marker.openPopup(); } }, [map, focusedSiteId]);
   return [...result.existingSites.map(s => ({ ...s, candidate: false })), ...result.candidates.map(s => ({ ...s, candidate: true }))].map(s =>
-    <CircleMarker key={`site:${s.id}`} center={[s.latitude, s.longitude]} radius={9} renderer={renderer}
+    <CircleMarker key={`site:${s.id}`} center={[s.latitude, s.longitude]} radius={s.id === focusedSiteId ? 12 : 9} renderer={renderer} ref={marker => { markers.current[s.id] = marker; }} eventHandlers={{ click: () => onSiteSelect?.(s.id) }}
       pathOptions={{ className: 'access-service-point', color: s.candidate ? '#7c3aed' : '#2563eb', fillOpacity: .25, weight: 3 }}>
       <Popup pane="popupPane"><strong>{s.name}</strong>{result.decision?.steps.some(step => step.id === s.id) && <p>Proposed site {result.decision.steps.find(step => step.id === s.id).order} in the complementary option · {result.decision.status === 'provisional' ? 'Evidence needs review' : 'Local review required'}</p>}<p>{s.candidate ? 'Candidate' : 'Existing service'} · {result.method === 'friction-surface-v1' ? (s.connected ? 'Travel surface available' : 'Travel surface unavailable') : (s.connected ? 'Connected to network' : 'No road connection')}</p></Popup>
     </CircleMarker>);
 }
 
-function PopulationHexagons({ result }) {
+function PopulationHexagons({ result, onPopulationSelect }) {
   const map = useMap();
   const [zoom, setZoom] = useState(map.getZoom());
   const [view, setView] = useState(0), [openHex, setOpenHex] = useState(null);
@@ -45,25 +48,26 @@ function PopulationHexagons({ result }) {
         <strong>{hex.rows.length === 1 ? hex.rows[0].name : `${hex.rows.length} population locations`}</strong>
         <p>{format(hex.population)} people · {labels[hex.status]} · {result.sources.populationDate}</p>
         {hex.rows.length > 1 && <ul>{Object.keys(hex.counts).map(status => <li key={status}>{labels[status]}: {format(hex.populations[status])} people ({hex.counts[status]} locations)</li>)}</ul>}
-        <p>{hex.minMinutes == null ? 'Unknown travel time' : `${formatTravelMinutes(hex.minMinutes)}${hex.maxMinutes !== hex.minMinutes ? `–${formatTravelMinutes(hex.maxMinutes)}` : ''} modeled travel time`}{hex.minMinutes != null && hex.counts.unknown ? '; some travel times unknown' : ''}</p>
-        <p>Hexagons group nearby population points at this zoom level. They show baseline access, not service catchment boundaries.</p>
+        <p>{hex.rows.some(row => row.scenarioReached) ? 'Within threshold for newly reached cells; exact scenario travel times are not stored' : hex.minMinutes == null ? 'Unknown travel time' : `${formatTravelMinutes(hex.minMinutes)}${hex.maxMinutes !== hex.minMinutes ? `–${formatTravelMinutes(hex.maxMinutes)}` : ''} modeled travel time`}{hex.minMinutes != null && hex.counts.unknown ? '; some travel times unknown' : ''}</p>
+        {onPopulationSelect && hex.rows.length === 1 && <button onClick={() => onPopulationSelect(hex.rows[0])}>View population breakdown</button>}
+        <p>Hexagons group nearby population points at this zoom level. They show {result.viewLabel || 'baseline access'}, not service catchment boundaries.</p>
       </>}</Popup>
     </Polygon>)}
     <div style={{ position: 'absolute', bottom: 24, left: 10, zIndex: MAP_PANES.legend, pointerEvents: 'none', background: 'rgba(255,255,255,.94)', borderRadius: 6, padding: '6px 9px', color: '#334155', fontSize: 11, maxWidth: 'calc(100% - 70px)' }} aria-label="Population hexagon legend">
-      <strong>Population · baseline access</strong>
+      <strong>Population · {result.viewLabel || 'baseline access'}</strong>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 10px' }}>{Object.entries(labels).map(([status, label]) => <span key={status}><span style={{ color: colors[status] }}>⬢</span> {label}</span>)}</div>
     </div>
   </>;
 }
 
-export default function AccessResultLayer({ result, fit = false, showPopulation = true }) {
+export default function AccessResultLayer({ result, fit = false, showPopulation = true, focusedSiteId, onSiteSelect, onPopulationSelect }) {
   const map = useMap();
   useEffect(() => {
     if (fit && result?.settlements?.length) map.fitBounds(result.settlements.map((s) => [s.latitude, s.longitude]), { padding: [30, 30], maxZoom: 13 });
   }, [map, result, fit]);
   if (!result) return null;
   return <LayerGroup>
-    {showPopulation && <PopulationHexagons result={result} />}
-    <Pane name={SERVICE_PANE} style={{ zIndex: MAP_PANES.services }}><ServicePoints result={result} /></Pane>
+    {showPopulation && <PopulationHexagons result={result} onPopulationSelect={onPopulationSelect} />}
+    <Pane name={SERVICE_PANE} style={{ zIndex: MAP_PANES.services }}><ServicePoints result={result} focusedSiteId={focusedSiteId} onSiteSelect={onSiteSelect} /></Pane>
   </LayerGroup>;
 }
