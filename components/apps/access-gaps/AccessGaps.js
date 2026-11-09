@@ -3,6 +3,7 @@ import dynamic from 'next/dynamic';
 import Papa from 'papaparse';
 import { isPointInGeometry } from '../../../lib/geo/geometry';
 import styles from '../../platform/Planning.module.css';
+import ux from './AccessGaps.module.css';
 import AreaMultiSelect from '../../platform/AreaMultiSelect';
 import { loadPlatformAccessInputs } from '../../../lib/planning/loadAccessInputs';
 import { accessScopeKey, ACCESS_CELL_SIZES } from '../../../lib/planning/accessInputs';
@@ -11,13 +12,13 @@ import PlaceListInput, { emptyPlaceList } from './PlaceListInput';
 import AreaReview from './AreaReview';
 import { runSurfaceAccess, createSurfaceTravelCache } from '../../../lib/planning/loadSurfaceAccess';
 import DecisionBrief from './DecisionBrief';
-import { accessDecisionText } from '../../../lib/planning/accessDecision';
+import { accessDecisionText, validateSitePolicy } from '../../../lib/planning/accessDecision';
 import { ACCESS_AGE_GROUPS, accessCohort } from '../../../lib/worldpop/accessCohorts';
 import PopulationResults from './PopulationResults';
 import { SURFACE_SOURCE, HEALTHSITES_SOURCE } from '../../../lib/planning/surfaceAccess';
 
 const AccessMap = dynamic(() => import('./AccessMap'), { ssr: false });
-const initialSettings = { mode: 'walking', speedKph: 4, thresholdMinutes: 60, maxSnapKm: 0.25, selectedCandidateIds: [], siteBudget: 3, facilitiesReviewed: false, decisionOwner: '', reviewDate: '', deliveryConstraints: '' };
+const initialSettings = { mode: 'walking', speedKph: 4, thresholdMinutes: 60, maxSnapKm: 0.25, selectedCandidateIds: [], siteBudget: 3, siteCountMode: 'limited', targetCoveragePercent: 90, facilitiesReviewed: false, decisionOwner: '', reviewDate: '', deliveryConstraints: '' };
 const initialSources = { population: '', populationDate: '', roads: '', roadsDate: '', sites: 'Workspace sites' };
 const format = (value) => Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 });
 export function downloadAccess(content, filename, type = 'application/json') {
@@ -48,6 +49,9 @@ export default function AccessGaps({ districts, selectedDistricts = [], faciliti
   const [savedPlans, setSavedPlans] = useState([]);
   const [publication, setPublication] = useState(null);
   const [busy, setBusy] = useState('');
+  const [notice, setNotice] = useState('');
+  const sectionRefs = useRef({});
+  const previousBusy = useRef('');
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
@@ -83,9 +87,31 @@ export default function AccessGaps({ districts, selectedDistricts = [], faciliti
     return () => { leaveGuard.current = null; window.removeEventListener('beforeunload', unload); };
   }, [dirty, busy, leaveGuard]);
   useEffect(() => () => { worker.current?.terminate(); loadingRequest.current?.abort(); }, []);
-  function change(action) { action(); setPlan(null); setPublication(null); setDirty(true); setError(''); }
+  useEffect(() => {
+    if (busy) { previousBusy.current = busy; setNotice(''); }
+    else if (previousBusy.current) { setNotice(`${previousBusy.current.replace(/…$/, '')} — finished.`); previousBusy.current = ''; }
+  }, [busy]);
+  function goTo(section) {
+    const element = sectionRefs.current[section];
+    if (element) { element.scrollIntoView({ block: 'start' }); element.focus({ preventScroll: true }); }
+  }
+  useEffect(() => { if (result) goTo('results'); }, [result?.computedAt]);
+  function cancelAction() {
+    if (loadingRequest.current) loadingRequest.current.abort();
+    if (worker.current) { worker.current.terminate(); worker.current = null; setBusy(''); }
+    setError('Operation cancelled.');
+  }
+  function editMetadata(key, value) {
+    if (key === 'name') setName(value); else setSettings(s => ({ ...s, [key]: value }));
+    setPlan(p => !p ? p : key === 'name' ? { ...p, metadata: { ...p.metadata, name: value } } : {
+      ...p, inputs: { ...p.inputs, settings: { ...p.inputs.settings, [key]: value } },
+      result: { ...p.result, settings: { ...p.result.settings, [key]: value } },
+    });
+    setPublication(null); setDirty(true); setError('');
+  }
+  function change(action) { action(); setPlan(null); setPublication(null); setDirty(true); setError(''); setNotice(''); }
   async function loadPlatform() {
-    setError(''); setBusy(isSurface ? 'Loading WorldPop and the Healthsites snapshot' : 'Loading WorldPop population cells and OSM roads'); setLoadingData(true);
+    setError(''); setBusy(isSurface ? 'Loading WorldPop and facility sources' : 'Loading WorldPop population cells and OSM roads'); setLoadingData(true);
     const controller = new AbortController(); loadingRequest.current = controller;
     try {
       const data = await loadPlatformAccessInputs({ districts: areas, cellSize, year: populationYear, cohort, force: platformReady, model: isSurface ? 'surface' : 'network', signal: controller.signal, onProgress: setBusy });
@@ -130,7 +156,7 @@ export default function AccessGaps({ districts, selectedDistricts = [], faciliti
     const runSettings = settingsOverride || settings;
     setError('');
     if (!name.trim() || !confirmed) { setError('Name the assessment and confirm the input assumptions.'); return; }
-    if (!Number.isInteger(runSettings.siteBudget) || runSettings.siteBudget < 1 || runSettings.siteBudget > 10) { setError('Choose between 1 and 10 outreach sites.'); return; }
+    try { validateSitePolicy(runSettings); } catch (e) { setError(e.message); return; }
     if (isAutomatic && !platformReady) { setError('Load platform data for the current area and population grid.'); return; }
     for (const [list, label] of [[targets, 'Catch-up list'], [feedback, 'Community feedback']]) if (list.rows.length && (!list.mapping.place || (label === 'Community feedback' && !list.mapping.feedback))) { setError(`Map the required columns for ${label.toLowerCase()}.`); return; }
     let areaContext;
@@ -165,6 +191,7 @@ export default function AccessGaps({ districts, selectedDistricts = [], faciliti
     current.postMessage(inputs);
   }
   async function save() {
+    if (!name.trim()) { setError('Enter an assessment name before saving.'); return; }
     setBusy('Saving'); setError('');
     try { const next = await storage.savePlan(plan, plan.revision); setPlan(next); setDirty(false); setSavedPlans(await storage.listPlans()); }
     catch (e) { setError(e.message); }
@@ -200,13 +227,9 @@ export default function AccessGaps({ districts, selectedDistricts = [], faciliti
       <select aria-label="Saved access assessments" value="" disabled={!!busy} onChange={(e) => open(e.target.value)}><option value="">Open saved assessment…</option>{savedPlans.map((p) => <option key={p.id} value={p.id}>{p.name} (v{p.revision})</option>)}</select>
       <button disabled={!plan || !!busy || !dirty} onClick={save}>Save assessment</button>
       <button disabled={!plan || dirty || !!busy || !sharedResults} onClick={publish}>Publish to workspace</button>
-      <span role="status" aria-live={loadingData ? "off" : "polite"} className={styles.muted}>{busy || (dirty ? 'Unsaved changes' : plan ? 'Saved on this device' : 'Create an assessment')}</span>
-      {!!busy && isSurface && !loadingData && loadingRequest.current && <button onClick={() => loadingRequest.current?.abort()}>Cancel calculation</button>}
-      {loadingData && <button onClick={() => loadingRequest.current?.abort()}>Cancel loading</button>}
-      {!!busy && worker.current && <button onClick={() => { worker.current?.terminate(); worker.current = null; setBusy(''); }}>Cancel calculation</button>}
+      <span role="status" aria-live={loadingData ? "off" : "polite"} className={styles.muted}>{(busy ? 'Action in progress…' : '') || (dirty ? 'Unsaved changes' : plan ? 'Saved on this device' : 'Create an assessment')}</span>
 
     </div>
-    {error && <p role="alert" className={styles.error}>{error}</p>}
     <div className={styles.body}>
       {publication && <section className={styles.notice} aria-label="Published assessment">
         <p>Published “{publication.metadata.name}” from saved revision {publication.source.revision}. Immunization Planning can now attach this snapshot. Existing plans will not change automatically.</p>
@@ -214,23 +237,28 @@ export default function AccessGaps({ districts, selectedDistricts = [], faciliti
         <p className={styles.muted}>Withdrawal prevents new imports. Copies already attached to plans remain part of their evidence history.</p>
       </section>}
       <h2>Find gaps in access to services</h2>
-      <p>Compare modeled journeys from populated areas to existing services, then assess where additional outreach sites could help. Atlas supplies population cells and mapped facilities. Choose approximate Earth Engine access estimates or detailed road-network modeling; no settlement file is required.</p>
+      <p>Compare modeled journeys from populated areas to existing services, then assess where additional outreach sites could help. Use this assessment for any service with known locations. Atlas supplies population cells; automatic facility discovery currently supplies healthcare locations. For other services, replace these with your own service-site CSV in step 3. Choose approximate Earth Engine access estimates or detailed road-network modeling; no settlement file is required.</p>
+      <nav className={ux.steps} aria-label="Assessment steps">
+        {[['area', '1. Choose area'], ['data', '2. Set parameters and load data'], ['services', '3. Review services and calculate'], ['results', '4. Compare results']].map(([key, label]) => <button key={key} disabled={!!busy || (key === 'results' && !result)} onClick={() => goTo(key)}>{label}</button>)}
+      </nav>
       <fieldset disabled={!!busy} style={{ border: 0, padding: 0, minWidth: 0 }}>
+        <h3 tabIndex={-1} ref={el => { sectionRefs.current.area = el; }} className={ux.step}>1. Select the operational area</h3>
+        {!areaIds.length && <p className={styles.notice}>Select at least one area. The assessment does not default to all uploaded boundaries.</p>}
+        <AreaMultiSelect districts={districts} value={areaIds} disabled={!!busy} onChange={(ids) => change(() => setAreaIds(ids))} />
+        <p>Start with the boundaries of your operation, then choose the population and journey you want to assess.</p>
+        <h3 tabIndex={-1} ref={el => { sectionRefs.current.data = el; }} className={ux.step}>2. Set parameters and load data</h3>
         <div className={styles.form}>
-          <label>Assessment name<input value={name} maxLength={200} onChange={(e) => change(() => setName(e.target.value))} /></label>
+          <label>Assessment name<input value={name} maxLength={200} onChange={(e) => editMetadata('name', e.target.value)} /></label>
           <label>Travel mode<select value={settings.mode} onChange={(e) => change(() => setSettings({ ...settings, mode: e.target.value, speedKph: e.target.value === 'walking' ? 4 : 30 }))}><option value="walking">Walking</option><option value="driving">{isSurface ? 'Motorized and walking' : 'Driving with walking connections'}</option></select></label>
           {!isSurface && <label>Assumed network speed (km/h)<input type="number" min="1" max="130" value={settings.speedKph} onChange={(e) => change(() => setSettings({ ...settings, speedKph: Number(e.target.value) }))} /></label>}
           <label>Maximum travel time (minutes)<input type="number" min="1" max="1440" value={settings.thresholdMinutes} onChange={(e) => change(() => setSettings({ ...settings, thresholdMinutes: Number(e.target.value) }))} /></label>
           {!isSurface && <label>Maximum walking connection to road (km)<input type="number" min="0" max="2" step="0.05" value={settings.maxSnapKm} onChange={(e) => change(() => setSettings({ ...settings, maxSnapKm: Number(e.target.value) }))} /></label>}
         </div>
-        <h3>1. Select the operational area</h3>
-        {!areaIds.length && <p className={styles.notice}>Select at least one area. The assessment does not default to all uploaded boundaries.</p>}
-        <AreaMultiSelect districts={districts} value={areaIds} disabled={!!busy} onChange={(ids) => change(() => setAreaIds(ids))} />
-        <h3>2. Population and travel data from Atlas</h3>
+
         <label>Analysis data<select aria-label="Analysis data" value={inputMode} onChange={(e) => change(() => { setInputMode(e.target.value); setPlatformData(null); setSettlements([]); setRoads(null); setSites([]); setConfirmed(false); })}><option value="earth-engine">Earth Engine access estimates (no road download)</option><option value="platform">WorldPop and OpenStreetMap (no uploads)</option><option value="upload">Use my own population points and roads</option></select></label>
         {isAutomatic ? <>
           <p>Your selected administrative boundaries define the analysis. Larger areas are downloaded in batches and combined automatically. Atlas adjusts the population grid if needed and reports the resolution used.</p>
-          {isSurface ? <p className={styles.notice}>Earth Engine estimates use a 2019 travel surface at approximately 1 km resolution, with a 100 km path-search limit. They are approximate planning estimates. Facility discovery combines current OSM health facilities with the June 2025 Healthsites snapshot. These records do not confirm vaccination-service availability. No road download is required.</p> : <p>WorldPop provides the population grid. Atlas loads complete OSM road extracts, including nearby roads outside the admin boundary.</p>}
+          {isSurface ? <p className={styles.notice}>Earth Engine estimates use a 2019 travel surface at approximately 1 km resolution, with a 100 km path-search limit. They are approximate planning estimates. Facility discovery combines current OSM health facilities with the June 2025 Healthsites snapshot. These records do not confirm availability of the service being assessed. No road download is required.</p> : <p>WorldPop provides the population grid. Atlas loads complete OSM road extracts, including nearby roads outside the admin boundary.</p>}
           <div className={styles.form}><label>Population year<select value={populationYear} onChange={(e) => change(() => setPopulationYear(['latest','current'].includes(e.target.value) ? e.target.value : Number(e.target.value)))}><option value="current">Latest at or before this year</option><option value="latest">Latest available (may be a future projection)</option>{Array.from({ length: 16 }, (_, i) => 2015 + i).map((year) => <option key={year} value={year}>{year}</option>)}</select></label><label>Target age group<select value={cohortSelection.age} onChange={e => change(() => setCohortSelection({ ...cohortSelection, age: e.target.value }))}>{ACCESS_AGE_GROUPS.map(group => <option key={group.id} value={group.id}>{group.label}</option>)}</select></label><label>Population sex<select value={cohortSelection.sex} onChange={e => change(() => setCohortSelection({ ...cohortSelection, sex: e.target.value }))}><option value="both">Female and male</option><option value="female">Female</option><option value="male">Male</option></select></label><label>Population cell size<select value={cellSize} onChange={(e) => change(() => setCellSize(Number(e.target.value)))}>{ACCESS_CELL_SIZES.map(size => <option key={size} value={size}>{size < 1000 ? `${size} m — finer detail` : `${size / 1000} km`}</option>)}</select></label></div>
           <p className={styles.muted}>Already in the workspace: WorldPop totals for {context.filter((a) => a.population != null).length} of {areas.length} selected areas; {accessContext.osmData?.features?.length || 0} OSM features. {isSurface ? 'The travel surface is combined with separately checked facility sources.' : 'The model reuses cached detailed extracts or requests the grid and complete road geometry needed for routing.'}</p>
           {loadingData && <div className={styles.loadingPanel} role="status" aria-label="Loading analysis data">
@@ -254,12 +282,16 @@ export default function AccessGaps({ districts, selectedDistricts = [], faciliti
         <p>{settlements.length} population points · {roads?.features?.length || 0} road features loaded</p>
         <button onClick={() => downloadAccess('settlement_id,settlement,latitude,longitude,population\n', 'access-population-template.csv', 'text/csv')}>Download population template</button>
         </>}
-        <h3>3. Existing services and outreach suggestions</h3>
-        <div className={styles.form}><label>Maximum outreach sites<input type="number" min="1" max="10" value={settings.siteBudget ?? 3} onChange={e => change(() => setSettings({ ...settings, siteBudget: Number(e.target.value) }))} /></label><label>Decision owner<input value={settings.decisionOwner || ''} maxLength={200} onChange={e => change(() => setSettings({ ...settings, decisionOwner: e.target.value }))} /></label><label>Review by<input type="date" value={settings.reviewDate || ''} onChange={e => change(() => setSettings({ ...settings, reviewDate: e.target.value }))} /></label><label>Delivery constraints<textarea value={settings.deliveryConstraints || ''} maxLength={2000} placeholder="Teams, cold chain, transport, security, session capacity…" onChange={e => change(() => setSettings({ ...settings, deliveryConstraints: e.target.value }))} /></label></div>
-        <p>The site limit is a planning constraint, not a team-capacity calculation. Confirm the available age bands match campaign eligibility; ranges such as 6–59 months cannot be extracted exactly from these age bands.</p>
-        <label className={styles.checkbox}><input type="checkbox" checked={!!settings.facilitiesReviewed} onChange={e => change(() => setSettings({ ...settings, facilitiesReviewed: e.target.checked }))} />The planning team has reviewed the included facility list for completeness and confirmed which sites provide the vaccination service.</label>
-        {platformReady && <div className={styles.notice}><strong>Facility discovery needs local review</strong><p>{sites.filter(site => site.role === 'existing' && areas.some(area => isPointInGeometry([Number(site.longitude), Number(site.latitude)], area.geometry))).length} included existing sites fall inside the selected areas. Zero means none in this included list; it does not mean the area has no health facilities.</p>{platformData.network.metadata.warnings?.map(warning => <p key={warning}>{warning}</p>)}<p>Review the list below, add workspace sites or a verified roster, and exclude sites that do not provide vaccination. Reload platform data to check the sources again.</p></div>}
-        {isAutomatic && <p>{isSurface ? 'Current OSM and Healthsites facilities' : 'Mapped OSM health facilities'} are used as the starting service locations. The model tests up to ten outreach areas, looking for population still unreached after earlier tested sites. The decision brief proposes complementary sites within your site limit. Review these suggestions with local teams. No candidate-site upload is needed.</p>}
+        <h3 tabIndex={-1} ref={el => { sectionRefs.current.services = el; }} className={ux.step}>3. Review services and new locations</h3>
+        <div className={styles.form}>
+          <label>Number of new locations<select aria-label="Number of new locations" value={settings.siteCountMode || 'limited'} onChange={e => change(() => setSettings({ ...settings, siteCountMode: e.target.value }))}><option value="limited">Set a maximum</option><option value="automatic">Let the app decide</option></select></label>
+          {settings.siteCountMode === 'automatic' ? <label>Target modeled coverage (%)<input type="number" min="1" max="100" value={settings.targetCoveragePercent ?? 90} onChange={e => change(() => setSettings({ ...settings, targetCoveragePercent: Number(e.target.value) }))} /></label> : <label>Maximum new locations<input type="number" min="1" max="10" value={settings.siteBudget ?? 3} onChange={e => change(() => setSettings({ ...settings, siteBudget: Number(e.target.value) }))} /></label>}
+        </div>
+        <p>{settings.siteCountMode === 'automatic' ? `The app adds locations for the largest additional reach until ${settings.targetCoveragePercent}% of the selected population is within ${settings.thresholdMinutes} minutes, or no further gain is available. It recommends at most ten new locations and explains if the target cannot be met.` : 'The app recommends complementary locations up to your maximum, excluding options that add no further reach.'} This estimates geographic access; staffing, capacity and costs need a separate operational review.</p>
+        <details><summary>Decision owner and delivery notes (optional)</summary><div className={styles.form}><label>Decision owner<input value={settings.decisionOwner || ''} maxLength={200} onChange={e => editMetadata('decisionOwner', e.target.value)} /></label><label>Review by<input type="date" value={settings.reviewDate || ''} onChange={e => editMetadata('reviewDate', e.target.value)} /></label><label>Delivery constraints<textarea value={settings.deliveryConstraints || ''} maxLength={2000} placeholder="Staff, supplies, transport, security, service capacity…" onChange={e => editMetadata('deliveryConstraints', e.target.value)} /></label></div></details>
+        <label className={styles.checkbox}><input type="checkbox" checked={!!settings.facilitiesReviewed} onChange={e => change(() => setSettings({ ...settings, facilitiesReviewed: e.target.checked }))} />The planning team has reviewed the included facility list for completeness and confirmed which sites provide the service being assessed.</label>
+        {platformReady && <div className={styles.notice}><strong>Facility discovery needs local review</strong><p>{sites.filter(site => site.role === 'existing' && areas.some(area => isPointInGeometry([Number(site.longitude), Number(site.latitude)], area.geometry))).length} included existing sites fall inside the selected areas. Zero means none in this included list; it does not mean the area has no health facilities.</p>{platformData.network.metadata.warnings?.map(warning => <p key={warning}>{warning}</p>)}<p>Review the list below, add workspace sites or a verified roster, and exclude sites that do not provide the service being assessed. Reload platform data to check the sources again.</p></div>}
+        {isAutomatic && <p>{isSurface ? 'Current OSM and Healthsites facilities' : 'Mapped OSM health facilities'} are used as the starting service locations. The model tests up to ten outreach areas, looking for population still unreached after earlier tested sites. The decision brief proposes complementary sites using your location-count policy. Review these suggestions with local teams. No candidate-site upload is needed.</p>}
         <details><summary>Review or change service locations (optional)</summary>
         <div className={styles.actions}><button disabled={!areas.length || !facilities.length} onClick={useWorkspaceSites}>Use workspace sites in selected areas</button><button onClick={() => downloadAccess('id,name,latitude,longitude,role\n', 'access-sites-template.csv', 'text/csv')}>Download sites template</button></div>
         <div className={styles.form}><label>Service sites CSV<input type="file" accept=".csv" onChange={(e) => importFile(e, 'sites')} /></label><label>Site source<input value={sources.sites} onChange={(e) => change(() => setSources({ ...sources, sites: e.target.value }))} /></label></div>
@@ -276,14 +308,15 @@ export default function AccessGaps({ districts, selectedDistricts = [], faciliti
           <div className={styles.form}>{[['populationField', 'Boundary population field'], ['field', 'Mobility field']].map(([key, label]) => <label key={key}>{label}<select aria-label={label} value={mobility[key] || ''} onChange={(e) => change(() => setMobility({ ...mobility, [key]: e.target.value }))}><option value="">None selected</option>{boundaryFields.map((f) => <option key={f}>{f}</option>)}</select></label>)}{[['source', 'Mobility source'], ['period', 'Mobility period'], ['units', 'Mobility units']].map(([key, label]) => <label key={key}>{label}<input value={mobility[key] || ''} placeholder={key === 'source' ? 'e.g. Flowminder' : ''} onChange={(e) => change(() => setMobility({ ...mobility, [key]: e.target.value }))} /></label>)}</div>
         </details>
         <label className={styles.checkbox}><input type="checkbox" checked={confirmed} onChange={(e) => change(() => setConfirmed(e.target.checked))} />{isAutomatic ? 'Use these mapped facilities and population cells for a planning estimate; service availability and suggested outreach sites need local verification.' : 'The population rows do not overlap, and the road network preserves junction vertices and covers the relevant journeys, including routes outside the selected areas.'}</label>
-        <button className={styles.primary} disabled={!confirmed || !areas.length || !roads || !settlements.length || (isAutomatic ? !platformReady : !sites.length)} onClick={() => run()}>Calculate access gaps</button>
+        <p className={styles.muted}>Next: calculate to compare current access with a proposed set of additional locations. Review the evidence gaps before using the recommendation.</p>
+        <button className={styles.primary} disabled={!confirmed || !areas.length || !roads || !settlements.length || (isAutomatic ? !platformReady : !sites.length)} onClick={() => run()}>{busy && !loadingData && (worker.current || loadingRequest.current) ? 'Calculating…' : 'Calculate access gaps'}</button>
       </fieldset>
       {result && <section aria-label="Access assessment results">
-        <h2>Modeled access within {result.settings.thresholdMinutes} minutes</h2>
+        <h2 tabIndex={-1} ref={el => { sectionRefs.current.results = el; }} className={ux.step}>Modeled access within {result.settings.thresholdMinutes} minutes</h2>
         <p>{result.existingSites.length} existing service locations included in the baseline: {servicesInsideArea} inside the selected areas and {result.existingSites.length - servicesInsideArea} outside. Outside services can provide access across administrative boundaries. Source: {result.sources.sites}.</p>
         {result.method === 'friction-surface-v1' && <p className={styles.notice}>Earth Engine access estimate · 2019 travel surface · approximately 1 km resolution · 100 km search limit. Close sites can be indistinguishable at this scale.</p>}
         <div className={styles.stats}>{[[result.settings.platformInputs ? `Modeled population · ${cohort.label}` : 'Uploaded population', result.totals.population], ['Within threshold', result.totals.covered], ['Beyond threshold', result.totals.beyondThreshold], ['Unknown access', result.totals.unknown]].map(([title, count]) => <div key={title}><span>{title}</span><strong>{format(count)}</strong></div>)}</div>
-        <div className={styles.map}><AccessMap result={result} districts={areas} /></div>
+        <AccessMap result={result} districts={areas} />
         <p className={styles.muted}>Hexagons group population points: green within threshold, amber beyond threshold, gray unknown, dark slate mixed access. Zoom in or select a hexagon for detail. Blue circles: existing service · Purple circles: candidate.</p>
         <DecisionBrief result={result} onUseRecommendation={() => { const next = { ...settings, selectedCandidateIds: result.decision.selectedCandidateIds }; setSettings(next); run(next); }} />
         <h3>Candidate comparison · individual alternatives</h3>
@@ -297,5 +330,11 @@ export default function AccessGaps({ districts, selectedDistricts = [], faciliti
         <div className={styles.actions}>{result.decision && <button onClick={() => downloadAccess(accessDecisionText(result), 'outreach-decision-brief.txt', 'text/plain')}>Export decision brief</button>}<button onClick={() => downloadAccess(JSON.stringify(result, null, 2), 'access-assessment.json')}>Export assessment and evidence</button><button onClick={() => downloadAccess(Papa.unparse(result.settlements, { escapeFormulae: true }), 'access-settlements.csv', 'text/csv')}>Export settlements CSV</button></div>
       </section>}
     </div>
+    {(busy || error || notice) && <div className={ux.activity}>
+      {!!busy && <span className={styles.loadingSpinner} aria-hidden="true" />}
+      <div className={ux.activityText} role="status" aria-live="polite" aria-label="Action progress"><strong>{busy ? 'Working…' : error ? 'Action needs attention' : 'Action complete'}</strong><p role={error && !busy ? "alert" : undefined}>{busy || error || notice}</p></div>
+      {busy && (loadingData || worker.current || loadingRequest.current) && <button onClick={cancelAction}>{loadingData ? 'Cancel loading' : 'Cancel calculation'}</button>}
+      {!busy && <button onClick={() => { setNotice(''); setError(''); }}>Dismiss status</button>}
+    </div>}
   </div>;
 }

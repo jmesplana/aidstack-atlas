@@ -1,6 +1,8 @@
 import { withRateLimit } from '../../lib/rateLimit';
-import { assertEnum, sendApiError } from '../../lib/validation/apiValidation';
-import { ALLOWED_WORLDPOP_DATA_TYPES, resolveWorldPopYear } from '../../lib/worldpop/worldpopYears';
+import { sendApiError } from '../../lib/validation/apiValidation';
+import { resolveWorldPopYear } from '../../lib/worldpop/worldpopYears';
+
+import { ACCESS_POPULATION_VIS, populationTileSelection, populationTileImage } from '../../lib/worldpop/populationTiles';
 
 export const config = {
   api: { bodyParser: { sizeLimit: '1mb' } },
@@ -55,6 +57,7 @@ async function initEE() {
     );
   });
 
+  eeInitPromise = eeInitPromise.catch(error => { eeInitPromise = null; throw error; });
   return eeInitPromise;
 }
 
@@ -68,8 +71,10 @@ async function handler(req, res) {
   }
 
   try {
-    const { year = 'latest', dataType = 'total', bounds } = req.body || {};
-    const validatedDataType = assertEnum(dataType, 'dataType', ALLOWED_WORLDPOP_DATA_TYPES);
+    const body = req.body || {};
+    const { year = 'latest' } = body;
+    const selection = populationTileSelection(body);
+    const validatedDataType = selection.dataType;
 
     await initEE();
     const ee = require('@google/earthengine');
@@ -77,69 +82,11 @@ async function handler(req, res) {
 
     console.log(`[WorldPop Tiles] Generating tile URL for year=${parsedYear}, dataType=${validatedDataType}`);
 
-    // Select the appropriate collection
-    const collectionId = validatedDataType === 'agesex'
-      ? 'projects/sat-io/open-datasets/WORLDPOP/agesex'
-      : 'projects/sat-io/open-datasets/WORLDPOP/pop';
-
-    console.log(`[WorldPop Tiles] Using collection: ${collectionId}`);
-
-    const collection = ee.ImageCollection(collectionId)
-      .filterDate(`${parsedYear}-01-01`, `${parsedYear + 1}-01-01`);
-
-    // Get the mosaic image
-    const image = collection.mosaic();
-
-    // For total population, select the population band
-    let selectedImage = validatedDataType === 'agesex'
-      ? image  // Use all bands for agesex
-      : image.select(['population']); // Select only population band for total
-
-    // Clip to bounds if provided
-    if (bounds) {
-      console.log('[WorldPop Tiles] Clipping to bounds:', bounds);
-      const geometry = ee.Geometry.Rectangle([
-        bounds.west,
-        bounds.south,
-        bounds.east,
-        bounds.north
-      ]);
-      selectedImage = selectedImage.clip(geometry);
-    } else {
-      console.log('[WorldPop Tiles] No bounds provided - showing global/regional data');
-    }
-
-    // Define visualization parameters
-    const visParams = validatedDataType === 'agesex'
-      ? {
-          // For agesex, we'll sum all bands and visualize
-          min: 0,
-          max: 1000, // Adjust based on your needs
-          palette: ['#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020']
-        }
-      : {
-          // For total population density
-          min: 0,
-          max: 500, // people per 100m pixel
-          palette: ['#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020']
-        };
-
-    // If agesex, sum all male and female bands for visualization
-    let visualizationImage;
-    if (validatedDataType === 'agesex') {
-      // Sum all f_* and m_* bands to get total population
-      // List all 38 age-sex bands explicitly and sum them
-      visualizationImage = selectedImage
-        .select(['f_00', 'm_00', 'f_01', 'm_01', 'f_05', 'm_05', 'f_10', 'm_10',
-                 'f_15', 'm_15', 'f_20', 'm_20', 'f_25', 'm_25', 'f_30', 'm_30',
-                 'f_35', 'm_35', 'f_40', 'm_40', 'f_45', 'm_45', 'f_50', 'm_50',
-                 'f_55', 'm_55', 'f_60', 'm_60', 'f_65', 'm_65', 'f_70', 'm_70',
-                 'f_75', 'm_75', 'f_80', 'm_80', 'f_85', 'm_85', 'f_90', 'm_90'])
-        .reduce(ee.Reducer.sum())
-        .rename('total_pop');
-    } else {
-      visualizationImage = selectedImage;
-    }
+    const visualizationImage = populationTileImage(ee, parsedYear, selection, body);
+    const visParams = selection.cohort ? ACCESS_POPULATION_VIS : {
+      min: 0, max: validatedDataType === 'agesex' ? 1000 : 500,
+      palette: ['#0571b0', '#92c5de', '#f7f7f7', '#f4a582', '#ca0020'],
+    };
 
     // Get the tile URL using getMapId
     const mapIdPromise = new Promise((resolve, reject) => {
@@ -169,7 +116,9 @@ async function handler(req, res) {
       token: mapId.token,
       year: parsedYear,
       dataType: validatedDataType,
-      visParams
+      visParams,
+      cohort: selection.cohort,
+      units: 'people per source pixel (approximately 100 m)',
     });
 
   } catch (error) {

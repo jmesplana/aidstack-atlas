@@ -56,14 +56,14 @@ function PopulationHexagons({ result }) {
   </>;
 }
 
-export default function AccessResultLayer({ result, fit = false }) {
+export default function AccessResultLayer({ result, fit = false, showPopulation = true }) {
   const map = useMap();
   useEffect(() => {
     if (fit && result?.settlements?.length) map.fitBounds(result.settlements.map((s) => [s.latitude, s.longitude]), { padding: [30, 30], maxZoom: 13 });
   }, [map, result, fit]);
   if (!result) return null;
   return <LayerGroup>
-    <PopulationHexagons result={result} />
+    {showPopulation && <PopulationHexagons result={result} />}
     <Pane name={SERVICE_PANE} style={{ zIndex: MAP_PANES.services }}><ServicePoints result={result} /></Pane>
   </LayerGroup>;
 }

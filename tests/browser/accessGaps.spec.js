@@ -107,6 +107,11 @@ test('mobile assessment fits viewport, exports evidence, and input changes inval
   await page.setViewportSize({ width: 390, height: 844 });
   await seed(page); await calculate(page);
   expect(await page.locator('dialog').evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  const map = page.locator('dialog .leaflet-container');
+  const originalHeight = (await map.boundingBox()).height;
+  await page.getByRole('button', { name: 'Expand map', exact: true }).click();
+  await expect.poll(async () => (await map.boundingBox()).height).toBeGreaterThan(originalHeight);
+  await page.getByRole('button', { name: 'Restore map size' }).click();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export assessment and evidence' }).click();
   expect((await download).suggestedFilename()).toBe('access-assessment.json');
@@ -158,7 +163,7 @@ test('population overlay renders a honeycomb with details and survives zooming',
       await expect(map).not.toHaveClass(/leaflet-zoom-anim/);
     }
     for (const [index, name] of ['Existing clinic', 'Outreach site'].entries()) {
-      await map.locator('.access-service-point').nth(index).click();
+    await map.locator('.access-service-point').nth(index).click();
       await expect(map.locator('.leaflet-popup')).toContainText(name);
       await expectPopupAboveMap();
       if (!zoomButton && index === 0) await map.screenshot({ path: testInfo.outputPath('service-popup-above-hexagons.png') });
@@ -316,6 +321,12 @@ test('shows animated loading beside the data button and cancels an in-flight dow
   await expect(loading).toContainText('WorldPop cells: batch 1 of 1');
   await expect(loading).toContainText('OSM major roads: loading group 1 of 4');
   expect(await loading.locator('[aria-hidden=true]').evaluate(el => getComputedStyle(el).animationName)).not.toBe('none');
+  // Feedback must stay in view even when the setup form is scrolled away.
+  await page.getByRole('button', { name: 'Calculate access gaps', exact: true }).scrollIntoViewIfNeeded();
+  const progress = page.getByRole('status', { name: 'Action progress', exact: true });
+  await expect(progress).toBeInViewport();
+  await expect(progress).toContainText('Working…');
+  await expect(page.getByRole('button', { name: 'Cancel loading', exact: true })).toBeInViewport();
   await page.screenshot({ path: testInfo.outputPath('loading-mobile.png') });
   await page.getByRole('button', { name: 'Cancel loading', exact: true }).click();
   await expect(loading).toHaveCount(0);
@@ -359,6 +370,8 @@ test('Earth Engine estimates load without OSM roads, compare outreach, save and 
   test.setTimeout(120000);
   await seed(page);
   const requests = [];
+  let releaseTravel;
+  const travelGate = new Promise(resolve => { releaseTravel = resolve; });
   await page.route('**/api/access-inputs', async route => {
     const body=route.request().postDataJSON(); requests.push(body.kind);
     expect(body.kind).toBe('population');
@@ -371,6 +384,7 @@ test('Earth Engine estimates load without OSM roads, compare outreach, save and 
   });
   await page.route('**/api/access-surface', async route => {
     const body=route.request().postDataJSON();requests.push(body.action);
+    if (body.action === 'travel') await travelGate;
     await route.fulfill({json:body.action==='facilities'?{sites:[{...facilities[0],role:'existing'}],source:{name:'Healthsites snapshot'},metadata:{timestamp:new Date().toISOString()}}:{times:body.sites[0][0]===7.1?[0,80,90]:[80,0,10],connectedSites:body.sites.map(()=>true)}});
   });
   await openApp(page,'Access Gaps',true,'earth-engine');
@@ -384,6 +398,12 @@ test('Earth Engine estimates load without OSM roads, compare outreach, save and 
   await expect(page.getByText(/Ready: 3 population cells/)).toBeVisible({timeout:20000});
   await page.getByRole('checkbox',{name:/Use these mapped facilities/}).check();
   await page.getByRole('button',{name:'Calculate access gaps'}).click();
+  const activity = page.getByRole('status', { name: 'Action progress', exact: true });
+  await expect(activity).toBeInViewport();
+  await expect(activity).toContainText('Estimating access to existing services');
+  await expect(page.getByRole('button', { name: 'Calculating…', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Cancel calculation', exact: true })).toBeInViewport();
+  releaseTravel();
   await expect(page.getByRole('heading',{name:'Population cell results'})).toBeVisible({timeout:20000});
   const brief = page.getByRole('region', {name:'Outreach decision brief'});
   await expect(brief).toContainText('Provisional');
@@ -456,17 +476,137 @@ test('building footprints load automatically at neighborhood zoom and keep servi
     await route.fulfill({ json: { type: 'FeatureCollection', features: [{ type: 'Feature', id: 'way/123', properties: { building: 'yes' }, geometry: { type: 'Polygon', coordinates: [[[7.1,46.1],[7.101,46.1],[7.101,46.101],[7.1,46.101],[7.1,46.1]]] } }], metadata: { source: 'OpenStreetMap', timestamp: '2026-11-09T00:00:00Z' } } });
   });
   const map = page.getByRole('region', { name: 'Access assessment results' }).locator('.leaflet-container');
-  await map.getByRole('checkbox', { name: 'Building footprints', exact: true }).check();
-  await expect(map.getByText('Zoom in to neighborhood level to load building outlines.')).toBeVisible();
+  await page.locator('dialog').getByRole('checkbox', { name: 'Building footprints', exact: true }).check();
+  await expect(page.getByText('Zoom in to neighborhood level to load building outlines.')).toBeVisible();
   expect(calls).toBe(0);
   await map.getByRole('button', { name: 'Zoom in', exact: true }).click();
-  await expect(map.getByText('1 building outline in the visible selected area. Mapping coverage varies.')).toBeVisible({ timeout: 20000 });
+  await expect(page.getByText('1 building outline in the visible selected area. Mapping coverage varies.')).toBeVisible({ timeout: 20000 });
   expect(calls).toBeGreaterThan(0);
   await map.locator('.access-service-point').first().click();
   await expect(map.locator('.leaflet-popup-pane .leaflet-popup')).toContainText('Existing clinic');
   await map.screenshot({ path: testInfo.outputPath('building-footprints.png') });
   await map.getByRole('button', { name: 'Close popup' }).click();
-  await map.getByRole('checkbox', { name: 'Building footprints', exact: true }).uncheck();
+  await page.locator('dialog').getByRole('checkbox', { name: 'Building footprints', exact: true }).uncheck();
   await expect(map.locator('.leaflet-buildingFootprints-pane canvas')).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test('guided access supports automatic location counts, map expansion and metadata edits without losing results', async ({ page }, testInfo) => {
+  await seed(page);
+  await calculate(page);
+  await expect(page.getByRole('navigation', { name: 'Assessment steps' })).toBeVisible();
+  const map = page.locator('dialog .leaflet-container');
+  const before = await map.boundingBox();
+  await page.getByRole('button', { name: 'Expand map', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Restore map size' })).toHaveAttribute('aria-expanded', 'true');
+  await expect.poll(async () => (await map.boundingBox()).height).toBeGreaterThan(before.height);
+  await page.getByRole('button', { name: 'Restore map size' }).press('Escape');
+  await expect(page.getByRole('button', { name: 'Expand map', exact: true })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'Modeled access within 1 minutes' })).toBeVisible();
+  await page.getByLabel('Assessment name').fill('General service access');
+  await page.getByText('Decision owner and delivery notes (optional)', { exact: true }).click();
+  await page.getByLabel('Decision owner', { exact: true }).fill('Operations team');
+  await expect(page.getByRole('region', { name: 'Outreach decision brief' })).toContainText('Decision owner: Operations team');
+  await page.getByLabel('Number of new locations', { exact: true }).selectOption('automatic');
+  await expect(page.getByLabel('Maximum new locations', { exact: true })).toHaveCount(0);
+  await page.getByLabel('Target modeled coverage (%)', { exact: true }).fill('90');
+  await page.getByRole('button', { name: 'Calculate access gaps', exact: true }).click();
+  const brief = page.getByRole('region', { name: 'Outreach decision brief' });
+  await expect(brief).toContainText('90% coverage target');
+  await expect(brief).toContainText('Why the app stopped:');
+  await expect(brief).toContainText('target is already met');
+  await page.getByRole('button', { name: 'Save assessment', exact: true }).click();
+  await page.getByRole('button', { name: 'Back to Apps' }).click();
+  await openApp(page, 'Access Gaps');
+  await page.getByLabel('Saved access assessments').selectOption({ label: 'General service access (v1)' });
+  await expect(page.getByLabel('Number of new locations', { exact: true })).toHaveValue('automatic');
+  await expect(brief).toContainText('90% coverage target');
+  await page.screenshot({ path: testInfo.outputPath('access-guided-results.png'), fullPage: true });
+});
+
+test('WorldPop overlay matches the assessment cohort and toggles independently of access and site markers', async ({ page }, testInfo) => {
+  test.setTimeout(120000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seed(page);
+  const requests = [], tileRequests = [];
+  await loadAutomatic(page, requests);
+  await page.getByLabel('Target age group').selectOption('under5');
+  await page.getByRole('combobox', { name: 'Population sex', exact: true }).selectOption('female');
+  await page.getByRole('button', { name: 'Load WorldPop and OSM for selected areas' }).click();
+  await expect(page.getByText(/Ready: 3 population cells/)).toBeVisible();
+  await page.getByRole('combobox', { name: 'Travel mode', exact: true }).selectOption('driving');
+  await page.getByLabel('Assumed network speed').fill('60');
+  await page.getByLabel('Maximum travel time').fill('1');
+  await page.getByRole('checkbox', { name: /Use these mapped facilities/ }).check();
+  await page.getByRole('button', { name: 'Calculate access gaps' }).click();
+  await expect(page.getByRole('heading', { name: 'Population cell results' })).toBeVisible();
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  await page.route('**/api/worldpop-tiles', async route => {
+    const body = route.request().postDataJSON(); tileRequests.push(body);
+    await gate;
+    await route.fulfill({ json: { year: body.year, cohort: body.cohort, tileUrl: 'http://127.0.0.1:3000/test-population/{z}/{x}/{y}.png', visParams: { max: 100, palette: ['#ffffcc', '#800026'] } } });
+  });
+  await page.route('**/test-population/**', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect width="256" height="256" fill="#fd8d3c"/></svg>' }));
+  const overlay = page.getByRole('checkbox', { name: 'WorldPop population', exact: true });
+  await expect(overlay).not.toBeChecked();
+  expect(tileRequests).toHaveLength(0);
+  await overlay.check();
+  await expect(page.getByLabel('WorldPop overlay status')).toContainText('Preparing');
+  release();
+  await expect(page.getByLabel('WorldPop overlay status')).toContainText('ready');
+  expect(tileRequests[0]).toMatchObject({ year: 2025, cohort: { age: 'under5', sex: 'female' }, districts: [{ id: 'A', geometry: districts[0].geometry }] });
+  await expect(page.getByLabel('WorldPop population legend')).toContainText('Under 5 years · female');
+  const map = page.locator('dialog .leaflet-container');
+  await expect(map.locator('.access-worldpop-tiles')).toHaveCount(1);
+  await page.getByLabel('Population opacity', { exact: true }).fill('0.4');
+  await expect(map.locator('.access-worldpop-tiles')).toHaveCSS('opacity', '0.4');
+  await page.getByRole('checkbox', { name: 'Access hexagons', exact: true }).uncheck();
+  await expect(map.getByLabel('Population hexagon legend')).toHaveCount(0);
+  await expect(map.locator('.access-service-point')).toHaveCount(2);
+  for (const [index, name] of [[0, 'Existing clinic'], [1, 'Suggested outreach near Population cell 2']]) {
+    await map.locator('.access-service-point').nth(index).click();
+    await expect(map.locator('.leaflet-popup')).toContainText(name);
+    await expect(map.locator('.leaflet-pan-anim')).toHaveCount(0);
+    await map.getByRole('button', { name: 'Close popup' }).click();
+    // A popup can pan its neighbor out of view; bring both locations back into view.
+    if (index === 0) {
+      await map.getByRole('button', { name: 'Zoom out', exact: true }).click();
+      await expect(map.locator('.leaflet-zoom-anim')).toHaveCount(0);
+    }
+  }
+  await page.getByRole('button', { name: 'Expand map', exact: true }).click();
+  await expect(map.locator('.access-worldpop-tiles')).toHaveCount(1);
+  await page.screenshot({ path: testInfo.outputPath('worldpop-overlay-mobile.png') });
+  await overlay.uncheck();
+  await expect(map.locator('.access-worldpop-tiles')).toHaveCount(0);
+  await expect(map.locator('.access-service-point')).toHaveCount(2);
+  await overlay.check();
+  await expect(page.getByLabel('WorldPop overlay status')).toContainText('ready');
+  expect(tileRequests).toHaveLength(1);
+  await page.getByRole('checkbox', { name: 'Access hexagons', exact: true }).check();
+  await expect(map.getByLabel('Population hexagon legend')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Modeled access within 1 minutes' })).toBeVisible();
+  expect(requests.filter(kind => kind === 'population')).toHaveLength(2);
+});
+
+test('WorldPop overlay failures stay visible and can be retried without recalculating access', async ({ page }) => {
+  await seed(page);
+  await loadAutomatic(page, []);
+  await page.getByRole('checkbox', { name: /Use these mapped facilities/ }).check();
+  await page.getByRole('button', { name: 'Calculate access gaps' }).click();
+  await expect(page.getByRole('heading', { name: 'Population cell results' })).toBeVisible();
+  let attempts = 0;
+  await page.route('**/api/worldpop-tiles', async route => {
+    const body = route.request().postDataJSON();
+    await route.fulfill(++attempts === 1 ? { status: 503, json: { error: 'Population tile provider unavailable.' } } : { json: { year: 2024, cohort: body.cohort, tileUrl: 'http://127.0.0.1:3000/wrong-year/{z}/{x}/{y}.png' } });
+  });
+  await page.getByRole('checkbox', { name: 'WorldPop population', exact: true }).check();
+  await expect(page.getByRole('alert', { name: 'WorldPop overlay status' })).toContainText('provider unavailable');
+  await page.getByRole('button', { name: 'Retry population overlay', exact: true }).click();
+  await expect(page.getByRole('alert', { name: 'WorldPop overlay status' })).toContainText('does not match');
+  await expect(page.locator('dialog .access-worldpop-tiles')).toHaveCount(0);
+  await page.getByRole('checkbox', { name: 'WorldPop population', exact: true }).uncheck();
+  await expect(page.getByLabel('WorldPop overlay status')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Population cell results' })).toBeVisible();
 });

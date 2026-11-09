@@ -93,3 +93,47 @@ test('exported decision brief preserves actual gains, cohort, evidence issues an
   assert.match(text,/Decision owner: Not assigned/);
   assert.match(text,/Services: Roster/);
 });
+
+test('automatic count stops at a coverage target with complementary gains, regardless of manual budget', () => {
+  const auto = targetCoveragePercent => buildAccessDecision({ ...result, settings: { ...result.settings, siteCountMode: 'automatic', siteBudget: 1, targetCoveragePercent } });
+  const first = auto(70);
+  assert.deepEqual(first.selectedCandidateIds, ['a']);
+  assert.equal(first.stoppingReason, 'target-met');
+  const second = auto(90);
+  assert.deepEqual(second.selectedCandidateIds, ['a', 'c']);
+  assert.equal(second.targetMet, true);
+  assert.equal(second.coveredPopulation, 170);
+  assert.equal(second.remainingUnknown, 10);
+  const all = auto(100);
+  assert.deepEqual(all.selectedCandidateIds, ['a', 'c', 'b']);
+  assert.equal(all.reachableFromUnknown, 10);
+  const baseline = auto(10);
+  assert.equal(baseline.steps.length, 0);
+  assert.equal(baseline.targetMet, true);
+});
+
+test('automatic count explains unmet targets, redundant alternatives, empty population and the search cap', () => {
+  const settings = { siteCountMode: 'automatic', targetCoveragePercent: 100 };
+  const exhausted = buildAccessDecision({ ...result, settings, candidates: [result.candidates[0]] });
+  assert.equal(exhausted.targetMet, false);
+  assert.equal(exhausted.stoppingReason, 'candidates-exhausted');
+  const redundant = buildAccessDecision({ ...result, settings, candidates: [result.candidates[0], { ...result.candidates[0], id: 'duplicate' }] });
+  assert.equal(redundant.stoppingReason, 'no-additional-reach');
+  const empty = buildAccessDecision({ ...result, settings, settlements: [], candidates: [], totals: { population: 0, covered: 0, beyondThreshold: 0, unknown: 0 } });
+  assert.equal(empty.targetMet, false);
+  assert.equal(empty.stoppingReason, 'no-population');
+  const settlements = Array.from({ length: 11 }, (_, i) => ({ areaId: 'A', settlementId: String(i), population: 10, status: 'beyond-threshold' }));
+  const capped = buildAccessDecision({ ...result, settings, settlements, candidates: settlements.map(row => ({ id: row.settlementId, settlementIds: [key(row.settlementId)] })), totals: { population: 110, covered: 0, beyondThreshold: 110, unknown: 0 } });
+  assert.equal(capped.steps.length, 10);
+  assert.equal(capped.stoppingReason, 'search-limit');
+  assert.equal(capped.targetMet, false);
+  for (const targetCoveragePercent of [0, -1, 101, NaN, Infinity]) assert.throws(() => buildAccessDecision({ ...result, settings: { ...settings, targetCoveragePercent } }), /coverage target/);
+});
+
+test('automatic export states whether the coverage target was reached', () => {
+  const data = { ...result, settings: { ...result.settings, siteCountMode: 'automatic', targetCoveragePercent: 100 }, candidates: [result.candidates[0]], computedAt: '2026-11-09', sources: { population: 'WorldPop', populationDate: '2026-01-01', roads: 'Surface', roadsDate: '2019-01-01', sites: 'Roster' }, limitations: [] };
+  const text = accessDecisionText({ ...data, decision: buildAccessDecision(data) });
+  assert.match(text, /coverage target: 100%/);
+  assert.match(text, /Coverage target reached: No/);
+  assert.match(text, /All tested locations with additional reach have been used/);
+});
